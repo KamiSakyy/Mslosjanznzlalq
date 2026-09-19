@@ -1,3 +1,3 @@
-Built at Sat Sep 19 17:59:05 UTC 2026 commit bc1f99d1558ed5448b2a803c7ae23b354b8a15ce
--rw-r--r-- 1 runner runner 487 Sep 19 17:57 handoff/app-debug.apk
--rw-r--r-- 1 runner runner 487 Sep 19 17:59 handoff/lumi-aether-debug.apk
+Built at Sat Sep 19 18:01:56 UTC 2026 commit cdc7693cb0dfac7dd36323ea48189bdeadb6f288
+-rw-r--r-- 1 runner runner 11M Sep 19 18:01 handoff/app-debug.apk
+-rw-r--r-- 1 runner runner 11M Sep 19 18:01 handoff/lumi-aether-debug.apk
