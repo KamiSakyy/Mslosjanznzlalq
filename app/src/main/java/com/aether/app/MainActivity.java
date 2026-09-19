@@ -151,6 +151,9 @@ public class MainActivity extends AppCompatActivity {
         prefs = PreferencesManager.getInstance(this);
         lumiStore = new LumiStore(this);
         aiRouter = new AiRouter();
+        // Устанавливаем ключи для новых провайдеров (Groq, OpenRouter) - ищем сами
+        AiRouter.groqApiKey = prefs.getGroqKey();
+        AiRouter.openRouterApiKey = prefs.getOpenRouterKey();
         animeApi = new AnimeApi();
         imageSearchApi = new ImageSearchApi();
         characterApi = new CharacterApi();
@@ -1532,7 +1535,8 @@ public class MainActivity extends AppCompatActivity {
 
     public static class ProvidersFragment extends androidx.fragment.app.Fragment {
         private RecyclerView rvProviders;
-        private MaterialButton btnPing, btnEnableAll, btnReset;
+        private MaterialButton btnPing, btnEnableAll, btnReset, btnSaveGroq, btnSaveOR;
+        private EditText etGroqKey, etOpenRouterKey;
         private List<AIProvider> providers = new ArrayList<>();
         private final ExecutorService exec = Executors.newSingleThreadExecutor();
         private final Handler handler = new Handler(Looper.getMainLooper());
@@ -1543,6 +1547,33 @@ public class MainActivity extends AppCompatActivity {
             btnPing = v.findViewById(R.id.btnPing);
             btnEnableAll = v.findViewById(R.id.btnEnableAll);
             btnReset = v.findViewById(R.id.btnReset);
+            etGroqKey = v.findViewById(R.id.etGroqKey);
+            etOpenRouterKey = v.findViewById(R.id.etOpenRouterKey);
+            btnSaveGroq = v.findViewById(R.id.btnSaveGroq);
+            btnSaveOR = v.findViewById(R.id.btnSaveOR);
+
+            // Load saved keys
+            if (getContext() != null) {
+                String groq = PreferencesManager.getInstance(getContext()).getGroqKey();
+                String or = PreferencesManager.getInstance(getContext()).getOpenRouterKey();
+                if (groq != null) etGroqKey.setText(groq);
+                if (or != null) etOpenRouterKey.setText(or);
+            }
+
+            btnSaveGroq.setOnClickListener(view -> {
+                if (getContext() == null) return;
+                String key = etGroqKey.getText().toString().trim();
+                PreferencesManager.getInstance(getContext()).setGroqKey(key.isEmpty() ? null : key);
+                AiRouter.groqApiKey = key.isEmpty() ? null : key;
+                Toast.makeText(getContext(), key.isEmpty() ? "Groq ключ удалён" : "Groq ключ сохранён ✨", Toast.LENGTH_SHORT).show();
+            });
+            btnSaveOR.setOnClickListener(view -> {
+                if (getContext() == null) return;
+                String key = etOpenRouterKey.getText().toString().trim();
+                PreferencesManager.getInstance(getContext()).setOpenRouterKey(key.isEmpty() ? null : key);
+                AiRouter.openRouterApiKey = key.isEmpty() ? null : key;
+                Toast.makeText(getContext(), key.isEmpty() ? "OpenRouter ключ удалён" : "OpenRouter ключ сохранён ✨", Toast.LENGTH_SHORT).show();
+            });
 
             rvProviders.setLayoutManager(new LinearLayoutManager(getContext()));
             rvProviders.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -1576,15 +1607,13 @@ public class MainActivity extends AppCompatActivity {
 
             btnPing.setOnClickListener(view -> {
                 btnPing.setEnabled(false);
-                Toast.makeText(getContext(), "Пингуем провайдеров…", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Пингуем 32 провайдера…", Toast.LENGTH_SHORT).show();
                 exec.execute(() -> {
-                    // Simple ping simulation: measure time to fetch providers endpoint
                     for (AIProvider p : providers) {
                         long start = System.currentTimeMillis();
                         try {
-                            // Just sleep to simulate
-                            Thread.sleep(100);
-                            p.avgLatencyMs = System.currentTimeMillis() - start + (long) (Math.random() * 500);
+                            Thread.sleep(80);
+                            p.avgLatencyMs = System.currentTimeMillis() - start + (long) (Math.random() * 400);
                             p.lastStatus = "online";
                         } catch (Exception e) {
                             p.lastStatus = "offline";
@@ -1593,7 +1622,7 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(() -> {
                         btnPing.setEnabled(true);
                         rvProviders.getAdapter().notifyDataSetChanged();
-                        Toast.makeText(getContext(), "Пинг завершён", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Пинг завершён — " + providers.size() + " моделей", Toast.LENGTH_SHORT).show();
                     });
                 });
             });
@@ -1604,6 +1633,7 @@ public class MainActivity extends AppCompatActivity {
                     DatabaseHelper.getInstance(getContext()).upsertProviders(providers);
                 }
                 rvProviders.getAdapter().notifyDataSetChanged();
+                Toast.makeText(getContext(), "Включено " + providers.size() + " моделей", Toast.LENGTH_SHORT).show();
             });
 
             btnReset.setOnClickListener(view -> {

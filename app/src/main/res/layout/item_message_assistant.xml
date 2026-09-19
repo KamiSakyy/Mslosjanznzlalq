@@ -147,43 +147,43 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCopy"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="32dp"
-            android:layout_height="28dp"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:insetLeft="0dp"
             android:insetRight="0dp"
             app:icon="@drawable/ic_copy"
-            app:iconSize="14dp"
-            app:iconTint="#52525B"
+            app:iconSize="16dp"
+            app:iconTint="#A1A1AA"
             app:iconPadding="0dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRegen"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="32dp"
-            android:layout_height="28dp"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:insetLeft="0dp"
             android:insetRight="0dp"
             app:icon="@drawable/ic_refresh"
-            app:iconSize="14dp"
-            app:iconTint="#52525B"
+            app:iconSize="16dp"
+            app:iconTint="#A1A1AA"
             app:iconPadding="0dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnShare"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="32dp"
-            android:layout_height="28dp"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:insetLeft="0dp"
             android:insetRight="0dp"
             app:icon="@drawable/ic_share"
-            app:iconSize="14dp"
-            app:iconTint="#52525B"
+            app:iconSize="16dp"
+            app:iconTint="#A1A1AA"
             app:iconPadding="0dp" />
 
         <com.google.android.material.button.MaterialButton

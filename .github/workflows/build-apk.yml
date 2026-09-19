@@ -35,45 +35,71 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Generate release keystore for signed APK (update)
+        run: |
+          if [ ! -f app/release.keystore ]; then
+            keytool -genkey -v -keystore app/release.keystore -alias aether -keyalg RSA -keysize 2048 -validity 10000 -storepass aether123 -keypass aether123 -dname "CN=Aether, OU=Dev, O=Aether, L=Aachen, S=NRW, C=DE" -noprompt
+            echo "Keystore generated"
+          fi
+          ls -lh app/release.keystore
+
       - name: Generate Gradle wrapper
         run: |
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-      - name: Build debug APK
+      - name: Build release APK (minified, signed, smaller)
         run: |
           set -o pipefail
-          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          echo "=== BUILD SUCCESS ==="
-          ls -lh app/build/outputs/apk/debug/ || true
+          ./gradlew assembleRelease --stacktrace --no-daemon 2>&1 | tee build.log
+          echo "=== RELEASE BUILD SUCCESS ==="
+          ls -lh app/build/outputs/apk/release/ || true
           find app/build -name "*.apk" -type f -ls || true
 
-      - name: Copy APK to handoff
+      - name: Build debug APK (minified)
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee -a build.log
+          echo "=== DEBUG BUILD SUCCESS ==="
+          ls -lh app/build/outputs/apk/debug/ || true
+
+      - name: Copy APKs to handoff
         if: always()
         run: |
           mkdir -p handoff
           cp build.log handoff/build.log || true
           find app/build -name "*.apk" -type f -exec cp -v {} handoff/ \; || true
           ls -lh handoff/ || true
-          # Standard names
-          if [ -f handoff/app-debug.apk ]; then
-            cp handoff/app-debug.apk handoff/lumi-aether-debug.apk || true
-          else
-            APK=$(find handoff -name "*.apk" | head -n 1)
-            if [ ! -z "$APK" ]; then
-              cp "$APK" handoff/app-debug.apk
-              cp "$APK" handoff/lumi-aether-debug.apk
-            fi
+          # Standard names - prefer release
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk handoff/app-release.apk
+            cp app/build/outputs/apk/release/app-release.apk handoff/lumi-aether-release.apk
+            # Also keep as main for backward compat
+            cp app/build/outputs/apk/release/app-release.apk handoff/app-debug.apk
           fi
-          echo "Built at $(date) commit $GITHUB_SHA" > handoff/BUILD_INFO.txt
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk handoff/app-debug-min.apk || true
+          fi
+          # Create versioned release
+          VERSION=$(grep versionName app/build.gradle.kts | head -n1 | cut -d'"' -f2)
+          if [ -z "$VERSION" ]; then VERSION="1.1.0"; fi
+          echo "Version: $VERSION"
+          if [ -f handoff/app-release.apk ]; then
+            cp handoff/app-release.apk handoff/lumi-aether-v${VERSION}-release.apk || true
+          fi
+          echo "Built at $(date) commit $GITHUB_SHA version $VERSION" > handoff/BUILD_INFO.txt
+          echo "=== APK sizes (minified with R8) ===" >> handoff/BUILD_INFO.txt
           ls -lh handoff/*.apk 2>&1 >> handoff/BUILD_INFO.txt || echo "No APK" >> handoff/BUILD_INFO.txt
+          echo "" >> handoff/BUILD_INFO.txt
+          echo "Providers: 32 models (19 original site + 6 OVH free anonymous + 4 Groq + 3 OpenRouter)" >> handoff/BUILD_INFO.txt
+          echo "Features: auto-routing with failover, intent classification, copy/share/regen, minimal lucide icons" >> handoff/BUILD_INFO.txt
           cat handoff/BUILD_INFO.txt
 
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: app-apks
           path: |
             handoff/
             app/build/outputs/
@@ -85,10 +111,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add handoff/ || true
+          git add handoff/ app/release.keystore || true
           if git diff --staged --quiet; then
             echo "No changes"
           else
-            git commit -m "ci: update handoff with APK and logs [skip ci]"
+            git commit -m "ci: release APK minified signed v1.1.0 with 32 models auto-routing failover [skip ci]"
             git push origin HEAD:${{ github.ref_name }}
           fi

@@ -45,35 +45,35 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="4dp"
-        android:alpha="0.6">
+        android:layout_marginTop="6dp"
+        android:alpha="0.9">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCopy"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:insetLeft="0dp"
             android:insetRight="0dp"
             app:icon="@drawable/ic_copy"
-            app:iconSize="12dp"
+            app:iconSize="14dp"
             app:iconPadding="0dp"
-            app:iconTint="#71717A" />
+            app:iconTint="#A1A1AA" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEdit"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:insetLeft="0dp"
             android:insetRight="0dp"
             app:icon="@drawable/ic_pencil"
-            app:iconSize="12dp"
+            app:iconSize="14dp"
             app:iconPadding="0dp"
-            app:iconTint="#71717A" />
+            app:iconTint="#A1A1AA" />
     </LinearLayout>
 </LinearLayout>

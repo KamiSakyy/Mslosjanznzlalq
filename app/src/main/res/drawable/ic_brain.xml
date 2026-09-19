@@ -1,10 +1,5 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="18dp" android:height="18dp"
     android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#00000000"
-          android:strokeColor="#FAFAFA"
-          android:strokeWidth="1.6"
-          android:strokeLineCap="round"
-          android:strokeLineJoin="round"
-          android:pathData="M9.5,2 A5.5,5.5 0 0,0 4,7.5 C4,10 4,12 6,14 C4,15 3,17 4,19 C4.5,20 6,20.5 7.5,20 C8.5,20.5 10.5,20 12,19 C13.5,20 15.5,20.5 16.5,20 C18,20.5 19.5,20 20,19 C21,17 20,15 18,14 C20,12 20,10 20,7.5 A5.5,5.5 0 0,0 14.5,2 C13,2 12,3 12,3 C12,3 11,2 9.5,2Z M12,3 V19 M9.5,7 C9.5,7 8,8 8,10 M14.5,7 C14.5,7 16,8 16,10 M8,14 C8,14 9.5,15 12,15 C14.5,15 16,14 16,14"/>
+    <path android:fillColor="#00000000" android:strokeColor="#A1A1AA" android:strokeWidth="1.5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M9.5,2 A4.5,4.5 0 0,0 5,7.5 C5,10 5,12 7,14 C5,15 4,17 5,19 C5.5,20 7,20.5 8,20 C9,20.5 11,20 12,19 C13,20 15,20.5 16,20 C17,20.5 18.5,20 19,19 C20,17 19,15 17,14 C19,12 19,10 19,7.5 A4.5,4.5 0 0,0 14.5,2 C13,2 12,3 12,3 C12,3 11,2 9.5,2 Z M12,3 V19 M9.5,7 C9.5,7 8,8 8,10 M14.5,7 C14.5,7 16,8 16,10 M8,14 C8,14 9.5,15 12,15 C14.5,15 16,14 16,14"/>
 </vector>

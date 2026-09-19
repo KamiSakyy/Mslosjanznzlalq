@@ -25,6 +25,22 @@ public class PreferencesManager {
         return prefs.getString("github_token", null);
     }
 
+    public void setGroqKey(String key) {
+        prefs.edit().putString("groq_key", key).apply();
+    }
+
+    public String getGroqKey() {
+        return prefs.getString("groq_key", null);
+    }
+
+    public void setOpenRouterKey(String key) {
+        prefs.edit().putString("openrouter_key", key).apply();
+    }
+
+    public String getOpenRouterKey() {
+        return prefs.getString("openrouter_key", null);
+    }
+
     public void setActiveSessionId(long id) {
         prefs.edit().putLong("active_session", id).apply();
     }

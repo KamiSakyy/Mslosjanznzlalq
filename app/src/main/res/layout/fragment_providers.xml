@@ -3,7 +3,89 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/ink">
+    android:background="#050505">
+
+    <!-- Ключи для новых источников - ищем сами, проверяем -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="#0A0A0B">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔑 Свои ключи (опционально, расширяют пул)"
+            android:textColor="#A1A1AA"
+            android:textSize="11sp"
+            android:fontFamily="monospace" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <EditText
+                android:id="@+id/etGroqKey"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input"
+                android:hint="Groq API key (gsk_...)"
+                android:textColor="#FAFAFA"
+                android:textColorHint="#52525B"
+                android:paddingHorizontal="12dp"
+                android:textSize="12sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveGroq"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:text="Save"
+                android:textSize="12sp"
+                app:cornerRadius="8dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <EditText
+                android:id="@+id/etOpenRouterKey"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input"
+                android:hint="OpenRouter key (sk-or-...)"
+                android:textColor="#FAFAFA"
+                android:textColorHint="#52525B"
+                android:paddingHorizontal="12dp"
+                android:textSize="12sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveOR"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:text="Save"
+                android:textSize="12sp"
+                app:cornerRadius="8dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Без ключей работают: Pollinations, OVH (2 RPM), Kilo (200/h), LLM7 (60/h) — авто-роутинг переключит если ошибка"
+            android:textColor="#52525B"
+            android:textSize="10sp"
+            android:fontFamily="monospace" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,28 +97,36 @@
             android:id="@+id/btnPing"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:layout_weight="1"
-            android:text="Пинг" />
+            android:text="Пинг"
+            android:textSize="12sp"
+            app:cornerRadius="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEnableAll"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="Включить все" />
+            android:text="Вкл все"
+            android:textSize="12sp"
+            app:cornerRadius="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnReset"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="Сброс" />
+            android:text="Сброс"
+            android:textSize="12sp"
+            app:cornerRadius="8dp" />
     </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#14FFFFFF" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvProviders"

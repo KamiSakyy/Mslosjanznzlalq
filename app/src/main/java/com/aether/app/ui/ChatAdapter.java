@@ -104,12 +104,15 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             } else {
                 ivAttachment.setVisibility(View.GONE);
             }
-            btnCopy.setOnClickListener(view -> {
+            // Копирование по клику на кнопку и по долгому нажатию на текст
+            View.OnClickListener copyAction = view -> {
                 ClipboardManager cm = (ClipboardManager) view.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
                 cm.setPrimaryClip(ClipData.newPlainText("message", msg.content));
-                Toast.makeText(view.getContext(), "Скопировано", Toast.LENGTH_SHORT).show();
+                Toast.makeText(view.getContext(), "Скопировано ✨", Toast.LENGTH_SHORT).show();
                 if (listener != null) listener.onCopy(msg);
-            });
+            };
+            btnCopy.setOnClickListener(copyAction);
+            tvContent.setOnLongClickListener(v -> { copyAction.onClick(v); return true; });
             btnEdit.setOnClickListener(view -> {
                 if (listener != null) listener.onEditUser(msg.content);
             });
@@ -145,7 +148,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             tvProvider.setText(msg.providerName != null ? msg.providerName : "Люми");
             tvModel.setText(msg.modelId != null ? msg.modelId : "");
             tvLatency.setText(msg.latencyMs != null ? (msg.latencyMs < 1000 ? msg.latencyMs + " мс" : String.format("%.1f с", msg.latencyMs / 1000f)) : "");
-            // Simple markdown rendering: for now set raw, but we could use Markwon
             tvContent.setText(msg.content != null ? msg.content : "");
 
             if (msg.reasoningTrace != null && !msg.reasoningTrace.isEmpty()) {
@@ -168,14 +170,15 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 tvFailover.setVisibility(View.VISIBLE);
                 StringBuilder sb = new StringBuilder();
                 for (com.aether.app.models.FailoverHop hop : msg.failoverLog) {
-                    sb.append(hop.providerName).append(" ").append(hop.status).append(" ").append(hop.latencyMs).append("мс\n");
+                    sb.append(hop.providerName).append(" ").append(hop.status).append(" ").append(hop.latencyMs).append("мс");
+                    if (hop.error != null) sb.append(" (").append(hop.error.substring(0, Math.min(40, hop.error.length()))).append(")");
+                    sb.append("\n");
                 }
                 tvFailover.setText(sb.toString());
             } else {
                 tvFailover.setVisibility(View.GONE);
             }
 
-            // Anime & images handling would need adapters - hide for now unless data present
             if (msg.animeData != null) {
                 rvAnime.setVisibility(View.VISIBLE);
             } else {
@@ -184,7 +187,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (msg.imagesData != null && !msg.imagesData.isEmpty()) {
                 rvImages.setVisibility(View.VISIBLE);
                 rvImages.setLayoutManager(new LinearLayoutManager(rvImages.getContext(), LinearLayoutManager.HORIZONTAL, false));
-                // Simple gallery adapter
                 rvImages.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_image, parent, false);
@@ -203,12 +205,14 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 rvImages.setVisibility(View.GONE);
             }
 
-            btnCopy.setOnClickListener(v -> {
+            View.OnClickListener copyAction = v -> {
                 ClipboardManager cm = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
                 cm.setPrimaryClip(ClipData.newPlainText("response", msg.content));
-                Toast.makeText(v.getContext(), "Скопировано", Toast.LENGTH_SHORT).show();
+                Toast.makeText(v.getContext(), "Скопировано ✨", Toast.LENGTH_SHORT).show();
                 if (listener != null) listener.onCopy(msg);
-            });
+            };
+            btnCopy.setOnClickListener(copyAction);
+            tvContent.setOnLongClickListener(v -> { copyAction.onClick(v); return true; });
             btnRegen.setOnClickListener(v -> { if (listener != null) listener.onRegenerate(msg); });
             btnShare.setOnClickListener(v -> { if (listener != null) listener.onShare(msg); });
         }
