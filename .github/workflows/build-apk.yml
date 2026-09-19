@@ -8,9 +8,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -25,7 +29,6 @@ jobs:
 
       - name: Accept Android SDK licenses
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Install required SDK packages
@@ -36,52 +39,41 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
-          cat gradle/wrapper/gradle-wrapper.properties
-
-      - name: Show project structure
-        run: |
-          ls -R app/src/main/java | head -n 100
-          cat app/build.gradle.kts
-          cat settings.gradle.kts
 
       - name: Build debug APK
-        id: build
         run: |
-          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          echo "=== BUILD LOG TAIL ==="
-          tail -n 200 build.log
-        continue-on-error: true
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Show build log on failure
-        if: steps.build.outcome == 'failure'
-        run: |
-          echo "=== FULL BUILD LOG ==="
-          cat build.log | tail -n 1000
-          echo "=== SEARCH FOR ERROR ==="
-          grep -i -A5 "error\|FAILED\|exception" build.log | tail -n 500 || true
-
-      - name: Copy APK to handoff folder
-        if: always()
+      - name: Copy APK to handoff
         run: |
           mkdir -p handoff
-          find . -name "*.apk" -type f 2>/dev/null | head -20
-          find app/build -name "*.apk" -type f 2>/dev/null | head -20
-          cp app/build/outputs/apk/debug/*.apk handoff/app-debug.apk 2>/dev/null || echo "No APK found in debug"
-          cp handoff/app-debug.apk handoff/lumi-aether-debug.apk 2>/dev/null || true
-          ls -lh handoff/ || true
-          ls -lh app/build/outputs/apk/debug/ 2>/dev/null || true
+          ls -lh app/build/outputs/apk/debug/ || true
+          cp app/build/outputs/apk/debug/app-debug.apk handoff/app-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk handoff/lumi-aether-debug.apk
+          ls -lh handoff/
+          echo "APK size: $(du -h handoff/app-debug.apk)"
 
       - name: Upload APK artifact
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: |
-            app/build/outputs/apk/debug/*.apk
             handoff/*.apk
-            build.log
-          if-no-files-found: warn
+            app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
 
-      - name: Fail if build failed
-        if: steps.build.outcome == 'failure'
-        run: exit 1
+      - name: Commit APK to handoff folder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add handoff/*.apk || true
+          git add handoff/README.md || true
+          # Also create a latest link file
+          echo "APK built at $(date) from commit ${{ github.sha }}" > handoff/BUILD_INFO.txt
+          git add handoff/BUILD_INFO.txt || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "ci: add built APK to handoff/ [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
