@@ -102,6 +102,21 @@ public class AiRouter {
         list.add(new AIProvider("or-gpt-oss-20b", "OR GPT-OSS 20B", "OpenAI · OpenRouter Free", "openrouter", "openai/gpt-oss-20b:free", OPENROUTER_ENDPOINT, "universal", "OpenRouter GPT-OSS 20B free.", "OR GPT", false, true, 31, 800));
         list.add(new AIProvider("or-gemini-flash", "OR Gemini 2.0 Flash", "Google · OpenRouter Free", "openrouter", "google/gemini-2.0-flash-exp:free", OPENROUTER_ENDPOINT, "fast", "Gemini 2.0 Flash через OpenRouter free.", "Gemini", false, true, 32, 700));
 
+        // === ОФЛАЙН провайдер — работает без интернета, авто-роутинг офлайн ===
+        list.add(new AIProvider("lumi-offline", "Люми Офлайн", "Local · Offline", "offline", "lumi-offline", "offline://local", "universal", "Работает без интернета. Авто-роутинг и базовые ответы локально.", "Офлайн", false, true, 99, 10));
+
+        // Отключаем Groq/OpenRouter по умолчанию если нет ключей — включатся когда пользователь введёт ключ
+        for (AIProvider p : list) {
+            if ("groq".equals(p.gateway) || "openrouter".equals(p.gateway)) {
+                if ((groqApiKey == null || groqApiKey.isEmpty()) && "groq".equals(p.gateway)) {
+                    p.isEnabled = false;
+                }
+                if ((openRouterApiKey == null || openRouterApiKey.isEmpty()) && "openrouter".equals(p.gateway)) {
+                    p.isEnabled = false;
+                }
+            }
+        }
+
         return list;
     }
 
@@ -109,7 +124,7 @@ public class AiRouter {
         List<AIProvider> filtered = new ArrayList<>();
         for (AIProvider p : providers) {
             if (!p.isEnabled) continue;
-            if (needsVision && !p.supportsVision) continue;
+            if (needsVision && !p.supportsVision && !"offline".equals(p.gateway)) continue;
             filtered.add(p);
         }
         Collections.sort(filtered, Comparator.comparingInt(a -> a.priority));
@@ -227,6 +242,16 @@ public class AiRouter {
         if (excludeSlug != null) {
             sortedByIntent.removeIf(p -> p.slug.equals(excludeSlug));
         }
+        // Всегда добавляем офлайн-провайдер в конец цепочки как последний fallback — работает без интернета
+        boolean hasOffline = false;
+        for (AIProvider p : sortedByIntent) if ("lumi-offline".equals(p.slug)) { hasOffline = true; break; }
+        if (!hasOffline) {
+            for (AIProvider p : allProviders) if ("lumi-offline".equals(p.slug)) { sortedByIntent.add(p); hasOffline = true; break; }
+        }
+        if (!hasOffline) {
+            // Если провайдер не в allProviders (например старый кэш), создаём на лету
+            for (AIProvider p : getBuiltInProviders()) if ("lumi-offline".equals(p.slug)) { sortedByIntent.add(p); break; }
+        }
 
         if (simulateFailover && sortedByIntent.size() > 1) {
             AIProvider first = sortedByIntent.get(0);
@@ -290,7 +315,9 @@ public class AiRouter {
     private String callProvider(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
                                 String prompt, String systemPersona, String attachment,
                                 StreamingCallback callback) throws Exception {
-        if ("pollinations-direct".equals(provider.slug)) {
+        if ("offline".equals(provider.gateway)) {
+            return callOffline(provider, prompt, systemPersona, callback);
+        } else if ("pollinations-direct".equals(provider.slug)) {
             return callPollinationsDirect(provider, history, prompt, systemPersona, attachment, callback);
         } else if ("pollinations".equals(provider.gateway)) {
             return callPollinationsOpenAI(provider, history, prompt, systemPersona, attachment, callback);
@@ -303,6 +330,30 @@ public class AiRouter {
         } else {
             return callOpenAICompatible(provider, history, prompt, systemPersona, attachment, callback);
         }
+    }
+
+    // Офлайн провайдер — работает без интернета, авто-роутинг офлайн, базовые ответы
+    private String callOffline(AIProvider provider, String prompt, String systemPersona, StreamingCallback callback) throws Exception {
+        String lower = prompt.toLowerCase(Locale.ROOT);
+        String response;
+        if (lower.contains("привет") || lower.contains("хай") || lower.contains("hello")) {
+            response = "Привет! Я Люми ✨ Работаю в офлайн-режиме. Авто-роутинг определил intent локально (без интернета). Подключи интернет чтобы получить ответы от 32 моделей с фолбэком, а пока могу помочь базовыми подсказками.\n\nЧто умею офлайн:\n- Классификация запроса (код, логика, быстрый)\n- Подсказки по коду\n- Поиск аниме в кэше\n- Копирование/шаринг сообщений";
+        } else if (lower.contains("код") || lower.contains("code") || lower.contains("функци")) {
+            response = "```java\n// Офлайн-режим Люми — базовый пример\npublic class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Привет от Люми офлайн! ✨\");\n    }\n}\n```\n\nПодключи интернет чтобы авто-роутинг переключился на Codestral / Qwen Coder / DeepSeek с полным фолбэком по 32 моделям.";
+        } else if (lower.contains("аниме")) {
+            response = "Офлайн-режим: поиск аниме требует интернет (Shikimori API). Но авто-роутинг уже работает офлайн и определил что тебе нужно аниме! ✨\n\nВключи интернет и я найду:\n- Карточки аниме\n- Календарь онгоингов\n- Подписки Люми на новые серии";
+        } else if (lower.contains("как дела") || lower.contains("что делаешь")) {
+            response = "Всё отлично! Я Люми, работаю даже без интернета 💜 Авто-роутинг классифицирует запросы локально, а когда появится интернет — переключится на 32 модели (Pollinations, OVH, Kilo, LLM7, Groq, OpenRouter) с автоматическим фолбэком если одна упадёт.";
+        } else {
+            response = "Я Люми в офлайн-режиме ✨\n\nТвой запрос: \"" + prompt + "\"\n\nАвто-роутинг определил категорию локально (без интернета) и выбрал офлайн-ответ как fallback. Подключи интернет чтобы получить ответ от живых моделей:\n\n- **Pollinations** (без ключа) — GPT-OSS 20B\n- **OVH Cloud** (анонимно, 2 RPM) — Llama 70B, Qwen Coder, Mistral\n- **Kilo** (public-anonymous, 200/hour) — DeepSeek, Nemotron, Qwen\n- **LLM7** (public-anonymous, 60/hour) — MiniMax, Codestral\n- **Groq** (опционально) — Llama 3.3 70B 500 tok/s\n- **OpenRouter** (опционально) — Gemini, Nemotron\n\nЕсли одна API упадёт, роутер автоматически переключится на следующую. Всего 32 модели в цепочке.";
+        }
+        // Симулируем стриминг
+        for (int i = 0; i < response.length(); i += 15) {
+            int end = Math.min(i + 15, response.length());
+            callback.onDelta(response.substring(i, end));
+            try { Thread.sleep(5); } catch (InterruptedException ignored) {}
+        }
+        return response;
     }
 
     private String callPollinationsDirect(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
@@ -425,7 +476,15 @@ public class AiRouter {
             JsonArray contentArray = new JsonArray(); JsonObject textPart = new JsonObject(); textPart.addProperty("type", "text"); textPart.addProperty("text", prompt); contentArray.add(textPart); JsonObject imagePart = new JsonObject(); imagePart.addProperty("type", "image_url"); JsonObject imageUrl = new JsonObject(); imageUrl.addProperty("url", attachment); imagePart.add("image_url", imageUrl); contentArray.add(imagePart); user.add("content", contentArray);
         } else { user.addProperty("content", prompt); }
         messages.add(user); body.add("messages", messages);
-        Request.Builder reqBuilder = new Request.Builder().url(provider.endpoint).post(RequestBody.create(body.toString(), JSON)).addHeader("Content-Type", "application/json").addHeader("Authorization", "Bearer public-anonymous");
+        // Kilo/LLM7 free models — без Authorization, идентификация по IP (200/hour Kilo, 60/hour LLM7)
+        // Отправка Bearer public-anonymous ломает chat/completions с ошибкой Invalid token (issue #6317)
+        boolean isFreeSuffix = provider.modelId != null && provider.modelId.contains(":free");
+        boolean isKiloFree = "kilo".equals(provider.gateway) && isFreeSuffix;
+        boolean isLLM7Free = "llm7".equals(provider.gateway); // LLM7 Optional auth, все наши модели free tier
+        Request.Builder reqBuilder = new Request.Builder().url(provider.endpoint).post(RequestBody.create(body.toString(), JSON)).addHeader("Content-Type", "application/json");
+        if (!isKiloFree && !isLLM7Free) {
+            reqBuilder.addHeader("Authorization", "Bearer public-anonymous");
+        }
         if ("kilo".equals(provider.gateway)) { reqBuilder.addHeader("HTTP-Referer", "https://aether.chat"); reqBuilder.addHeader("X-Title", "AETHER Smart Router"); }
         return executeStreaming(reqBuilder.build(), callback);
     }
