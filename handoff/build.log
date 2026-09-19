@@ -6,18 +6,18 @@ Daemon will be stopped at the end of the build
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:generateDebugResValues
-> Task :app:dataBindingMergeDependencyArtifactsDebug
 > Task :app:generateDebugResources
+> Task :app:dataBindingMergeDependencyArtifactsDebug
 > Task :app:packageDebugResources
+> Task :app:mergeDebugResources
 > Task :app:parseDebugLocalResources
 > Task :app:javaPreCompileDebug
+> Task :app:dataBindingGenBaseClassesDebug
+> Task :app:checkDebugAarMetadata
 > Task :app:mapDebugSourceSetPaths
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
-> Task :app:checkDebugAarMetadata
-> Task :app:mergeDebugResources
 > Task :app:processDebugMainManifest
-> Task :app:dataBindingGenBaseClassesDebug
 > Task :app:processDebugManifest
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
@@ -28,14 +28,14 @@ Daemon will be stopped at the end of the build
 > Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:processDebugManifestForPackage
-> Task :app:mergeExtDexDebug
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
+> Task :app:processDebugManifestForPackage
 > Task :app:processDebugResources
+> Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugJavaWithJavac
 Note: /home/runner/work/Mslosjanznzlalq/Mslosjanznzlalq/app/src/main/java/com/aether/app/MainActivity.java uses or overrides a deprecated API.
@@ -49,7 +49,7 @@ Note: Recompile with -Xlint:deprecation for details.
 > Task :app:packageDebug
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1789845904589.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1789846080488.json
 
-BUILD SUCCESSFUL in 1m 20s
+BUILD SUCCESSFUL in 59s
 34 actionable tasks: 34 executed
