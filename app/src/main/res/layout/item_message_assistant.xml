@@ -1,34 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Точь-в-точь как на сайте: без пузыря, просто markdown + meta info provider/latency + кнопки copy/regen/share -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:paddingTop="12dp"
+    android:paddingBottom="8dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:background="#050505">
 
+    <!-- Ход мысли как на сайте: Brain icon + border-l -->
+    <LinearLayout
+        android:id="@+id/reasoningContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp"
+        android:paddingStart="12dp"
+        android:background="#00000000">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🧠 Ход мысли"
+            android:textColor="#71717A"
+            android:textSize="11sp"
+            android:fontFamily="monospace" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="4dp"
+            android:background="#14FFFFFF" />
+
+        <TextView
+            android:id="@+id/tvReasoning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#71717A"
+            android:textSize="11.5sp"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="2dp" />
+    </LinearLayout>
+
+    <!-- Контент как на сайте: MarkdownRenderer, без пузыря, просто текст -->
+    <TextView
+        android:id="@+id/tvContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#FAFAFA"
+        android:textSize="14.5sp"
+        android:lineSpacingExtra="4dp"
+        android:fontFamily="sans-serif"
+        android:text="Ответ ассистента с markdown" />
+
+    <!-- Сгенерированное изображение -->
+    <ImageView
+        android:id="@+id/ivGenerated"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:layout_marginTop="12dp"
+        android:visibility="gone"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_surface" />
+
+    <!-- Аниме карточки -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAnime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginTop="12dp" />
+
+    <!-- Галерея изображений -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvImages"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginTop="12dp" />
+
+    <!-- Мета-инфо как на сайте: providerName • latency • резервный узел • открыть -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
 
         <TextView
             android:id="@+id/tvProvider"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Люми"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:textColor="#A1A1AA"
+            android:textSize="11sp"
+            android:fontFamily="monospace" />
 
         <TextView
             android:id="@+id/tvModel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="openai-fast"
-            android:textColor="@color/text_tertiary"
-            android:textSize="11sp"
+            android:layout_marginStart="6dp"
+            android:text="gpt-oss-20b"
+            android:textColor="#52525B"
+            android:textSize="10sp"
             android:fontFamily="monospace"
             android:background="@drawable/bg_badge"
             android:paddingHorizontal="6dp"
@@ -39,8 +119,19 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
-            android:text="1.2с"
-            android:textColor="@color/text_muted"
+            android:text="0.8с"
+            android:textColor="#52525B"
+            android:textSize="11sp"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:id="@+id/tvFailover"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginStart="6dp"
+            android:text="· резервный узел"
+            android:textColor="#71717A"
             android:textSize="11sp"
             android:fontFamily="monospace" />
 
@@ -48,136 +139,49 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
-    </LinearLayout>
 
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        app:cardBackgroundColor="@color/bubble_assistant"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="14dp">
-
-            <!-- Reasoning -->
-            <LinearLayout
-                android:id="@+id/reasoningContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone"
-                android:background="@drawable/bg_surface"
-                android:padding="10dp"
-                android:layout_marginBottom="10dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Рассуждения"
-                    android:textColor="@color/text_tertiary"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvReasoning"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/text_tertiary"
-                    android:textSize="12sp"
-                    android:fontFamily="monospace" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvContent"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:lineSpacingExtra="3dp" />
-
-            <!-- Image -->
-            <ImageView
-                android:id="@+id/ivGenerated"
-                android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginTop="10dp"
-                android:visibility="gone"
-                android:scaleType="centerCrop" />
-
-            <!-- Anime cards container -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvAnime"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:layout_marginTop="10dp" />
-
-            <!-- Images gallery -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvImages"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:layout_marginTop="10dp" />
-
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="6dp">
-
+        <!-- Кнопки как на сайте: copy, regenerate, share — появляются при hover, на мобиле всегда видны с низкой opacity -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCopy"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="36dp"
-            android:layout_height="32dp"
+            android:layout_width="32dp"
+            android:layout_height="28dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             app:icon="@android:drawable/ic_menu_share"
-            app:iconSize="14dp" />
+            app:iconSize="14dp"
+            android:alpha="0.7" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRegen"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="36dp"
-            android:layout_height="32dp"
+            android:layout_width="32dp"
+            android:layout_height="28dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             app:icon="@android:drawable/ic_popup_sync"
-            app:iconSize="14dp" />
+            app:iconSize="14dp"
+            android:alpha="0.7" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnShare"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="36dp"
-            android:layout_height="32dp"
+            android:layout_width="32dp"
+            android:layout_height="28dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             app:icon="@android:drawable/ic_menu_share"
-            app:iconSize="14dp" />
+            app:iconSize="14dp"
+            android:alpha="0.7" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSources"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
-            android:layout_height="32dp"
+            android:layout_height="28dp"
             android:text="Источники"
             android:textSize="11sp"
             android:visibility="gone" />
     </LinearLayout>
-
-    <!-- Failover log -->
-    <TextView
-        android:id="@+id/tvFailover"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:textColor="@color/text_muted"
-        android:textSize="10sp"
-        android:fontFamily="monospace"
-        android:layout_marginTop="4dp" />
 
 </LinearLayout>

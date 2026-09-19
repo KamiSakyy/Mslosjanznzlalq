@@ -1,48 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Точь-в-точь как сайт AETHER / Люми — тёмная тема #050505, пустое состояние с Люми и стартерами -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ink">
+    android:background="#050505">
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvMessages"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="100dp"
-        android:paddingTop="12dp" />
+        android:paddingBottom="120dp"
+        android:paddingTop="8dp"
+        android:background="#050505" />
 
+    <!-- Empty state как на сайте: Люми + аниме-подруга + стартеры с иконками -->
     <LinearLayout
         android:id="@+id/emptyState"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:gravity="center"
+        android:padding="24dp"
+        android:background="#050505">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Люми"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:textColor="#FAFAFA"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="-0.02" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:text="аниме-подруга и ИИ-программист"
-            android:textColor="@color/text_tertiary"
-            android:textSize="14sp"
-            android:gravity="center" />
+            android:textColor="#71717A"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:fontFamily="sans-serif" />
 
+        <View
+            android:layout_width="32dp"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp"
+            android:background="#14FFFFFF" />
+
+        <!-- Стартеры точь-в-точь как на сайте STARTERS -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvStarters"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:overScrollMode="never" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:clipToPadding="false" />
+            android:text="Дизайн точь-в-точь как сайт • 19 провайдеров • Бесплатно 2026"
+            android:textColor="#52525B"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:gravity="center" />
 
     </LinearLayout>
 
@@ -52,8 +78,11 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:layout_marginBottom="100dp"
+        android:layout_marginBottom="110dp"
         android:visibility="gone"
-        android:src="@android:drawable/arrow_down_float" />
+        android:src="@android:drawable/arrow_down_float"
+        app:tint="#FAFAFA"
+        app:fabCustomSize="40dp"
+        android:backgroundTint="#1A1A1C" />
 
 </FrameLayout>
