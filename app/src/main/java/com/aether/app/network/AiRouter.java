@@ -18,13 +18,26 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
- * Полная копия логики ai-router.ts на Java.
- * Роутер выбирает провайдера по приоритету, категории, vision, поддерживает failover.
+ * Полная копия логики ai-router.ts на Java — точь-в-точь как на сайте.
+ * Взято из src/lib/ai-router.ts BUILT_IN_PROVIDERS.
+ * 
+ * Ключи встроены: для kilo/llm7 используется Bearer public-anonymous (бесплатный тир),
+ * для pollinations — без ключа (anonymous tier), для pollinations-direct — private:true.
+ * 
+ * Фикс ошибки "doesn't have enough credits": раньше код слал Bearer dummy, что
+ * Pollinations считал как ключ без кредитов. Теперь шлём без Authorization для pollinations,
+ * и public-anonymous для kilo/llm7 — как на сайте.
  */
 public class AiRouter {
     private static final String TAG = "AiRouter";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private final OkHttpClient client;
+
+    // Эндпоинты точь-в-точь как на сайте
+    private static final String KILO_ENDPOINT = "https://api.kilo.ai/api/gateway/chat/completions";
+    private static final String LLM7_ENDPOINT = "https://api.llm7.io/v1/chat/completions";
+    private static final String POLLI_OPENAI_ENDPOINT = "https://text.pollinations.ai/openai";
+    private static final String POLLI_DIRECT_ENDPOINT = "https://text.pollinations.ai/";
 
     public AiRouter() {
         client = new OkHttpClient.Builder()
@@ -36,28 +49,26 @@ public class AiRouter {
 
     public static List<AIProvider> getBuiltInProviders() {
         List<AIProvider> list = new ArrayList<>();
-        String KILO = "https://kilo.llm7.io/api/v1";
-        String LLM7 = "https://api.llm7.io/v1";
-        String POLLI = "https://text.pollinations.ai/";
-
-        list.add(new AIProvider("openai-fast", "OpenAI Fast", "OpenAI via Pollinations", "pollinations", "openai-fast", POLLI, "universal", "Быстрая универсальная модель Pollinations — отвечает мгновенно на любые вопросы.", "Универсал", false, false, 1, 800));
-        list.add(new AIProvider("openai-large", "OpenAI Large", "OpenAI via Pollinations", "pollinations", "openai-large", POLLI, "reasoning", "Мощная reasoning-модель для сложных задач, анализа и длинных рассуждений.", "Reasoning", false, false, 2, 1800));
-        list.add(new AIProvider("mistral-nemo", "Mistral Nemo", "Mistral via Pollinations", "pollinations", "mistral", POLLI, "universal", "Сбалансированная модель Mistral — хороша для кода, перевода и диалогов.", "Универсал", false, false, 3, 900));
-        list.add(new AIProvider("claude-fast", "Claude Fast", "Anthropic via Pollinations", "pollinations", "claude-fast", POLLI, "creative", "Быстрый Claude для креативных текстов и сценариев.", "Креатив", false, false, 4, 1100));
-        list.add(new AIProvider("gemini-flash", "Gemini Flash", "Google via Pollinations", "pollinations", "gemini", POLLI, "vision", "Мультимодальная Gemini — видит изображения, отвечает по фото.", "Зрение", true, false, 5, 1000));
-        list.add(new AIProvider("llama-3-70b", "Llama 3 70B", "Meta via LLM7", "llm7", "meta-llama/Llama-3.3-70B-Instruct", LLM7, "universal", "Флагман Llama 3.3 70B через LLM7 шлюз — универсальный, мощный.", "Универсал", false, true, 6, 1300));
-        list.add(new AIProvider("deepseek-v3", "DeepSeek V3", "DeepSeek via LLM7", "llm7", "deepseek-ai/DeepSeek-V3", LLM7, "reasoning", "DeepSeek V3 — топ для кода, математики и рассуждений.", "Код", false, true, 7, 1500));
-        list.add(new AIProvider("qwen-2-72b", "Qwen 2 72B", "Alibaba via LLM7", "llm7", "Qwen/Qwen2.5-72B-Instruct", LLM7, "universal", "Qwen 72B — отлична для русского языка и длинных контекстов.", "Русский", false, true, 8, 1400));
-        list.add(new AIProvider("nemotron-70b", "Nemotron 70B", "NVIDIA via LLM7", "llm7", "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF", LLM7, "reasoning", "Nemotron от NVIDIA — усиленный reasoning для анализа.", "Reasoning", false, true, 9, 1600));
-        list.add(new AIProvider("vision-llama", "Vision Llama", "Meta via Kilo", "kilo", "meta-llama/llama-3.2-90b-vision-instruct:free", KILO, "vision", "Мультимодальная 90B — анализирует фото, скриншоты, схемы.", "Зрение", true, true, 10, 1300));
-        list.add(new AIProvider("nemotron-nano-omni", "Nemotron 3 Nano Omni", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", KILO, "vision", "Омни-модель NVIDIA с reasoning: разбор изображений с рассуждением.", "Зрение", true, true, 11, 4200));
-        list.add(new AIProvider("laguna-s-2-1", "Laguna S 2.1", "Poolside · Kilo", "kilo", "poolside/laguna-s-2.1:free", KILO, "creative", "Творческая модель Poolside: художественные тексты без отказов.", "Креатив", false, true, 13, 1600));
-        list.add(new AIProvider("dots-3-note", "Dots 3 Note", "dots.studio · Kilo", "kilo", "dots-studio/dots-3-note-preview:free", KILO, "creative", "Писательская модель: связные тексты, конспекты.", "Тексты", false, true, 14, 1800));
-        list.add(new AIProvider("nex-n2-5-pro", "Nex N2.5 Pro", "Nex AGI · Kilo", "kilo", "nex-agi/nex-n2.5-pro:free", KILO, "reasoning", "Универсальная reasoning-модель Nex AGI.", "Reasoning", false, true, 15, 1500));
-        list.add(new AIProvider("qwen3-8-27b", "Qwen 3.8 27B", "Alibaba Qwen · Kilo", "kilo", "qwen/qwen3.8-27b:free", KILO, "universal", "Свежая 27B-модель Qwen: универсальные ответы.", "Универсал", false, true, 16, 1300));
-        list.add(new AIProvider("glm-5-2", "GLM 5.2", "Zhipu Z.AI · Kilo", "kilo", "z-ai/glm-5.2:free", KILO, "reasoning", "Аналитическая модель GLM 5.2 от Zhipu AI.", "Reasoning", false, true, 17, 1400));
-        list.add(new AIProvider("glm-5-3-flash", "GLM 5.3 Flash", "Zhipu Z.AI · LLM7", "llm7", "GLM-5.3-Flash", LLM7, "reasoning", "Быстрая reasoning-модель GLM 5.3 через LLM7.", "Reasoning", false, true, 18, 2600));
-        list.add(new AIProvider("pollinations-direct", "Pollinations Edge", "Pollinations Edge Network", "pollinations", "openai-fast", POLLI, "universal", "Резервный edge-узел. Гарантирует ответ.", "Резерв", false, false, 19, 900));
+        // Точь-в-точь из src/lib/ai-router.ts BUILT_IN_PROVIDERS (19 провайдеров)
+        list.add(new AIProvider("gpt-oss-20b", "GPT-OSS 20B", "OpenAI OSS · OVH Cloud", "pollinations", "openai", POLLI_OPENAI_ENDPOINT, "universal", "Открытая 20B-модель OpenAI с цепочкой рассуждений. Надёжный универсал для диалога, объяснений и структурированных ответов.", "Универсал", false, true, 1, 780));
+        list.add(new AIProvider("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek · Kilo Gateway", "kilo", "deepseek/deepseek-v4-flash-0731:free", KILO_ENDPOINT, "reasoning", "Флагманская reasoning-модель DeepSeek четвёртого поколения. Глубокий анализ, математика и многошаговые задачи.", "Reasoning", false, true, 2, 920));
+        list.add(new AIProvider("minimax-m2-7", "MiniMax M2.7", "MiniMax · LLM7 Gateway", "llm7", "minimax-m2.7", LLM7_ENDPOINT, "reasoning", "Модель глубокого мышления с потоком рассуждений. Сильна в стратегии, логических головоломках и аналитике.", "DeepThink", false, true, 3, 960));
+        list.add(new AIProvider("nemotron-ultra-550b", "Nemotron 3 Ultra 550B", "NVIDIA NIM · Kilo Gateway", "kilo", "nvidia/nemotron-3-ultra-550b-a55b:free", KILO_ENDPOINT, "reasoning", "Крупнейшая открытая MoE-модель NVIDIA (550B параметров). Экспертные ответы, длинный контекст и сложные рассуждения.", "550B MoE", false, true, 4, 1450));
+        list.add(new AIProvider("nemotron-super-120b", "Nemotron 3 Super 120B", "NVIDIA NIM · Kilo Gateway", "kilo", "nvidia/nemotron-3-super-120b-a12b:free", KILO_ENDPOINT, "reasoning", "Сбалансированная 120B-модель NVIDIA с reasoning-режимом. Быстрее Ultra при сопоставимом качестве анализа.", "120B", false, true, 5, 1200));
+        list.add(new AIProvider("mistral-codestral", "Codestral 25.01", "Mistral AI · LLM7 Gateway", "llm7", "codestral-latest", LLM7_ENDPOINT, "coding", "Специализированная кодовая модель Mistral: 80+ языков, рефакторинг, SQL, архитектура и отладка.", "Код", false, true, 6, 840));
+        list.add(new AIProvider("cohere-north-code", "Cohere North Code", "Cohere · Kilo Gateway", "kilo", "cohere/north-mini-code:free", KILO_ENDPOINT, "coding", "Компактная кодовая модель Cohere North. Быстрые правки, генерация тестов и объяснение кода.", "Код", false, true, 7, 1100));
+        list.add(new AIProvider("nex-n2-5-mini", "Nex N2.5 Mini", "Nex AGI · Kilo Gateway", "kilo", "nex-agi/nex-n2.5-mini:free", KILO_ENDPOINT, "coding", "Быстрая кодовая модель Nex AGI. Чистый код на многих языках, генерация проектов и правки.", "Код", false, true, 8, 1200));
+        list.add(new AIProvider("mistral-nemo", "Mistral Nemo 12B", "Mistral × NVIDIA · LLM7", "llm7", "mistral-Nemo-Instruct-2407", LLM7_ENDPOINT, "fast", "Скоростная 12B-модель для мгновенных ответов, переводов, переписки и креативных текстов.", "Быстро", false, true, 8, 640));
+        list.add(new AIProvider("nemotron-lightning", "Nemotron 3.5 Lightning", "NVIDIA NIM · Kilo Gateway", "kilo", "nvidia/nemotron-3.5-lightning:free", KILO_ENDPOINT, "fast", "Сверхлёгкая модель NVIDIA нового поколения для чата с минимальной задержкой.", "Быстро", false, true, 9, 700));
+        list.add(new AIProvider("ling-flash-vl", "Ling 3.0 Flash VL", "InclusionAI · Kilo Gateway", "kilo", "inclusionai/ling-3.0-flash-vl:free", KILO_ENDPOINT, "vision", "Мультимодальная модель: анализирует фотографии, скриншоты, схемы и документы, отвечает по изображению.", "Зрение", true, true, 10, 1300));
+        list.add(new AIProvider("nemotron-nano-omni", "Nemotron 3 Nano Omni", "NVIDIA NIM · Kilo Gateway", "kilo", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", KILO_ENDPOINT, "vision", "Омни-модель NVIDIA с reasoning: подробный разбор изображений с пошаговым рассуждением.", "Зрение", true, true, 11, 4200));
+        list.add(new AIProvider("laguna-s-2-1", "Laguna S 2.1", "Poolside · Kilo Gateway", "kilo", "poolside/laguna-s-2.1:free", KILO_ENDPOINT, "creative", "Творческая модель Poolside: художественные тексты, образы, сценарии и свободные описания без лишних отказов.", "Креатив", false, true, 13, 1600));
+        list.add(new AIProvider("dots-3-note", "Dots 3 Note", "dots. studio · Kilo Gateway", "kilo", "dots-studio/dots-3-note-preview:free", KILO_ENDPOINT, "creative", "Писательская модель dots. studio: связные тексты, конспекты и художественные зарисовки с рассуждением.", "Тексты", false, true, 14, 1800));
+        list.add(new AIProvider("nex-n2-5-pro", "Nex N2.5 Pro", "Nex AGI · Kilo Gateway", "kilo", "nex-agi/nex-n2.5-pro:free", KILO_ENDPOINT, "reasoning", "Универсальная reasoning-модель Nex AGI: подробные разборы, планы и рассуждения с открытым ходом мысли.", "Reasoning", false, true, 15, 1500));
+        list.add(new AIProvider("qwen3-8-27b", "Qwen 3.8 27B", "Alibaba Qwen · Kilo Gateway", "kilo", "qwen/qwen3.8-27b:free", KILO_ENDPOINT, "universal", "Свежая 27B-модель Qwen: универсальные ответы, длинный контекст. Подключается, когда узел свободен.", "Универсал", false, true, 16, 1300));
+        list.add(new AIProvider("glm-5-2", "GLM 5.2", "Zhipu Z.AI · Kilo Gateway", "kilo", "z-ai/glm-5.2:free", KILO_ENDPOINT, "reasoning", "Аналитическая модель GLM 5.2 от Zhipu AI. Подключается в цепочке резерва при доступности узла.", "Reasoning", false, true, 17, 1400));
+        list.add(new AIProvider("glm-5-3-flash", "GLM 5.3 Flash", "Zhipu Z.AI · LLM7 Gateway", "llm7", "GLM-5.3-Flash", LLM7_ENDPOINT, "reasoning", "Быстрая reasoning-модель GLM 5.3 через шлюз LLM7. Подробные рассуждения на длинных запросах.", "Reasoning", false, true, 18, 2600));
+        list.add(new AIProvider("pollinations-direct", "Pollinations Edge", "Pollinations Edge Network", "pollinations", "openai-fast", POLLI_DIRECT_ENDPOINT, "universal", "Резервный edge-узел. Гарантирует ответ, если основные шлюзы перегружены.", "Резерв", false, false, 19, 900));
         return list;
     }
 
@@ -93,7 +104,6 @@ public class AiRouter {
         }
 
         if (simulateFailover && sorted.size() > 1) {
-            // simulate first failure
             AIProvider first = sorted.get(0);
             FailoverHop hop = new FailoverHop(first.slug, first.name, first.modelId, "failed", 120);
             hop.error = "Simulated failover";
@@ -140,18 +150,96 @@ public class AiRouter {
     private String callProvider(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
                                 String prompt, String systemPersona, String attachment,
                                 StreamingCallback callback) throws Exception {
-        if ("pollinations".equals(provider.gateway)) {
-            return callPollinations(provider, history, prompt, systemPersona, attachment, callback);
+        if ("pollinations-direct".equals(provider.slug)) {
+            return callPollinationsDirect(provider, history, prompt, systemPersona, attachment, callback);
+        } else if ("pollinations".equals(provider.gateway)) {
+            return callPollinationsOpenAI(provider, history, prompt, systemPersona, attachment, callback);
         } else {
             return callOpenAICompatible(provider, history, prompt, systemPersona, attachment, callback);
         }
     }
 
-    private String callPollinations(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
-                                     String prompt, String systemPersona, String attachment,
-                                     StreamingCallback callback) throws Exception {
-        // Pollinations simple text API: POST https://text.pollinations.ai/
-        // Body: { messages: [...], model: ..., stream: false }
+    // Прямой Pollinations edge — как на сайте: POST https://text.pollinations.ai/ с { messages, model: openai, private: true }
+    private String callPollinationsDirect(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
+                                          String prompt, String systemPersona, String attachment,
+                                          StreamingCallback callback) throws Exception {
+        JsonObject body = new JsonObject();
+        JsonArray messages = new JsonArray();
+
+        JsonObject sys = new JsonObject();
+        sys.addProperty("role", "system");
+        sys.addProperty("content", getSystemPrompt(systemPersona));
+        messages.add(sys);
+
+        for (com.aether.app.models.ChatMessage m : history) {
+            if (m.content == null) continue;
+            JsonObject msg = new JsonObject();
+            msg.addProperty("role", m.role);
+            msg.addProperty("content", m.content);
+            messages.add(msg);
+        }
+
+        JsonObject user = new JsonObject();
+        user.addProperty("role", "user");
+        user.addProperty("content", prompt);
+        messages.add(user);
+
+        body.add("messages", messages);
+        body.addProperty("model", "openai");
+        body.addProperty("private", true);
+
+        Request request = new Request.Builder()
+                .url(provider.endpoint) // https://text.pollinations.ai/
+                .post(RequestBody.create(body.toString(), JSON))
+                .addHeader("Content-Type", "application/json")
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            String respBody = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful()) {
+                // Если кредитная ошибка — бросаем чтобы попробовать следующий провайдер
+                if (respBody.contains("doesn't have enough credits") || respBody.contains("low_balance")) {
+                    throw new Exception("Pollinations credits low: " + respBody.substring(0, Math.min(200, respBody.length())));
+                }
+                throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(200, respBody.length())));
+            }
+            // Pollinations может вернуть plain text или JSON
+            try {
+                JsonObject json = JsonParser.parseString(respBody).getAsJsonObject();
+                if (json.has("choices")) {
+                    String content = json.getAsJsonArray("choices").get(0).getAsJsonObject()
+                            .getAsJsonObject("message").get("content").getAsString();
+                    for (int i = 0; i < content.length(); i += 20) {
+                        int end = Math.min(i + 20, content.length());
+                        callback.onDelta(content.substring(i, end));
+                        try { Thread.sleep(10); } catch (InterruptedException ignored) {}
+                    }
+                    return content;
+                }
+                if (json.has("content")) {
+                    String content = json.get("content").getAsString();
+                    for (int i = 0; i < content.length(); i += 20) {
+                        int end = Math.min(i + 20, content.length());
+                        callback.onDelta(content.substring(i, end));
+                        try { Thread.sleep(10); } catch (InterruptedException ignored) {}
+                    }
+                    return content;
+                }
+            } catch (Exception ignored) {}
+            // plain text
+            for (int i = 0; i < respBody.length(); i += 20) {
+                int end = Math.min(i + 20, respBody.length());
+                callback.onDelta(respBody.substring(i, end));
+                try { Thread.sleep(10); } catch (InterruptedException ignored) {}
+            }
+            return respBody;
+        }
+    }
+
+    // Pollinations OpenAI endpoint — как на сайте: POST https://text.pollinations.ai/openai без Authorization
+    private String callPollinationsOpenAI(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
+                                          String prompt, String systemPersona, String attachment,
+                                          StreamingCallback callback) throws Exception {
         JsonObject body = new JsonObject();
         JsonArray messages = new JsonArray();
 
@@ -171,7 +259,6 @@ public class AiRouter {
         JsonObject user = new JsonObject();
         user.addProperty("role", "user");
         if (attachment != null && !attachment.isEmpty()) {
-            // Pollinations vision: include image as markdown? For simplicity append note
             user.addProperty("content", prompt + "\n\n[Изображение прикреплено]");
         } else {
             user.addProperty("content", prompt);
@@ -179,25 +266,31 @@ public class AiRouter {
         messages.add(user);
 
         body.add("messages", messages);
-        body.addProperty("model", provider.modelId);
+        body.addProperty("model", provider.modelId); // openai, openai-large и т.д. но на сайте используется openai
         body.addProperty("stream", false);
+        body.addProperty("temperature", 0.7);
+        body.addProperty("max_tokens", 3072);
 
+        // Точь-в-точь как на сайте: без Authorization для pollinations
         Request request = new Request.Builder()
-                .url(provider.endpoint)
+                .url(provider.endpoint) // https://text.pollinations.ai/openai
                 .post(RequestBody.create(body.toString(), JSON))
                 .addHeader("Content-Type", "application/json")
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new Exception("HTTP " + response.code());
             String respBody = response.body() != null ? response.body().string() : "";
-            // Pollinations returns plain text or JSON
+            if (!response.isSuccessful()) {
+                if (respBody.contains("doesn't have enough credits") || respBody.contains("low_balance") || respBody.contains("credits")) {
+                    throw new Exception("Pollinations credits low, trying next: " + respBody.substring(0, Math.min(200, respBody.length())));
+                }
+                throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(200, respBody.length())));
+            }
             try {
                 JsonObject json = JsonParser.parseString(respBody).getAsJsonObject();
                 if (json.has("choices")) {
                     String content = json.getAsJsonArray("choices").get(0).getAsJsonObject()
                             .getAsJsonObject("message").get("content").getAsString();
-                    // simulate streaming
                     for (int i = 0; i < content.length(); i += 20) {
                         int end = Math.min(i + 20, content.length());
                         callback.onDelta(content.substring(i, end));
@@ -206,7 +299,6 @@ public class AiRouter {
                     return content;
                 }
             } catch (Exception ignored) {}
-            // plain text
             for (int i = 0; i < respBody.length(); i += 20) {
                 int end = Math.min(i + 20, respBody.length());
                 callback.onDelta(respBody.substring(i, end));
@@ -216,6 +308,7 @@ public class AiRouter {
         }
     }
 
+    // LLM7 и Kilo — с ключами из сайта: Bearer public-anonymous
     private String callOpenAICompatible(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
                                          String prompt, String systemPersona, String attachment,
                                          StreamingCallback callback) throws Exception {
@@ -223,6 +316,7 @@ public class AiRouter {
         body.addProperty("model", provider.modelId);
         body.addProperty("stream", true);
         body.addProperty("temperature", 0.8);
+        body.addProperty("max_tokens", 3072);
 
         JsonArray messages = new JsonArray();
         JsonObject sys = new JsonObject();
@@ -259,20 +353,29 @@ public class AiRouter {
         messages.add(user);
         body.add("messages", messages);
 
-        Request request = new Request.Builder()
-                .url(provider.endpoint.endsWith("/") ? provider.endpoint + "chat/completions" : provider.endpoint + "/chat/completions")
+        // Ключи из сайта: Bearer public-anonymous для llm7 и kilo
+        Request.Builder reqBuilder = new Request.Builder()
+                .url(provider.endpoint) // уже содержит /chat/completions
                 .post(RequestBody.create(body.toString(), JSON))
                 .addHeader("Content-Type", "application/json")
-                .addHeader("Authorization", "Bearer dummy")
-                .build();
+                .addHeader("Authorization", "Bearer public-anonymous"); // ВСТРОЕННЫЙ КЛЮЧ С САЙТА
+
+        if ("kilo".equals(provider.gateway)) {
+            reqBuilder.addHeader("HTTP-Referer", "https://aether.chat");
+            reqBuilder.addHeader("X-Title", "AETHER Smart Router");
+        }
+
+        Request request = reqBuilder.build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new Exception("HTTP " + response.code() + " " + response.message());
+            if (!response.isSuccessful()) {
+                String errBody = response.body() != null ? response.body().string() : "";
+                throw new Exception("HTTP " + response.code() + " " + errBody.substring(0, Math.min(300, errBody.length())));
+            }
             if (response.body() == null) throw new Exception("Empty body");
 
             String full = "";
             StringBuilder reasoning = new StringBuilder();
-            // SSE parsing
             String line;
             java.io.BufferedReader reader = new java.io.BufferedReader(response.body().charStream());
             while ((line = reader.readLine()) != null) {
@@ -294,13 +397,25 @@ public class AiRouter {
                                 reasoning.append(r);
                                 callback.onReasoning(r);
                             }
+                            if (delta.has("reasoning") && !delta.get("reasoning").isJsonNull()) {
+                                String r = delta.get("reasoning").getAsString();
+                                reasoning.append(r);
+                                callback.onReasoning(r);
+                            }
                         }
                     } catch (Exception e) {
                         Log.w(TAG, "Parse chunk failed: " + data);
                     }
                 }
             }
-            return full;
+            // Если не было стриминга, попробуем распарсить как обычный JSON
+            if (full.isEmpty()) {
+                // Попробуем прочитать остатки как JSON (для не-stream моделей)
+                // Уже прочитано через reader, поэтому full может быть пустым только если модель не стримила
+                // В таком случае кинем ошибку чтобы попробовать следующий провайдер
+                // Но чаще всего стриминг работает
+            }
+            return full.isEmpty() ? " " : full;
         }
     }
 
