@@ -1,44 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Стартер точь-в-точь как на сайте: иконка + текст, bg surface_1 #101011, border, rounded 12dp -->
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<!-- Стартер точь-в-точь как на сайте: group w-full px-1 py-3.5 text-left flex items-center gap-3 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="4dp"
-    android:layout_marginVertical="4dp"
-    app:cardBackgroundColor="#101011"
-    app:cardCornerRadius="12dp"
-    app:strokeWidth="1dp"
-    app:strokeColor="#14FFFFFF"
-    app:cardElevation="0dp">
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="14dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <ImageView
+        android:id="@+id/ivIcon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_sparkles"
+        android:alpha="0.6" />
+
+    <TextView
+        android:id="@+id/tvText"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:text="Скинь арты 2B из NieR:Automata"
+        android:textColor="#71717A"
+        android:textSize="13sp"
+        android:lineSpacingExtra="2dp"
+        android:fontFamily="sans-serif" />
 
-        <TextView
-            android:id="@+id/tvIcon"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:gravity="center"
-            android:text="✨"
-            android:textSize="18sp"
-            android:background="@drawable/bg_badge" />
+    <ImageView
+        android:id="@+id/ivArrow"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:src="@drawable/ic_arrow_right"
+        android:alpha="0.0" />
 
-        <TextView
-            android:id="@+id/tvText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="14dp"
-            android:text="Скинь арты 2B из NieR:Automata"
-            android:textColor="#A1A1AA"
-            android:textSize="13.5sp"
-            android:lineSpacingExtra="2dp"
-            android:fontFamily="sans-serif" />
-
-    </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+</LinearLayout>

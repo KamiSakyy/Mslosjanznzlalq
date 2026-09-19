@@ -6,113 +6,143 @@
     android:layout_height="match_parent"
     android:background="@color/ink">
 
-    <!-- Main Content -->
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
+    <!-- Main Content - точь-в-точь как сайт: header h-14 bg #050505 border-b white/[0.08] -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/ink">
 
-        <com.google.android.material.appbar.AppBarLayout
+        <!-- Header: h-14 = 56dp, px-3 sm:px-5, border-b white/[0.08], bg #050505 -->
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:background="@color/ink"
-            app:elevation="0dp">
+            android:paddingHorizontal="12dp">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:paddingHorizontal="12dp">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMenu"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                app:icon="@drawable/ic_menu"
+                app:iconSize="20dp"
+                app:iconPadding="0dp"
+                app:iconTint="@color/text_primary"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/ivHeaderPencil"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="12dp"
+                android:src="@drawable/ic_pencil"
+                app:tint="@color/text_tertiary"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/btnMenu"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="Новый диалог"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.01"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/ivHeaderPencil"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/headerRightGroup" />
+
+            <LinearLayout
+                android:id="@+id/headerRightGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnMenu"
+                    android:id="@+id/btnBell"
                     style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
-                    app:icon="@drawable/ic_menu"
-                    app:iconSize="20dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    app:icon="@drawable/ic_bell"
+                    app:iconSize="18dp"
+                    app:iconTint="@color/text_tertiary" />
 
-                <TextView
-                    android:id="@+id/tvTitle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="@string/app_name_short"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toStartOf="@+id/btnNewChat"
-                    app:layout_constraintStart_toEndOf="@+id/btnMenu"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvSubtitle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="Универсальный ассистент • 3 провайдера онлайн"
-                    android:textColor="@color/text_tertiary"
-                    android:textSize="11sp"
-                    android:visibility="gone"
-                    app:layout_constraintEnd_toStartOf="@+id/btnNewChat"
-                    app:layout_constraintStart_toEndOf="@+id/btnMenu"
-                    app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGit"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    app:icon="@drawable/ic_git_branch"
+                    app:iconSize="18dp"
+                    app:iconTint="@color/text_tertiary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNewChat"
                     style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
                     app:icon="@drawable/ic_plus"
-                    app:iconSize="20dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:iconSize="18dp"
+                    app:iconTint="@color/text_primary" />
+            </LinearLayout>
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/line" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/line" />
 
-            <!-- Top Tabs -->
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@color/ink"
-                app:tabIndicatorColor="@color/accent"
-                app:tabIndicatorHeight="2dp"
-                app:tabMode="scrollable"
-                app:tabSelectedTextColor="@color/text_primary"
-                app:tabTextColor="@color/text_tertiary" />
-
-        </com.google.android.material.appbar.AppBarLayout>
-
+        <!-- ViewPager for tabs -->
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/viewPager"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
-        <!-- Chat Input Overlay - only visible on chat tab -->
+        <!-- Tabs - hidden like site (site uses sidebar, not tabs, but keep for navigation) -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:tabIndicatorColor="@color/accent"
+            app:tabIndicatorHeight="2dp" />
+
+        <!-- Chat Input - точь-в-точь как сайт: bg_input #0E0E10 rounded 20dp, soft-pulse -->
         <LinearLayout
             android:id="@+id/chatInputContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:background="@color/ink"
-            android:elevation="8dp"
             android:orientation="vertical"
+            android:background="@color/ink"
             android:padding="12dp">
 
             <View
@@ -130,9 +160,10 @@
                 android:layout_marginBottom="8dp">
 
                 <androidx.cardview.widget.CardView
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    app:cardCornerRadius="12dp">
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp">
 
                     <ImageView
                         android:id="@+id/ivAttachment"
@@ -144,30 +175,37 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRemoveAttachment"
                     style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_marginStart="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
                     app:icon="@drawable/ic_close"
-                    app:iconSize="16dp" />
+                    app:iconSize="14dp" />
             </LinearLayout>
 
+            <!-- Input field: bg #0E0E10 rounded 20dp, border white/[0.08] -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_input"
                 android:orientation="horizontal"
-                android:padding="6dp"
-                android:gravity="bottom">
+                android:gravity="center_vertical"
+                android:minHeight="48dp"
+                android:padding="4dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAttach"
                     style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
                     app:icon="@drawable/ic_attach"
-                    app:iconSize="20dp" />
+                    app:iconSize="20dp"
+                    app:iconTint="@color/text_tertiary" />
 
                 <EditText
                     android:id="@+id/etMessage"
@@ -175,44 +213,54 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
-                    android:hint="@string/chat_hint"
+                    android:hint="Спроси что-нибудь..."
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_muted"
                     android:textSize="14.5sp"
+                    android:lineSpacingExtra="2dp"
                     android:maxLines="5"
-                    android:minHeight="40dp"
-                    android:padding="10dp" />
+                    android:minHeight="36dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="8dp"
+                    android:fontFamily="sans-serif" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnMic"
                     style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
                     app:icon="@drawable/ic_mic"
-                    app:iconSize="20dp" />
+                    app:iconSize="20dp"
+                    app:iconTint="@color/text_tertiary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSend"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
                     android:enabled="false"
                     app:icon="@drawable/ic_send"
-                    app:iconSize="20dp"
-                    />
+                    app:iconSize="18dp"
+                    app:iconTint="@color/text_primary"
+                    app:shapeAppearanceOverlay="@style/CircleButton" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStop"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:visibility="gone"
-                    app:icon="@drawable/ic_close"
-                   
                     android:insetTop="0dp"
-                    android:insetBottom="0dp" />
+                    android:insetBottom="0dp"
+                    app:icon="@drawable/ic_close"
+                    app:iconSize="18dp"
+                    app:shapeAppearanceOverlay="@style/CircleButton" />
 
             </LinearLayout>
 
@@ -226,46 +274,75 @@
                 android:visibility="gone"
                 android:paddingTop="6dp" />
         </LinearLayout>
+    </LinearLayout>
 
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
-    <!-- Navigation Drawer -->
+    <!-- Navigation Drawer - точь-в-точь как сайт: w-[264px] bg-[#0a0a0b] border-r white/[0.08] -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navView"
-        android:layout_width="300dp"
+        android:layout_width="264dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:background="@color/surface_0"
-        app:elevation="16dp">
+        app:elevation="0dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:background="@color/surface_0">
 
+            <!-- Header: LUMI logo w-7 h-7 rounded-lg border white/10 + text 13px font-extrabold tracking 0.16em -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
-                android:padding="16dp"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp">
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardBackgroundColor="@color/surface_1"
+                    app:strokeColor="@color/line"
+                    app:strokeWidth="1dp"
+                    app:cardElevation="0dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="L"
+                        android:gravity="center"
+                        android:textColor="@color/text_primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:fontFamily="sans-serif-black" />
+                </androidx.cardview.widget.CardView>
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Чаты"
+                    android:layout_marginStart="10dp"
+                    android:text="LUMI"
                     android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.16"
+                    android:fontFamily="sans-serif-black" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDrawerNewChat"
+                    android:id="@+id/btnDrawerClose"
                     style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    app:icon="@drawable/ic_plus"
-                    app:iconSize="18dp" />
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    app:icon="@drawable/ic_close"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/text_tertiary" />
             </LinearLayout>
 
             <View
@@ -273,19 +350,7 @@
                 android:layout_height="1dp"
                 android:background="@color/line" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvSessions"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:clipToPadding="false"
-                android:padding="8dp" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/line" />
-
+            <!-- New chat button: w-full h-10 rounded-xl bg-white text-black 13px font-semibold gap-2 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -293,32 +358,165 @@
                 android:padding="12dp">
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnProviders"
+                    android:id="@+id/btnDrawerNewChat"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="Новый чат"
+                    android:textColor="#000000"
+                    android:textSize="13sp"
+                    android:letterSpacing="0.01"
+                    app:icon="@drawable/ic_plus"
+                    app:iconSize="16dp"
+                    app:iconTint="#000000"
+                    app:iconPadding="8dp"
+                    android:fontFamily="sans-serif-medium"
+                    app:cornerRadius="12dp"
+                    android:backgroundTint="#FAFAFA" />
+
+                <!-- Anime button: border white/[0.08] bg #101011 hover #151516 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAnime"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:text="@string/providers"
-                    />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnLumi"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="40dp"
                     android:layout_marginTop="8dp"
-                    android:text="@string/lumi_panel"
-                    />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDeleteAll"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/delete_all"
-                    android:textColor="@color/error" />
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="Аниме"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    app:icon="@drawable/ic_tv"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/text_primary"
+                    app:iconPadding="8dp"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/line"
+                    app:strokeWidth="1dp" />
 
             </LinearLayout>
+
+            <!-- Dialogs label: text 10px font-mono uppercase tracking 0.14em text-zinc-600 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Диалоги"
+                android:textColor="@color/text_muted"
+                android:textSize="10sp"
+                android:letterSpacing="0.14"
+                android:fontFamily="monospace"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSessions"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:paddingHorizontal="8dp"
+                android:paddingBottom="8dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <!-- Footer: download, eraser, sliders + online indicator -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDownload"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    app:icon="@drawable/ic_download"
+                    app:iconSize="16dp"
+                    app:iconPadding="0dp"
+                    app:cornerRadius="8dp"
+                    app:strokeColor="@color/line" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEraser"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    app:icon="@drawable/ic_eraser"
+                    app:iconSize="16dp"
+                    app:iconPadding="0dp"
+                    app:cornerRadius="8dp"
+                    app:strokeColor="@color/line" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSettings"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    app:icon="@drawable/ic_sliders"
+                    app:iconSize="16dp"
+                    app:iconPadding="0dp"
+                    app:cornerRadius="8dp"
+                    app:strokeColor="@color/line" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:background="@drawable/dot_online" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="online"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace" />
+
+            </LinearLayout>
+
+            <!-- Hidden old buttons for compatibility -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnProviders"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnLumi"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDeleteAll"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
         </LinearLayout>
 
     </com.google.android.material.navigation.NavigationView>

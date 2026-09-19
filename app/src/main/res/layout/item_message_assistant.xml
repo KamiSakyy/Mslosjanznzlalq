@@ -1,64 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Точь-в-точь как на сайте: без пузыря, просто markdown + meta info provider/latency + кнопки copy/regen/share -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="12dp"
-    android:paddingBottom="8dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="10dp"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
     android:background="#050505">
 
-    <!-- Ход мысли как на сайте: Brain icon + border-l -->
+    <!-- Ход мысли - как на сайте: Brain icon + border-l white/[0.08] -->
     <LinearLayout
         android:id="@+id/reasoningContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone"
-        android:layout_marginBottom="8dp"
-        android:paddingStart="12dp"
-        android:background="#00000000">
+        android:layout_marginBottom="10dp">
 
-        <TextView
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🧠 Ход мысли"
-            android:textColor="#71717A"
-            android:textSize="11sp"
-            android:fontFamily="monospace" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="4dp"
-            android:background="#14FFFFFF" />
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/ic_brain"
+                app:tint="#71717A" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="Ход мысли"
+                android:textColor="#71717A"
+                android:textSize="11sp"
+                android:fontFamily="monospace" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvReasoning"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
+            android:paddingStart="12dp"
             android:textColor="#71717A"
             android:textSize="11.5sp"
             android:fontFamily="monospace"
-            android:lineSpacingExtra="2dp" />
+            android:lineSpacingExtra="2dp"
+            android:background="@drawable/bg_reasoning" />
     </LinearLayout>
 
-    <!-- Контент как на сайте: MarkdownRenderer, без пузыря, просто текст -->
+    <!-- Контент без пузыря, просто markdown -->
     <TextView
         android:id="@+id/tvContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#FAFAFA"
         android:textSize="14.5sp"
-        android:lineSpacingExtra="4dp"
+        android:lineSpacingExtra="5dp"
         android:fontFamily="sans-serif"
-        android:text="Ответ ассистента с markdown" />
+        android:text="Ответ ассистента" />
 
-    <!-- Сгенерированное изображение -->
     <ImageView
         android:id="@+id/ivGenerated"
         android:layout_width="match_parent"
@@ -68,7 +74,6 @@
         android:scaleType="centerCrop"
         android:background="@drawable/bg_surface" />
 
-    <!-- Аниме карточки -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvAnime"
         android:layout_width="match_parent"
@@ -76,7 +81,6 @@
         android:visibility="gone"
         android:layout_marginTop="12dp" />
 
-    <!-- Галерея изображений -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvImages"
         android:layout_width="match_parent"
@@ -84,13 +88,13 @@
         android:visibility="gone"
         android:layout_marginTop="12dp" />
 
-    <!-- Мета-инфо как на сайте: providerName • latency • резервный узел • открыть -->
+    <!-- Мета-инфо: provider • latency -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="10dp">
+        android:layout_marginTop="12dp">
 
         <TextView
             android:id="@+id/tvProvider"
@@ -130,7 +134,7 @@
             android:layout_height="wrap_content"
             android:visibility="gone"
             android:layout_marginStart="6dp"
-            android:text="· резервный узел"
+            android:text="· резерв"
             android:textColor="#71717A"
             android:textSize="11sp"
             android:fontFamily="monospace" />
@@ -140,7 +144,6 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- Кнопки как на сайте: copy, regenerate, share — появляются при hover, на мобиле всегда видны с низкой opacity -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCopy"
             style="@style/Widget.Material3.Button.TextButton"
@@ -148,9 +151,12 @@
             android:layout_height="28dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:icon="@android:drawable/ic_menu_share"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            app:icon="@drawable/ic_copy"
             app:iconSize="14dp"
-            android:alpha="0.7" />
+            app:iconTint="#52525B"
+            app:iconPadding="0dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRegen"
@@ -159,9 +165,12 @@
             android:layout_height="28dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:icon="@android:drawable/ic_popup_sync"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            app:icon="@drawable/ic_refresh"
             app:iconSize="14dp"
-            android:alpha="0.7" />
+            app:iconTint="#52525B"
+            app:iconPadding="0dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnShare"
@@ -170,9 +179,12 @@
             android:layout_height="28dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:icon="@android:drawable/ic_menu_share"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            app:icon="@drawable/ic_share"
             app:iconSize="14dp"
-            android:alpha="0.7" />
+            app:iconTint="#52525B"
+            app:iconPadding="0dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSources"

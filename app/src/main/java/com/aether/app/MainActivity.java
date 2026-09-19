@@ -188,9 +188,31 @@ public class MainActivity extends AppCompatActivity {
         btnMenu.setOnClickListener(v -> drawerLayout.open());
         btnNewChat.setOnClickListener(v -> createSession("chat"));
         findViewById(R.id.btnDrawerNewChat).setOnClickListener(v -> createSession("chat"));
-        findViewById(R.id.btnDeleteAll).setOnClickListener(v -> confirmDeleteAll());
-        findViewById(R.id.btnProviders).setOnClickListener(v -> { viewPager.setCurrentItem(7, true); drawerLayout.close(); });
-        findViewById(R.id.btnLumi).setOnClickListener(v -> { viewPager.setCurrentItem(5, true); drawerLayout.close(); });
+        View btnDeleteAll = findViewById(R.id.btnDeleteAll);
+        if (btnDeleteAll != null) btnDeleteAll.setOnClickListener(v -> confirmDeleteAll());
+        View btnProviders = findViewById(R.id.btnProviders);
+        if (btnProviders != null) btnProviders.setOnClickListener(v -> { viewPager.setCurrentItem(7, true); drawerLayout.close(); });
+        View btnLumi = findViewById(R.id.btnLumi);
+        if (btnLumi != null) btnLumi.setOnClickListener(v -> { viewPager.setCurrentItem(5, true); drawerLayout.close(); });
+
+        // Новые кнопки точь-в-точь как на сайте
+        View btnDrawerClose = findViewById(R.id.btnDrawerClose);
+        if (btnDrawerClose != null) btnDrawerClose.setOnClickListener(v -> drawerLayout.close());
+        View btnAnime = findViewById(R.id.btnAnime);
+        if (btnAnime != null) btnAnime.setOnClickListener(v -> { viewPager.setCurrentItem(3, true); drawerLayout.close(); });
+        View btnBell = findViewById(R.id.btnBell);
+        if (btnBell != null) btnBell.setOnClickListener(v -> { viewPager.setCurrentItem(8, true); });
+        View btnGit = findViewById(R.id.btnGit);
+        if (btnGit != null) btnGit.setOnClickListener(v -> { viewPager.setCurrentItem(4, true); });
+        View btnDownload = findViewById(R.id.btnDownload);
+        if (btnDownload != null) btnDownload.setOnClickListener(v -> {
+            // Export all chats
+            Toast.makeText(this, "Экспорт чатов...", Toast.LENGTH_SHORT).show();
+        });
+        View btnEraser = findViewById(R.id.btnEraser);
+        if (btnEraser != null) btnEraser.setOnClickListener(v -> confirmDeleteAll());
+        View btnSettings = findViewById(R.id.btnSettings);
+        if (btnSettings != null) btnSettings.setOnClickListener(v -> { viewPager.setCurrentItem(7, true); drawerLayout.close(); });
 
         etMessage.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -809,7 +831,7 @@ public class MainActivity extends AppCompatActivity {
             rvMessages.setLayoutManager(new LinearLayoutManager(getContext()));
             rvMessages.setAdapter(adapter);
 
-            // Starters
+            // Starters - точь-в-точь как на сайте STARTERS с иконками
             rvStarters.setLayoutManager(new LinearLayoutManager(getContext()));
             List<String> starters = new ArrayList<>();
             starters.add("Скинь арты 2B из NieR:Automata");
@@ -819,17 +841,37 @@ public class MainActivity extends AppCompatActivity {
             starters.add("Объясни простыми словами, как работают нейросети");
             starters.add("Спроектируй production-ready REST API на TypeScript");
             starters.add("Что сейчас обсуждают в аниме-сообществе?");
+            int[] starterIcons = new int[]{
+                R.drawable.ic_image,
+                R.drawable.ic_sparkles,
+                R.drawable.ic_user_search,
+                R.drawable.ic_tv,
+                R.drawable.ic_brain,
+                R.drawable.ic_code2,
+                R.drawable.ic_newspaper
+            };
             rvStarters.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                     return new RecyclerView.ViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_starter, parent, false)){};
                 }
                 @Override public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                     TextView tv = holder.itemView.findViewById(R.id.tvText);
+                    ImageView iv = holder.itemView.findViewById(R.id.ivIcon);
+                    ImageView arrow = holder.itemView.findViewById(R.id.ivArrow);
                     tv.setText(starters.get(position));
+                    if (iv != null && position < starterIcons.length) iv.setImageResource(starterIcons[position]);
                     holder.itemView.setOnClickListener(view -> {
                         if (getActivity() instanceof MainActivity) {
                             ((MainActivity) getActivity()).sendMessage(starters.get(position), null, null, false);
                         }
+                    });
+                    // Hover effect: arrow appears on press
+                    holder.itemView.setOnTouchListener((v, event) -> {
+                        if (arrow != null) {
+                            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) arrow.setAlpha(1f);
+                            else if (event.getAction() == android.view.MotionEvent.ACTION_UP || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) arrow.setAlpha(0f);
+                        }
+                        return false;
                     });
                 }
                 @Override public int getItemCount() { return starters.size(); }

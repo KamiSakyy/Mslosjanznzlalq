@@ -4,25 +4,24 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="10dp"
-    android:paddingBottom="6dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="4dp"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
     android:gravity="end">
 
-    <!-- Точь-в-точь как на сайте: max-w-[86%] rounded-2xl rounded-br-lg bg-[#17171a] border white/[0.07] px-4 py-2.5 text 14.5px -->
+    <!-- Точь-в-точь как сайт: max-w-[86%] rounded-2xl rounded-br-lg bg-[#17171A] border white/[0.07] px-4 py-2.5 text 14.5sp leading 22px -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="@drawable/bg_bubble_user"
-        android:padding="0dp"
-        android:layout_marginStart="48dp">
+        android:layout_marginStart="56dp">
 
         <ImageView
             android:id="@+id/ivAttachment"
-            android:layout_width="220dp"
-            android:layout_height="220dp"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
             android:visibility="gone"
             android:scaleType="centerCrop" />
 
@@ -30,23 +29,24 @@
             android:id="@+id/tvContent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="320dp"
+            android:maxWidth="300dp"
             android:minWidth="48dp"
             android:paddingHorizontal="16dp"
             android:paddingVertical="10dp"
             android:textColor="#FAFAFA"
             android:textSize="14.5sp"
-            android:lineSpacingExtra="2dp"
+            android:lineSpacingExtra="3dp"
             android:fontFamily="sans-serif"
             android:text="Сообщение пользователя" />
     </LinearLayout>
 
+    <!-- Meta buttons: copy/edit minimal 12px like site hover -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="6dp"
-        android:alpha="0.7">
+        android:layout_marginTop="4dp"
+        android:alpha="0.6">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCopy"
@@ -55,10 +55,12 @@
             android:layout_height="28dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:icon="@drawable/ic_close"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            app:icon="@drawable/ic_copy"
             app:iconSize="12dp"
             app:iconPadding="0dp"
-            android:alpha="0.6" />
+            app:iconTint="#71717A" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEdit"
@@ -67,9 +69,11 @@
             android:layout_height="28dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:icon="@drawable/ic_plus"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            app:icon="@drawable/ic_pencil"
             app:iconSize="12dp"
             app:iconPadding="0dp"
-            android:alpha="0.6" />
+            app:iconTint="#71717A" />
     </LinearLayout>
 </LinearLayout>
