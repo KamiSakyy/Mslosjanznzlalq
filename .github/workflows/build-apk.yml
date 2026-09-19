@@ -41,15 +41,12 @@ jobs:
           chmod +x gradlew
 
       - name: Build debug APK
-        id: build
         run: |
+          set -o pipefail
           ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          echo "=== TAIL ==="
-          tail -n 300 build.log
-          echo "=== LIST BUILD ==="
-          ls -lhR app/build/ 2>&1 | head -n 500
-          echo "=== FIND APK ==="
-          find app -name "*.apk" -type f -ls 2>&1 || echo "No APK"
+          echo "=== BUILD SUCCESS ==="
+          ls -lh app/build/outputs/apk/debug/ || true
+          find app/build -name "*.apk" -type f -ls || true
 
       - name: Copy APK to handoff
         if: always()
@@ -58,6 +55,7 @@ jobs:
           cp build.log handoff/build.log || true
           find app/build -name "*.apk" -type f -exec cp -v {} handoff/ \; || true
           ls -lh handoff/ || true
+          # Standard names
           if [ -f handoff/app-debug.apk ]; then
             cp handoff/app-debug.apk handoff/lumi-aether-debug.apk || true
           else
@@ -68,7 +66,7 @@ jobs:
             fi
           fi
           echo "Built at $(date) commit $GITHUB_SHA" > handoff/BUILD_INFO.txt
-          ls -lh handoff/*.apk 2>&1 >> handoff/BUILD_INFO.txt || echo "No APK in handoff" >> handoff/BUILD_INFO.txt
+          ls -lh handoff/*.apk 2>&1 >> handoff/BUILD_INFO.txt || echo "No APK" >> handoff/BUILD_INFO.txt
           cat handoff/BUILD_INFO.txt
 
       - name: Upload artifacts

@@ -928,20 +928,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         private void setupAdapter() {
-            rvRounds.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-                @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                    View root = LayoutInflater.from(parent.getContext()).inflate(R.layout.fragment_battle, parent, false);
-                    // Actually we need round item: use vertical LinearLayout
-                    View item = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_message_user, parent, false);
-                    // Create container
-                    View container = new View(parent.getContext());
-                    return new RecyclerView.ViewHolder(inflater.inflate(R.layout.item_battle_answer, parent, false)){};
-                }
-                @Override public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {}
-                @Override public int getItemCount() { return 0; }
-            });
-
-            // Replace with proper implementation
             rvRounds.setAdapter(new BattleRoundsAdapter());
         }
 
