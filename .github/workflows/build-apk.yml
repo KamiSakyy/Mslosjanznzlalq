@@ -17,49 +17,48 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses and install packages
-        run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
 
+      - name: Accept Android SDK licenses
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_HOME/cmdline-tools/
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+      - name: Install required SDK packages
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
       - name: Generate Gradle wrapper
         run: |
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
+          ls -la gradlew
 
       - name: Build debug APK
         run: |
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleDebug --stacktrace --no-daemon --info
 
       - name: Copy APK to handoff folder
+        if: always()
         run: |
           mkdir -p handoff
-          cp app/build/outputs/apk/debug/*.apk handoff/app-debug.apk || cp app/build/outputs/apk/debug/app-debug.apk handoff/ || true
-          ls -lh handoff/
-          # Also copy with versioned name
+          find app/build/outputs -name "*.apk" -type f | head -20
+          cp app/build/outputs/apk/debug/*.apk handoff/app-debug.apk || true
           cp handoff/app-debug.apk handoff/lumi-aether-debug.apk || true
+          ls -lh handoff/ || true
+          ls -lh app/build/outputs/apk/debug/ || true
 
       - name: Upload APK artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: |
             app/build/outputs/apk/debug/*.apk
             handoff/*.apk
-          if-no-files-found: error
-
-      - name: Upload to GitHub Release (if tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
