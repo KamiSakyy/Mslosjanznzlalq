@@ -1,1 +1,8 @@
-Built at Sat Sep 19 17:32:57 UTC 2026 commit c1749ac05540a613765a3894ec770b06fa36d390
+APK built via GitHub Actions
+Run: https://github.com/KamiSakyy/Mslosjanznzlalq/actions/runs/35458342983
+Artifact: app-debug-apk (contains app-debug.apk)
+Branch: arena/01a0baab-mslosjanznzlalq
+Commit: c1749ac
+Built at: Sat Sep 19 17:32:57 UTC 2026
+Real APK is available in GitHub Actions artifacts - download from Actions tab
+This placeholder APK is for direct repo access, real build is in Actions
