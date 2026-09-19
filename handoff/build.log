@@ -6,8 +6,8 @@ Daemon will be stopped at the end of the build
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:generateDebugResValues
-> Task :app:dataBindingMergeDependencyArtifactsDebug
 > Task :app:generateDebugResources
+> Task :app:dataBindingMergeDependencyArtifactsDebug
 > Task :app:packageDebugResources
 > Task :app:mergeDebugResources
 > Task :app:parseDebugLocalResources
@@ -28,14 +28,12 @@ Daemon will be stopped at the end of the build
 > Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:stripDebugDebugSymbols NO-SOURCE
-> Task :app:mergeLibDexDebug
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugManifestForPackage
 > Task :app:mergeExtDexDebug
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:mergeLibDexDebug
 > Task :app:processDebugResources
+> Task :app:validateSigningDebug
 
 > Task :app:compileDebugJavaWithJavac
 Note: /home/runner/work/Mslosjanznzlalq/Mslosjanznzlalq/app/src/main/java/com/aether/app/MainActivity.java uses or overrides a deprecated API.
@@ -44,12 +42,14 @@ Note: Recompile with -Xlint:deprecation for details.
 > Task :app:dexBuilderDebug
 > Task :app:mergeDebugGlobalSynthetics
 > Task :app:processDebugJavaRes
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
 > Task :app:mergeProjectDexDebug
 > Task :app:mergeDebugJavaResource
 > Task :app:packageDebug
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1789848250558.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1789848415654.json
 
-BUILD SUCCESSFUL in 1m 13s
+BUILD SUCCESSFUL in 1m 10s
 34 actionable tasks: 34 executed
