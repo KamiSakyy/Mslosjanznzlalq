@@ -28,10 +28,12 @@ jobs:
           gradle-version: 8.7
 
       - name: Accept Android SDK licenses
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Install required SDK packages
-        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Generate Gradle wrapper
         run: |
@@ -42,37 +44,32 @@ jobs:
         id: build
         run: |
           ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          echo "=== TAIL ===" >> build.log
-          tail -n 200 build.log >> build.log
-          echo "=== LIST BUILD ===" >> build.log
-          ls -lhR app/build/ 2>&1 | head -n 500 >> build.log
-          echo "=== FIND APK ===" >> build.log
-          find app -name "*.apk" -type f -ls 2>&1 >> build.log || echo "No APK" >> build.log
-          cat build.log | tail -n 500
+          echo "=== TAIL ==="
+          tail -n 300 build.log
+          echo "=== LIST BUILD ==="
+          ls -lhR app/build/ 2>&1 | head -n 500
+          echo "=== FIND APK ==="
+          find app -name "*.apk" -type f -ls 2>&1 || echo "No APK"
 
       - name: Copy APK to handoff
         if: always()
         run: |
           mkdir -p handoff
           cp build.log handoff/build.log || true
-          find app/build -name "*.apk" -type f -exec cp -v {} handoff/ \; 2>&1 | tee -a handoff/build.log || true
-          ls -lh handoff/ | tee -a handoff/build.log
-          # Ensure standard names
+          find app/build -name "*.apk" -type f -exec cp -v {} handoff/ \; || true
+          ls -lh handoff/ || true
           if [ -f handoff/app-debug.apk ]; then
             cp handoff/app-debug.apk handoff/lumi-aether-debug.apk || true
           else
-            # Try to find any apk and copy to standard name
             APK=$(find handoff -name "*.apk" | head -n 1)
             if [ ! -z "$APK" ]; then
               cp "$APK" handoff/app-debug.apk
               cp "$APK" handoff/lumi-aether-debug.apk
             fi
           fi
-          echo "Built at $(date) commit ${{ github.sha }}" > handoff/BUILD_INFO.txt
-          echo "APK files:" >> handoff/BUILD_INFO.txt
+          echo "Built at $(date) commit $GITHUB_SHA" > handoff/BUILD_INFO.txt
           ls -lh handoff/*.apk 2>&1 >> handoff/BUILD_INFO.txt || echo "No APK in handoff" >> handoff/BUILD_INFO.txt
           cat handoff/BUILD_INFO.txt
-          cat handoff/build.log | tail -n 200
 
       - name: Upload artifacts
         if: always()
@@ -91,7 +88,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add handoff/ || true
-          git status
           if git diff --staged --quiet; then
             echo "No changes"
           else
