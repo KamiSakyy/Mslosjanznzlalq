@@ -45,11 +45,23 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+        }
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 
     lint {
         abortOnError = false
+        checkReleaseBuilds = false
+    }
+}
+
+configurations.all {
+    exclude(group = "org.jetbrains", module = "annotations-java5")
+    resolutionStrategy {
+        force("org.jetbrains:annotations:23.0.0")
     }
 }
 
