@@ -601,8 +601,9 @@ public class MainActivity extends AppCompatActivity {
         if (low.contains("аниме") && (low.contains("найди") || low.contains("покажи") || low.contains("что за") || low.contains("посоветуй"))) {
             executor.execute(() -> {
                 try {
-                    String query = prompt.replaceAll("(?i)найди|покажи|аниме|что за|посоветуй|про|мне", "").trim();
-                    if (query.isEmpty()) query = "фрирен";
+                    String tmpQuery = prompt.replaceAll("(?i)найди|покажи|аниме|что за|посоветуй|про|мне", "").trim();
+                    if (tmpQuery.isEmpty()) tmpQuery = "фрирен";
+                    final String query = tmpQuery;
                     List<AnimeCard> cards = animeApi.search(query, 6);
                     mainHandler.post(() -> {
                         ChatMessage userMsg = new ChatMessage(System.currentTimeMillis(), activeSession.id, "user", prompt);
@@ -655,8 +656,9 @@ public class MainActivity extends AppCompatActivity {
         // Art search
         if (low.contains("арт") || low.contains("арты") || low.contains("скинь арты")) {
             executor.execute(() -> {
-                String q = prompt.replaceAll("(?i)скинь|арты|арт|покажи|найди", "").trim();
-                if (q.isEmpty()) q = "2B Nier Automata";
+                String tmpQ = prompt.replaceAll("(?i)скинь|арты|арт|покажи|найди", "").trim();
+                if (tmpQ.isEmpty()) tmpQ = "2B Nier Automata";
+                final String q = tmpQ;
                 List<ChatMessage.ImageData> images = imageSearchApi.search(q, 8);
                 mainHandler.post(() -> {
                     ChatMessage userMsg = new ChatMessage(System.currentTimeMillis(), activeSession.id, "user", prompt);
