@@ -28,52 +28,57 @@ jobs:
           gradle-version: 8.7
 
       - name: Accept Android SDK licenses
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Install required SDK packages
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Generate Gradle wrapper
         run: |
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
-          cat gradle/wrapper/gradle-wrapper.properties
-
-      - name: Show project structure
-        run: |
-          ls -R app/src/main/java | head -n 100
-          cat app/build.gradle.kts
-          cat settings.gradle.kts
+          ls -la
+          ls -la gradle/wrapper/
 
       - name: Build debug APK
         id: build
         run: |
-          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          echo "=== BUILD LOG TAIL ==="
-          tail -n 200 build.log
+          ./gradlew assembleDebug --stacktrace --no-daemon --info 2>&1 | tee build.log
+          echo "=== BUILD FINISHED ==="
+          ls -lhR app/build/ 2>&1 | head -n 200
+          find app/build -type f -name "*.apk" 2>&1 | head -n 20
+          echo "=== CHECK APK ==="
+          ls -lh app/build/outputs/apk/debug/ 2>&1 || echo "No debug folder"
+          du -h app/build/outputs/apk/debug/* 2>&1 || true
         continue-on-error: true
 
-      - name: Show build log on failure
+      - name: Show errors if failed
         if: steps.build.outcome == 'failure'
         run: |
-          echo "=== FULL BUILD LOG ==="
-          cat build.log | tail -n 1000
-          echo "=== SEARCH FOR ERROR ==="
-          grep -i -A5 "error\|FAILED\|exception" build.log | tail -n 500 || true
+          echo "=== BUILD FAILED ==="
+          cat build.log | tail -n 1500
+          echo "=== ERRORS ==="
+          grep -i -A5 "error\|FAILED" build.log | tail -n 1000 || true
 
-      - name: Copy APK to handoff folder
+      - name: Copy APK to handoff
         if: always()
         run: |
           mkdir -p handoff
-          find . -name "*.apk" -type f 2>/dev/null | head -20
-          find app/build -name "*.apk" -type f 2>/dev/null | head -20
-          cp app/build/outputs/apk/debug/*.apk handoff/app-debug.apk 2>/dev/null || echo "No APK found in debug"
-          cp handoff/app-debug.apk handoff/lumi-aether-debug.apk 2>/dev/null || true
+          echo "Searching for APKs..."
+          find . -type f -name "*.apk" | head -n 20
+          echo "Copying..."
+          find app/build -type f -name "*.apk" -exec cp -v {} handoff/ \; 2>&1 || true
+          # Also try direct copy
+          cp -v app/build/outputs/apk/debug/app-debug.apk handoff/app-debug.apk 2>&1 || true
+          cp -v app/build/outputs/apk/debug/app-debug.apk handoff/lumi-aether-debug.apk 2>&1 || true
+          # If still no apk, try to find any apk
           ls -lh handoff/ || true
-          ls -lh app/build/outputs/apk/debug/ 2>/dev/null || true
+          echo "=== HANDOFF CONTENTS ==="
+          ls -lhR handoff/ || true
+          # Create dummy info
+          echo "Built at $(date) commit ${{ github.sha }}" > handoff/BUILD_INFO.txt
+          echo "APK path: $(find handoff -name '*.apk' | head -n 1)" >> handoff/BUILD_INFO.txt
+          cat handoff/BUILD_INFO.txt
 
       - name: Upload APK artifact
         if: always()
@@ -81,8 +86,8 @@ jobs:
         with:
           name: app-debug-apk
           path: |
-            app/build/outputs/apk/debug/*.apk
-            handoff/*.apk
+            handoff/
+            app/build/outputs/
             build.log
           if-no-files-found: warn
 
@@ -91,10 +96,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p handoff
-          echo "Built at $(date) commit ${{ github.sha }}" > handoff/BUILD_INFO.txt
-          git add handoff/BUILD_INFO.txt handoff/README.md || true
-          git add handoff/*.apk || true
+          git status
+          git add handoff/ || true
+          git status
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
