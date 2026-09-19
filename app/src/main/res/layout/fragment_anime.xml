@@ -30,7 +30,7 @@
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
             app:icon="@android:drawable/ic_search_category_default"
-            app:cornerRadius="12dp" />
+            />
     </LinearLayout>
 
     <com.google.android.material.tabs.TabLayout

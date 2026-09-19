@@ -10,6 +10,6 @@
             <com.google.android.material.button.MaterialButton android:id="@+id/btnCopy" style="@style/Widget.Material3.Button.IconButton" android:layout_width="32dp" android:layout_height="32dp" app:icon="@android:drawable/ic_menu_share" app:iconSize="14dp"/>
         </LinearLayout>
         <TextView android:id="@+id/tvContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textColor="@color/text_primary" android:textSize="13sp"/>
-        <com.google.android.material.button.MaterialButton android:id="@+id/btnPickWinner" android:layout_width="match_parent" android:layout_height="36dp" android:layout_marginTop="10dp" android:text="Выбрать лучшим" app:cornerRadius="8dp"/>
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnPickWinner" android:layout_width="match_parent" android:layout_height="36dp" android:layout_marginTop="10dp" android:text="Выбрать лучшим"/>
     </LinearLayout>
 </androidx.cardview.widget.CardView>

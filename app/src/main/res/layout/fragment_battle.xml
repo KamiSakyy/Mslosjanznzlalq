@@ -40,6 +40,6 @@
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
             app:icon="@drawable/ic_send"
-            app:cornerRadius="12dp" />
+            />
     </LinearLayout>
 </LinearLayout>
