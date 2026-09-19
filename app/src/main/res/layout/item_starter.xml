@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="4dp"
+    app:cardBackgroundColor="@color/surface_1" app:cardCornerRadius="12dp" app:cardElevation="0dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="12dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/tvIcon" android:layout_width="32dp" android:layout_height="32dp" android:gravity="center" android:text="✨" android:textSize="16sp" android:background="@drawable/bg_badge"/>
+        <TextView android:id="@+id/tvText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:text="Спроси что-нибудь" android:textColor="@color/text_secondary" android:textSize="13sp"/>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

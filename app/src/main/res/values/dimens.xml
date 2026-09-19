@@ -1,0 +1,17 @@
+<resources>
+    <dimen name="radius_small">8dp</dimen>
+    <dimen name="radius_medium">12dp</dimen>
+    <dimen name="radius_large">16dp</dimen>
+    <dimen name="radius_xlarge">20dp</dimen>
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_s">8dp</dimen>
+    <dimen name="spacing_m">12dp</dimen>
+    <dimen name="spacing_l">16dp</dimen>
+    <dimen name="spacing_xl">24dp</dimen>
+    <dimen name="icon_small">16dp</dimen>
+    <dimen name="icon_medium">20dp</dimen>
+    <dimen name="icon_large">24dp</dimen>
+    <dimen name="avatar_small">32dp</dimen>
+    <dimen name="avatar_medium">40dp</dimen>
+    <dimen name="drawer_width">300dp</dimen>
+</resources>

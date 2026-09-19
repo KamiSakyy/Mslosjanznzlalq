@@ -1,0 +1,19 @@
+<resources>
+    <style name="Theme.Aether" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#FAFAFA</item>
+        <item name="colorOnPrimary">#050505</item>
+        <item name="colorPrimaryContainer">#1A1A1C</item>
+        <item name="colorOnPrimaryContainer">#FAFAFA</item>
+        <item name="colorSecondary">#A1A1AA</item>
+        <item name="colorSurface">#050505</item>
+        <item name="colorOnSurface">#FAFAFA</item>
+        <item name="android:statusBarColor">#050505</item>
+        <item name="android:navigationBarColor">#050505</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <style name="Theme.Aether.Splash" parent="Theme.Aether">
+        <item name="android:windowBackground">@color/ink</item>
+    </style>
+</resources>

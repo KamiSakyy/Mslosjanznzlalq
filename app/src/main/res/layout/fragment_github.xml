@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@color/ink">
+    <LinearLayout android:id="@+id/connectContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Подключить GitHub" android:textColor="@color/text_primary" android:textSize="16sp" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ИИ получит доступ к вашим репозиториям и сможет писать код прямо в GitHub." android:textColor="@color/text_tertiary" android:textSize="12sp" android:layout_marginTop="4dp"/>
+        <EditText android:id="@+id/etToken" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:background="@drawable/bg_input" android:hint="ghp_… или github_pat_…" android:textColor="@color/text_primary" android:paddingHorizontal="12dp"/>
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnConnect" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:text="Подключить" app:cornerRadius="12dp"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/repoContainer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:visibility="gone">
+        <EditText android:id="@+id/etRepoSearch" android:layout_width="match_parent" android:layout_height="48dp" android:layout_margin="12dp" android:background="@drawable/bg_input" android:hint="Поиск репозитория…" android:textColor="@color/text_primary" android:paddingHorizontal="12dp"/>
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvRepos" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/chatContainer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:visibility="gone">
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvGithubChat" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="12dp">
+            <EditText android:id="@+id/etGithubMessage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_input" android:hint="Сообщение для ИИ…" android:textColor="@color/text_primary" android:padding="12dp"/>
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnGithubSend" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginStart="8dp" app:icon="@drawable/ic_send" app:cornerRadius="12dp"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

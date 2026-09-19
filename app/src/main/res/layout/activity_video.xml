@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/ink">
+    <androidx.media3.ui.PlayerView android:id="@+id/playerView" android:layout_width="match_parent" android:layout_height="match_parent" app:use_controller="true" app:controller_layout_id="@layout/custom_exo_controller"/>
+    <com.google.android.material.button.MaterialButton android:id="@+id/btnClose" style="@style/Widget.Material3.Button.IconButton" android:layout_width="48dp" android:layout_height="48dp" android:layout_gravity="top|start" android:layout_margin="12dp" app:icon="@drawable/ic_close"/>
+</FrameLayout>

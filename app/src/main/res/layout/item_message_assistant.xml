@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvProvider"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Люми"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvModel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="openai-fast"
+            android:textColor="@color/text_tertiary"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_badge"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp" />
+
+        <TextView
+            android:id="@+id/tvLatency"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="1.2с"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
+            android:fontFamily="monospace" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        app:cardBackgroundColor="@color/bubble_assistant"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <!-- Reasoning -->
+            <LinearLayout
+                android:id="@+id/reasoningContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:background="@drawable/bg_surface"
+                android:padding="10dp"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Рассуждения"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvReasoning"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="12sp"
+                    android:fontFamily="monospace" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:lineSpacingExtra="3dp" />
+
+            <!-- Image -->
+            <ImageView
+                android:id="@+id/ivGenerated"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                android:scaleType="centerCrop" />
+
+            <!-- Anime cards container -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvAnime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="10dp" />
+
+            <!-- Images gallery -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvImages"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="10dp" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCopy"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
+            app:icon="@android:drawable/ic_menu_share"
+            app:iconSize="14dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRegen"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
+            app:icon="@android:drawable/ic_popup_sync"
+            app:iconSize="14dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnShare"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
+            app:icon="@android:drawable/ic_menu_share"
+            app:iconSize="14dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSources"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:text="Источники"
+            android:textSize="11sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Failover log -->
+    <TextView
+        android:id="@+id/tvFailover"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:textColor="@color/text_muted"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:layout_marginTop="4dp" />
+
+</LinearLayout>

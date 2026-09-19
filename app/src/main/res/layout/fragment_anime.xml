@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ink">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_input"
+            android:hint="Поиск аниме…"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:paddingHorizontal="16dp"
+            android:textSize="14sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSearch"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            app:icon="@android:drawable/ic_search_category_default"
+            app:cornerRadius="12dp" />
+    </LinearLayout>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabFilters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:tabMode="scrollable"
+        android:background="@color/ink"
+        app:tabTextColor="@color/text_tertiary"
+        app:tabSelectedTextColor="@color/text_primary" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAnime"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:padding="8dp" />
+
+    <LinearLayout
+        android:id="@+id/calendarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Календарь онгоингов"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvCalendar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+    </LinearLayout>
+</LinearLayout>

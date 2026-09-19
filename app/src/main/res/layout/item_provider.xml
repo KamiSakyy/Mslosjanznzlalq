@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="@color/surface_1"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Pollinations"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Универсал"
+                android:textColor="@color/text_tertiary"
+                android:textSize="10sp"
+                android:background="@drawable/bg_badge"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchEnabled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Универсальная модель"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:id="@+id/tvLatency"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1200 мс"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:id="@+id/tvSuccess"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="100%"
+                android:textColor="@color/success"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

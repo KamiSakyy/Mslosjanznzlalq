@@ -1,0 +1,2 @@
+-keep class com.aether.app.** { *; }
+-dontwarn **

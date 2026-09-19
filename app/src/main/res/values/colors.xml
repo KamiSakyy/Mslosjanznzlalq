@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ink">#050505</color>
+    <color name="surface_0">#0A0A0B</color>
+    <color name="surface_1">#101011</color>
+    <color name="surface_2">#151516</color>
+    <color name="surface_3">#1A1A1C</color>
+    <color name="surface_input">#0E0E10</color>
+    <color name="line">#14FFFFFF</color>
+    <color name="line_strong">#33FFFFFF</color>
+    <color name="accent">#FAFAFA</color>
+    <color name="text_primary">#FAFAFA</color>
+    <color name="text_secondary">#A1A1AA</color>
+    <color name="text_tertiary">#71717A</color>
+    <color name="text_muted">#52525B</color>
+    <color name="bubble_user">#17171A</color>
+    <color name="bubble_assistant">#0E0E10</color>
+    <color name="error">#F87171</color>
+    <color name="success">#4ADE80</color>
+    <color name="warning">#FACC15</color>
+    <color name="amber">#FBBF24</color>
+    <color name="transparent">#00000000</color>
+    <color name="black_70">#B3000000</color>
+    <color name="white_05">#0DFFFFFF</color>
+    <color name="white_06">#0FFFFFFF</color>
+    <color name="white_08">#14FFFFFF</color>
+</resources>
