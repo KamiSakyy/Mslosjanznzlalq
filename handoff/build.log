@@ -6,11 +6,11 @@ Daemon will be stopped at the end of the build
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:generateDebugResValues
-> Task :app:generateDebugResources
 > Task :app:dataBindingMergeDependencyArtifactsDebug
+> Task :app:generateDebugResources
 > Task :app:packageDebugResources
-> Task :app:mergeDebugResources
 > Task :app:parseDebugLocalResources
+> Task :app:mergeDebugResources
 > Task :app:javaPreCompileDebug
 > Task :app:dataBindingGenBaseClassesDebug
 > Task :app:mapDebugSourceSetPaths
@@ -29,25 +29,25 @@ Daemon will be stopped at the end of the build
 > Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:processDebugManifestForPackage
-> Task :app:mergeExtDexDebug
-> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:mergeExtDexDebug
 > Task :app:processDebugResources
+> Task :app:validateSigningDebug
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Mslosjanznzlalq/Mslosjanznzlalq/app/src/main/java/com/aether/app/MainActivity.java:938: error: cannot find symbol
-                    return new RecyclerView.ViewHolder(inflater.inflate(R.layout.item_battle_answer, parent, false)){};
-                                                       ^
-  symbol: variable inflater
+/home/runner/work/Mslosjanznzlalq/Mslosjanznzlalq/app/src/main/java/com/aether/app/MainActivity.java:609: error: local variables referenced from a lambda expression must be final or effectively final
+                        ChatMessage assistant = new ChatMessage(System.currentTimeMillis() + 1, activeSession.id, "assistant", "Нашла несколько аниме по запросу \"" + query + "\":");
+                                                                                                                                                                       ^
+/home/runner/work/Mslosjanznzlalq/Mslosjanznzlalq/app/src/main/java/com/aether/app/MainActivity.java:663: error: local variables referenced from a lambda expression must be final or effectively final
+                    ChatMessage assistant = new ChatMessage(System.currentTimeMillis() + 1, activeSession.id, "assistant", "Нашла арты по запросу \"" + q + "\" 🎨");
+                                                                                                                                                        ^
 Note: /home/runner/work/Mslosjanznzlalq/Mslosjanznzlalq/app/src/main/java/com/aether/app/MainActivity.java uses or overrides a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-1 error
+2 errors
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/build-1789840486736.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1789840682227.json
 
 FAILURE: Build failed with an exception.
 
@@ -251,5 +251,5 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 
 
-BUILD FAILED in 1m 11s
-27 actionable tasks: 27 executed
+BUILD FAILED in 1m 8s
+25 actionable tasks: 25 executed
