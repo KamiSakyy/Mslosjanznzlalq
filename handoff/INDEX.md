@@ -1,28 +1,23 @@
-# KamiGram — архив сборок
+# KamiGram - архив сборок
 
-Все версии APK и исходников сохраняются **навсегда**, ничего не удаляется.
-
+Все версии APK и исходников сохраняются навсегда, ничего не удаляется.
 
 ## Версии APK
 
 | файл | размер | sha256 |
 |---|---|---|
-| `apk/KamiGram-12.10.3-mod-r8.apk` | 34.2 МБ | `a787e5ce648b222b…` |
+| `apk/KamiGram-12.10.3-mod-r14.apk` | 35M | `34a2d36cadd43c75...` |
+| `apk/KamiGram-12.10.3-mod-r8.apk` | 35M | `a787e5ce648b222b...` |
 
 ## Исходники версий
 
-Каждая запись = `MOD_INFO` (версия, коммит Telegram, список патчей) + `changes-*.patch` (полный diff).
-Восстановить исходники: `git clone --recursive https://github.com/DrKLO/Telegram` нужного коммита, затем `git apply changes-*.patch`.
+Каждая запись = MOD_INFO + changes-*.patch.gz (полный diff против Telegram).
 
 | файл | размер |
 |---|---|
-| `sources/MOD_INFO-12.10.3-mod-r8.txt` | 2.4 КБ |
-| `sources/SHA256SUMS-12.10.3-mod-r8.txt` | 0.2 КБ |
+| `sources/MOD_INFO-12.10.3-mod-r14.txt` | 4.0K |
+| `sources/MOD_INFO-12.10.3-mod-r8.txt` | 4.0K |
+| `sources/changes-12.10.3-mod-r14.patch.gz` | 1.4M |
+| `sources/changes-12.10.3-mod-r14.stat.txt` | 0 |
 
-## Скачать
-
-```
-https://github.com/KamiSakyy/Mslosjanznzlalq/raw/<ветка>/handoff/apk/KamiGram-latest.apk
-```
-
-Обновлено: 2026-09-20 20:23 UTC
+Обновлено: 2026-09-20 20:56 UTC
