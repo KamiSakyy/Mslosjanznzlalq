@@ -1006,7 +1006,6 @@ if factory_marker not in src:
         '        tab.colorDefault = 0xff8e8e93;\n'
         '        tab.colorSelected = 0xff0a84ff;\n'
         '        tab.colorSelectedText = 0xff0a84ff;\n'
-        '        tab.setSkipDrawSelector(true);\n'
         '        tab.updateColors();\n'
         '        return tab;\n'
         '    }\n\n'
@@ -1021,14 +1020,29 @@ if fixed_marker not in src:
         sys.exit(1)
     src = src.replace(field_old, field_old + '    private boolean kamigramIOSTab; ' + fixed_marker + '\n', 1)
 
-    setter_old = '    public void setSkipDrawSelector(boolean skipDrawSelector) {\n'
-    if setter_old not in src:
-        sys.stderr.write('P20: не найден setSkipDrawSelector\n')
+    # iOS-анимация: иконка мягко подпрыгивает при выборе таба, как в iOS
+    sel_old = '    public void setSelected(boolean selected, boolean animated) {\n'
+    if sel_old not in src:
+        sys.stderr.write('P20: не найден setSelected\n')
         sys.exit(1)
-    src = src.replace(setter_old, setter_old +
-                      '        if (kamigramIOSTab) {\n'
-                      '            skipDrawSelector = true;\n'
-                      '        }\n', 1)
+    bounce = ('        /* KAMIGRAM_IOS_TAB_BOUNCE: iOS-like pop of the selected tab icon */\n'
+              '        if (kamigramIOSTab && imageView != null) {\n'
+              '            imageView.animate().cancel();\n'
+              '            if (!animated) {\n'
+              '                imageView.setScaleX(1f);\n'
+              '                imageView.setScaleY(1f);\n'
+              '            } else if (selected) {\n'
+              '                imageView.animate().scaleX(1.14f).scaleY(1.14f).setDuration(130)\n'
+              '                    .setInterpolator(new android.view.animation.DecelerateInterpolator())\n'
+              '                    .withEndAction(() -> imageView.animate().scaleX(1f).scaleY(1f).setDuration(170)\n'
+              '                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start())\n'
+              '                    .start();\n'
+              '            } else {\n'
+              '                imageView.animate().scaleX(0.94f).scaleY(0.94f).setDuration(120)\n'
+              '                    .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();\n'
+              '            }\n'
+              '        }\n')
+    src = src.replace(sel_old, sel_old + bounce, 1)
 
     colors_old = '    public void updateColorsLottie() {\n'
     if colors_old not in src:
