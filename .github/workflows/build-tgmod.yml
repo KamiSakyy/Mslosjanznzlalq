@@ -17,11 +17,11 @@ on:
     inputs:
       app_name:
         description: "Название приложения (ярлык + UI)"
-        default: "MslGram"
+        default: "KamiGram"
         type: string
       app_package:
         description: "applicationId (свой, чтобы ставилось рядом с Telegram)"
-        default: "com.kamisakyy.mgram"
+        default: "com.kami.gram"
         type: string
       version_suffix:
         description: "Суффикс версии"
@@ -41,6 +41,26 @@ on:
       disable_billing:
         description: "Выключить Google Play Billing (1/0)"
         default: "0"
+        type: string
+      max_economy:
+        description: "MAX ECONOMY: power-saver, все анимации/автоплей выключены (1/0)"
+        default: "1"
+        type: string
+      no_stickers:
+        description: "Полностью запретить загрузку стикеров и премиум-эмодзи (1/0)"
+        default: "1"
+        type: string
+      autodownload_off:
+        description: "Автоскачивание медиа выключено по умолчанию (1/0)"
+        default: "1"
+        type: string
+      slim_heavy:
+        description: "Урезать тяжёлые Lottie-анимации: 1 (крупные) | all (все) | 0 (не трогать)"
+        default: "1"
+        type: string
+      res_configs:
+        description: "Локали в APK (ru,en | all) — меньше = меньше APK"
+        default: "ru,en"
         type: string
       create_release:
         description: "Создать GitHub Release с APK"
@@ -66,12 +86,17 @@ jobs:
     timeout-minutes: 240
 
     env:
-      APP_NAME: ${{ inputs.app_name || 'MslGram' }}
-      APP_PACKAGE: ${{ inputs.app_package || 'com.kamisakyy.mgram' }}
+      APP_NAME: ${{ inputs.app_name || 'KamiGram' }}
+      APP_PACKAGE: ${{ inputs.app_package || 'com.kami.gram' }}
       APP_VERSION_SUFFIX: ${{ inputs.version_suffix || '-mod' }}
       ABIS: ${{ inputs.abis || 'arm64-v8a' }}
       TG_REF: ${{ inputs.tg_ref || 'master' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
+      MAX_ECONOMY: ${{ inputs.max_economy || '1' }}
+      NO_STICKERS: ${{ inputs.no_stickers || '1' }}
+      AUTODOWNLOAD_OFF: ${{ inputs.autodownload_off || '1' }}
+      SLIM_HEAVY: ${{ inputs.slim_heavy || '1' }}
+      RES_CONFIGS: ${{ inputs.res_configs || 'ru,en' }}
       CREATE_RELEASE: ${{ inputs.create_release == false && 'false' || 'true' }}
       # ccache для нативной части (C/C++), живёт между запусками
       CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -144,7 +169,7 @@ jobs:
           TG_DIR: ${{ github.workspace }}/telegram-src
         run: bash modrepo/mod/apply-mod.sh
 
-      - name: Сборка APK (assembleAfatRelease)
+      - name: Сборка APK (assembleAfatRelease, arm64, экономия трафика)
         working-directory: telegram-src
         run: |
           ./gradlew --no-daemon --stacktrace --console=plain \
@@ -204,6 +229,11 @@ jobs:
             echo "| package id | \`$APP_PACKAGE\` |"
             echo "| версия | \`${{ steps.apk.outputs.version || '—' }}\` |"
             echo "| ABI | \`$ABIS\` |"
+            echo "| MAX ECONOMY | \`$MAX_ECONOMY\` (power-saver, без анимаций и автоплея) |"
+            echo "| стикеры/премиум-эмодзи | \`$NO_STICKERS\` (1 = не загружаются вообще) |"
+            echo "| автоскачивание медиа | \`$AUTODOWNLOAD_OFF\` (1 = выключено по умолчанию) |"
+            echo "| локали | \`$RES_CONFIGS\` |"
+            echo "| урезание анимаций | \`$SLIM_HEAVY\` |"
             echo "| APK | \`${{ steps.apk.outputs.out || '—' }}\` (${{ steps.apk.outputs.size || '—' }}) |"
             echo "| SHA-256 | \`${{ steps.apk.outputs.sha || '—' }}\` |"
             echo "| исходники | DrKLO/Telegram @ \`$TG_REF\` |"

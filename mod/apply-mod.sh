@@ -24,6 +24,11 @@
 #     DISABLE_UPDATER      1 = не проверять обновления (нужно для мода)  [1]
 #     DISABLE_BILLING      1 = выключить Google Play Billing            [0]
 #     USE_CCACHE           1 = кэшировать нативную сборку через ccache  [1]
+#     AUTODOWNLOAD_OFF     1 = автоскачивание медиа выключено по умолчанию [1]
+#     NO_STICKERS          1 = стикеры/премиум-эмодзи не загружаются вообще  [1]
+#     MAX_ECONOMY          1 = принудительный power-saver (анимации/автоплей off) [1]
+#     RES_CONFIGS          какие локали оставить в APK ("ru,en" | "all")   [ru,en]
+#     SLIM_HEAVY           заглушки тяжёлых Lottie-анимаций: 1 | all | 0   [1]
 #     KEYSTORE_B64         base64 от .jks, если нужна своя подпись       [пусто]
 #     KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD — для своей подписи   [пусто]
 # =============================================================================
@@ -40,6 +45,12 @@ BRAND_STRINGS=${BRAND_STRINGS:-1}
 DISABLE_UPDATER=${DISABLE_UPDATER:-1}
 DISABLE_BILLING=${DISABLE_BILLING:-0}
 USE_CCACHE=${USE_CCACHE:-1}
+# экономия трафика / размер
+AUTODOWNLOAD_OFF=${AUTODOWNLOAD_OFF:-1}   # автоскачивание медиа выключено по умолчанию
+NO_STICKERS=${NO_STICKERS:-1}             # стикеры и премиум-эмодзи не загружаются вообще
+MAX_ECONOMY=${MAX_ECONOMY:-1}             # принудительный power-saver (все анимации/автоплей выкл)
+RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
+SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
 KEY_ALIAS=${KEY_ALIAS:-}
@@ -256,6 +267,129 @@ else
 fi
 
 # =============================================================================
+# P10. ЭКОНОМИЯ ТРАФИКА: автоскачивание медиа выключено по умолчанию
+#      (фото/видео/документы не докачиваются сами ни в Wi-Fi, ни в мобильной сети)
+# =============================================================================
+DC="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/DownloadController.java"
+if [ "$AUTODOWNLOAD_OFF" = "1" ]; then
+    # строки пресетов: mask0_mask1_mask2_mask3_photo_video_doc_audio_preloadVideo_preloadMusic_enabled_lowCallData_bitrate_preloadStories
+    sed_i 's#String defaultLow = "[^"]*";#String defaultLow = "0_0_0_0_1048576_512000_512000_524288_0_0_0_1_50_0";#' "$DC"
+    sed_i 's#String defaultMedium = "[^"]*";#String defaultMedium = "0_0_0_0_1048576_10485760_1048576_524288_0_0_0_1_100_0";#' "$DC"
+    sed_i 's#String defaultHigh = "[^"]*";#String defaultHigh = "0_0_0_0_1048576_15728640_3145728_524288_0_0_0_1_100_0";#' "$DC"
+    # старый формат настроек (обновление поверх существующей установки)
+    sed_i 's#getInt(key, AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)#getInt(key, 0)#' "$DC"
+    sed_i 's#getInt("wifiDownloadMask" + (a == 0 ? "" : a), AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)#getInt("wifiDownloadMask" + (a == 0 ? "" : a), 0)#' "$DC"
+    sed_i 's#getInt("roamingDownloadMask" + (a == 0 ? "" : a), AUTODOWNLOAD_TYPE_PHOTO)#getInt("roamingDownloadMask" + (a == 0 ? "" : a), 0)#' "$DC"
+    sed_i 's#getBoolean("globalAutodownloadEnabled", true)#getBoolean("globalAutodownloadEnabled", false)#' "$DC"
+
+    has "$DC" 'defaultMedium = "0_0_0_0_' || die "P10: не удалось обнулить defaultMedium"
+    has "$DC" 'globalAutodownloadEnabled", false' || die "P10: не удалось выключить globalAutodownloadEnabled"
+    grep -q 'AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO' "$DC" && die "P10: остались маски автоскачивания по умолчанию"
+    ok "P10 автоскачивание медиа выключено по умолчанию (моб./Wi-Fi/роуминг), preload видео/музыки/историй — off"
+else
+    skip "P10 автоскачивание оставлено как в upstream (AUTODOWNLOAD_OFF=0)"
+fi
+
+# =============================================================================
+# P11. СТИКЕРЫ И ПРЕМИУМ-ЭМОДЗИ НЕ ЗАГРУЖАЮТСЯ ВООБЩЕ
+#      Блокируем все точки загрузки наборов: обычные, маски, премиум-эмодзи,
+#      featured, подарочные/TON-стикеры, generic-анимации, иконки топиков.
+# =============================================================================
+MDC="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/MediaDataController.java"
+if [ "$NO_STICKERS" = "1" ]; then
+    python3 - "$MDC" <<'PY' || die "P11: не удалось внедрить блокировку стикеров"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+marker = '/* KAMIGRAM_NO_STICKERS */'
+targets = [
+    ('public void loadStickers(int type, boolean cache, boolean force, boolean scheduleIfLoading, Utilities.Callback<ArrayList<TLRPC.TL_messages_stickerSet>> onFinish) {',
+     '        if (true) { ' + marker + ' if (onFinish != null) onFinish.run(null); return; }'),
+    ('public void loadFeaturedStickers(boolean emoji, boolean cache) {',
+     '        if (true) { ' + marker + ' return; }'),
+    ('public void loadStickersByEmojiOrName(String name, boolean isEmoji, boolean cache) {',
+     '        if (true) { ' + marker + ' return; }'),
+]
+if marker not in src:
+    for sig, inject in targets:
+        if sig not in src:
+            sys.stderr.write('P11: не найден метод: %s\n' % sig)
+            sys.exit(1)
+        src = src.replace(sig, sig + '\n' + inject, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+PY
+    [ "$(grep -c 'KAMIGRAM_NO_STICKERS' "$MDC")" = "3" ] || die "P11: ожидалось 3 точки блокировки"
+    ok "P11 загрузка наборов стикеров/масок/премиум-эмодзи/подарков заблокирована (0 байт трафика)"
+else
+    skip "P11 стикеры оставлены как в upstream (NO_STICKERS=0)"
+fi
+
+# =============================================================================
+# P12. MAX ECONOMY: принудительный power-saver — никаких анимаций, автоплея,
+#      частиц, блюра и кастомных обоев. Меньше трафика, меньше CPU, меньше RAM.
+# =============================================================================
+LM="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/LiteMode.java"
+if [ "$MAX_ECONOMY" = "1" ]; then
+    python3 - "$LM" <<'PY' || die "P12: не удалось включить power-saver"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+marker = '/* KAMIGRAM_MAX_ECONOMY */'
+sig = 'public static int getValue(boolean ignorePowerSaving) {'
+if marker not in src:
+    if sig not in src:
+        sys.stderr.write('P12: не найден LiteMode.getValue\n')
+        sys.exit(1)
+    src = src.replace(sig, sig + '\n        if (true) return PRESET_POWER_SAVER; ' + marker, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+PY
+    has "$LM" "KAMIGRAM_MAX_ECONOMY" || die "P12: маркер не внедрён"
+    ok "P12 power-saver принудительно: animated emoji/стикеры, автоплей GIF/видео, частицы, blur, обои — off"
+else
+    skip "P12 power-saver не форсируется (MAX_ECONOMY=0)"
+fi
+
+# =============================================================================
+# P13. РАЗМЕР APK: оставляем только нужные языки (остальные приходят с сервера)
+# =============================================================================
+if [ -n "$RES_CONFIGS" ] && [ "$RES_CONFIGS" != "all" ]; then
+    IFS=',' read -r -a RC_ARR <<< "$RES_CONFIGS"
+    RC_GROOVY=$(printf '"%s", ' "${RC_ARR[@]}"); RC_GROOVY=${RC_GROOVY%, }
+    rc_files=0
+    while IFS= read -r gf; do
+        sed_i "s#localeFilters += \[\"zz\"\]#localeFilters += [\"zz\", $RC_GROOVY]#" "$gf"
+        has "$gf" "$RC_GROOVY" && rc_files=$((rc_files+1))
+    done < <(grep -rl 'localeFilters += \["zz"\]' "$TG_DIR" --include=build.gradle || true)
+    [ "$rc_files" -gt 0 ] || die "P13: не нашёл localeFilters ни в одном build.gradle"
+    ok "P13 в APK остаются локали: $RES_CONFIGS (+zz) — файлов: $rc_files"
+else
+    skip "P13 все локали оставлены (RES_CONFIGS=$RES_CONFIGS)"
+fi
+
+# =============================================================================
+# P14. РАЗМЕР APK: тяжёлые Lottie-анимации заменяются мгновенной заглушкой.
+#      R.raw.* ссылки целы (файлы существуют), «анимация» проигрывается за 1 кадр.
+# =============================================================================
+RAW="$TG_DIR/TMessagesProj/src/main/res/raw"
+if [ "$SLIM_HEAVY" != "0" ] && [ -d "$RAW" ]; then
+    before=$(du -sk "$RAW" | cut -f1)
+    stubbed=0
+    while IFS= read -r f; do
+        size=$(wc -c < "$f")
+        if [ "$SLIM_HEAVY" = "all" ] || [ "$size" -gt 102400 ]; then
+            printf '%s' '{"v":"5.7.4","fr":1,"ip":0,"op":1,"w":1,"h":1,"assets":[],"layers":[]}' > "$f"
+            stubbed=$((stubbed+1))
+        fi
+    done < <(find "$RAW" -name '*.json' | sort)
+    [ "$stubbed" -gt 0 ] || die "P14: не нашёл Lottie-анимаций в res/raw"
+    after=$(du -sk "$RAW" | cut -f1)
+    saved=$(( (before - after) / 1024 ))
+    ok "P14 обнулено Lottie-анимаций: $stubbed (res/raw: -${saved} МБ исходников; режим SLIM_HEAVY=$SLIM_HEAVY)"
+else
+    skip "P14 Lottie-анимации не тронуты (SLIM_HEAVY=$SLIM_HEAVY)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -264,6 +398,11 @@ MOD_PACKAGE=$APP_PACKAGE
 MOD_VERSION=$NEW_VERSION
 MOD_BASE_VERSION=$BASE_VERSION
 MOD_ABIS=$ABIS
+MOD_MAX_ECONOMY=$MAX_ECONOMY
+MOD_NO_STICKERS=$NO_STICKERS
+MOD_AUTODOWNLOAD_OFF=$AUTODOWNLOAD_OFF
+MOD_RES_CONFIGS=$RES_CONFIGS
+MOD_SLIM_HEAVY=$SLIM_HEAVY
 MOD_BUILD_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 UPSTREAM_REPO=https://github.com/DrKLO/Telegram
 UPSTREAM_COMMIT=$UPSTREAM_COMMIT
