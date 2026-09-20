@@ -221,7 +221,15 @@ public class MainActivity extends AppCompatActivity {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 boolean hasText = s.toString().trim().length() > 0 || pendingAttachmentDataUrl != null;
-                btnSend.setEnabled(hasText && !isLoading);
+                boolean enabled = hasText && !isLoading;
+                btnSend.setEnabled(enabled);
+                // Дизайн как на сайте: белая кнопка #FAFAFA с черной иконкой, когда disabled — полупрозрачная
+                btnSend.setAlpha(enabled ? 1f : 0.45f);
+                if (enabled) {
+                    btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFAFAFA));
+                } else {
+                    btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF27272A));
+                }
             }
             @Override public void afterTextChanged(Editable s) {}
         });
@@ -452,7 +460,10 @@ public class MainActivity extends AppCompatActivity {
         pendingAttachmentDataUrl = null;
         attachmentPreview.setVisibility(View.GONE);
         ivAttachment.setImageDrawable(null);
-        btnSend.setEnabled(etMessage.getText().toString().trim().length() > 0);
+        boolean hasText = etMessage.getText().toString().trim().length() > 0;
+        btnSend.setEnabled(hasText);
+        btnSend.setAlpha(hasText ? 1f : 0.45f);
+        btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(hasText ? 0xFFFAFAFA : 0xFF27272A));
     }
 
     private void startVoiceInput() {
@@ -708,7 +719,10 @@ public class MainActivity extends AppCompatActivity {
         isLoading = false;
         btnSend.setVisibility(View.VISIBLE);
         btnStop.setVisibility(View.GONE);
-        btnSend.setEnabled(etMessage.getText().toString().trim().length() > 0 || pendingAttachmentDataUrl != null);
+        boolean hasText = etMessage.getText().toString().trim().length() > 0 || pendingAttachmentDataUrl != null;
+        btnSend.setEnabled(hasText);
+        btnSend.setAlpha(hasText ? 1f : 0.45f);
+        btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(hasText ? 0xFFFAFAFA : 0xFF27272A));
         tvStreamingStatus.setVisibility(View.GONE);
         currentStreaming = null;
         loadSessions();

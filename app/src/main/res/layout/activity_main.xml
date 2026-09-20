@@ -237,6 +237,7 @@
                     app:iconSize="20dp"
                     app:iconTint="@color/text_tertiary" />
 
+                <!-- Кнопка отправки как на сайте: белая круглая #FAFAFA с черной иконкой, 36dp, lucide send -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSend"
                     android:layout_width="36dp"
@@ -248,8 +249,12 @@
                     android:enabled="false"
                     app:icon="@drawable/ic_send"
                     app:iconSize="18dp"
-                    app:iconTint="@color/text_primary"
-                    app:shapeAppearanceOverlay="@style/CircleButton" />
+                    app:iconTint="#000000"
+                    android:backgroundTint="#FAFAFA"
+                    app:backgroundTint="#FAFAFA"
+                    app:shapeAppearanceOverlay="@style/CircleButton"
+                    app:elevation="0dp"
+                    android:alpha="0.5" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStop"
@@ -258,9 +263,14 @@
                     android:visibility="gone"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
                     app:icon="@drawable/ic_close"
                     app:iconSize="18dp"
-                    app:shapeAppearanceOverlay="@style/CircleButton" />
+                    app:iconTint="#FAFAFA"
+                    app:backgroundTint="#27272A"
+                    app:shapeAppearanceOverlay="@style/CircleButton"
+                    app:elevation="0dp" />
 
             </LinearLayout>
 

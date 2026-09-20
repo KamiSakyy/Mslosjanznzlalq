@@ -61,46 +61,51 @@ public class AiRouter {
 
     public static List<AIProvider> getBuiltInProviders() {
         List<AIProvider> list = new ArrayList<>();
-        // === Оригинальные 19 с сайта ===
-        list.add(new AIProvider("gpt-oss-20b", "GPT-OSS 20B", "OpenAI OSS · Pollinations", "pollinations", "openai", POLLI_OPENAI_ENDPOINT, "universal", "Открытая 20B-модель OpenAI с цепочкой рассуждений. Надёжный универсал.", "Универсал", false, true, 1, 780));
-        list.add(new AIProvider("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek · Kilo Gateway", "kilo", "deepseek/deepseek-v4-flash-0731:free", KILO_ENDPOINT, "reasoning", "Флагманская reasoning-модель DeepSeek V4. Глубокий анализ, математика.", "Reasoning", false, true, 2, 920));
-        list.add(new AIProvider("minimax-m2-7", "MiniMax M2.7", "MiniMax · LLM7 Gateway", "llm7", "minimax-m2.7", LLM7_ENDPOINT, "reasoning", "Модель глубокого мышления с потоком рассуждений. Стратегия, логика.", "DeepThink", false, true, 3, 960));
-        list.add(new AIProvider("nemotron-ultra-550b", "Nemotron 3 Ultra 550B", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-ultra-550b-a55b:free", KILO_ENDPOINT, "reasoning", "Крупнейшая открытая MoE-модель NVIDIA 550B. Экспертные ответы.", "550B MoE", false, true, 4, 1450));
-        list.add(new AIProvider("nemotron-super-120b", "Nemotron 3 Super 120B", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-super-120b-a12b:free", KILO_ENDPOINT, "reasoning", "Сбалансированная 120B-модель NVIDIA с reasoning.", "120B", false, true, 5, 1200));
-        list.add(new AIProvider("mistral-codestral", "Codestral 25.01", "Mistral AI · LLM7", "llm7", "codestral-latest", LLM7_ENDPOINT, "coding", "Специализированная кодовая модель Mistral: 80+ языков, рефакторинг.", "Код", false, true, 6, 840));
-        list.add(new AIProvider("cohere-north-code", "Cohere North Code", "Cohere · Kilo", "kilo", "cohere/north-mini-code:free", KILO_ENDPOINT, "coding", "Компактная кодовая модель Cohere North. Быстрые правки.", "Код", false, true, 7, 1100));
-        list.add(new AIProvider("nex-n2-5-mini", "Nex N2.5 Mini", "Nex AGI · Kilo", "kilo", "nex-agi/nex-n2.5-mini:free", KILO_ENDPOINT, "coding", "Быстрая кодовая модель Nex AGI. Чистый код.", "Код", false, true, 8, 1200));
-        list.add(new AIProvider("mistral-nemo", "Mistral Nemo 12B", "Mistral × NVIDIA · LLM7", "llm7", "mistral-Nemo-Instruct-2407", LLM7_ENDPOINT, "fast", "Скоростная 12B-модель для мгновенных ответов.", "Быстро", false, true, 8, 640));
-        list.add(new AIProvider("nemotron-lightning", "Nemotron 3.5 Lightning", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3.5-lightning:free", KILO_ENDPOINT, "fast", "Сверхлёгкая модель NVIDIA нового поколения.", "Быстро", false, true, 9, 700));
-        list.add(new AIProvider("ling-flash-vl", "Ling 3.0 Flash VL", "InclusionAI · Kilo", "kilo", "inclusionai/ling-3.0-flash-vl:free", KILO_ENDPOINT, "vision", "Мультимодальная: анализирует фото, скриншоты, схемы.", "Зрение", true, true, 10, 1300));
-        list.add(new AIProvider("nemotron-nano-omni", "Nemotron 3 Nano Omni", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", KILO_ENDPOINT, "vision", "Омни-модель NVIDIA с reasoning для изображений.", "Зрение", true, true, 11, 4200));
-        list.add(new AIProvider("laguna-s-2-1", "Laguna S 2.1", "Poolside · Kilo", "kilo", "poolside/laguna-s-2.1:free", KILO_ENDPOINT, "creative", "Творческая модель Poolside: художественные тексты, сценарии.", "Креатив", false, true, 13, 1600));
-        list.add(new AIProvider("dots-3-note", "Dots 3 Note", "dots.studio · Kilo", "kilo", "dots-studio/dots-3-note-preview:free", KILO_ENDPOINT, "creative", "Писательская модель dots.studio: связные тексты.", "Тексты", false, true, 14, 1800));
-        list.add(new AIProvider("nex-n2-5-pro", "Nex N2.5 Pro", "Nex AGI · Kilo", "kilo", "nex-agi/nex-n2.5-pro:free", KILO_ENDPOINT, "reasoning", "Универсальная reasoning-модель Nex AGI.", "Reasoning", false, true, 15, 1500));
-        list.add(new AIProvider("qwen3-8-27b", "Qwen 3.8 27B", "Alibaba Qwen · Kilo", "kilo", "qwen/qwen3.8-27b:free", KILO_ENDPOINT, "universal", "Свежая 27B-модель Qwen: универсальные ответы.", "Универсал", false, true, 16, 1300));
-        list.add(new AIProvider("glm-5-2", "GLM 5.2", "Zhipu Z.AI · Kilo", "kilo", "z-ai/glm-5.2:free", KILO_ENDPOINT, "reasoning", "Аналитическая модель GLM 5.2 от Zhipu AI.", "Reasoning", false, true, 17, 1400));
-        list.add(new AIProvider("glm-5-3-flash", "GLM 5.3 Flash", "Zhipu Z.AI · LLM7", "llm7", "GLM-5.3-Flash", LLM7_ENDPOINT, "reasoning", "Быстрая reasoning-модель GLM 5.3 через LLM7.", "Reasoning", false, true, 18, 2600));
-        list.add(new AIProvider("pollinations-direct", "Pollinations Edge", "Pollinations Edge Network", "pollinations", "openai-fast", POLLI_DIRECT_ENDPOINT, "universal", "Резервный edge-узел. Гарантирует ответ.", "Резерв", false, false, 19, 900));
+        // === ПРИОРИТЕТ 1: OVH Cloud — анонимно без ключа, 2 RPM, EU, GDPR — САМЫЕ НАДЕЖНЫЕ БЕЗ КРЕДИТОВ ===
+        list.add(new AIProvider("ovh-gpt-oss-20b", "OVH GPT-OSS 20B", "OVH Cloud · Free", "ovh", "gpt-oss-20b", OVH_ENDPOINT, "universal", "OVH бесплатный tier без ключа, 2 RPM. GPT-OSS 20B в EU. Работает всегда без кредитов.", "OVH Free", false, true, 1, 1100));
+        list.add(new AIProvider("ovh-llama-70b", "OVH Llama 3.3 70B", "Meta · OVH Cloud", "ovh", "Meta-Llama-3_3-70B-Instruct", OVH_ENDPOINT, "universal", "Llama 3.3 70B через OVH анонимно, 2 RPM. Надежный без кредитов.", "Llama 70B", false, true, 2, 1300));
+        list.add(new AIProvider("ovh-qwen-coder", "OVH Qwen3 Coder 30B", "Qwen · OVH Cloud", "ovh", "Qwen3-Coder-30B-A3B-Instruct", OVH_ENDPOINT, "coding", "Qwen3 Coder через OVH, отлично для кода. Без ключа.", "Qwen Code", false, true, 3, 1200));
+        list.add(new AIProvider("ovh-mistral-small", "OVH Mistral Small 24B", "Mistral · OVH Cloud", "ovh", "Mistral-Small-3.2-24B-Instruct", OVH_ENDPOINT, "fast", "Mistral Small 24B через OVH, быстро. Без ключа.", "Mistral", false, true, 4, 900));
+        list.add(new AIProvider("ovh-gpt-oss-120b", "OVH GPT-OSS 120B", "OVH Cloud · Free", "ovh", "gpt-oss-120b", OVH_ENDPOINT, "reasoning", "OVH GPT-OSS 120B без ключа, мощный reasoning.", "OVH 120B", false, true, 5, 1800));
+        list.add(new AIProvider("ovh-qwen-vl", "OVH Qwen2.5 VL 72B", "Qwen · OVH Cloud", "ovh", "Qwen2.5-VL-72B-Instruct", OVH_ENDPOINT, "vision", "Vision модель Qwen2.5 VL 72B через OVH.", "VL 72B", true, true, 6, 2000));
 
-        // === НОВЫЕ ИСТОЧНИКИ найденные самостоятельно (2026) ===
-        // OVH Cloud - анонимно без ключа, 2 RPM, EU хостинг, GDPR
-        list.add(new AIProvider("ovh-gpt-oss-20b", "OVH GPT-OSS 20B", "OVH Cloud · Free", "ovh", "gpt-oss-20b", OVH_ENDPOINT, "universal", "OVH бесплатный tier без ключа, 2 RPM. GPT-OSS 20B в EU.", "OVH Free", false, true, 20, 1100));
-        list.add(new AIProvider("ovh-gpt-oss-120b", "OVH GPT-OSS 120B", "OVH Cloud · Free", "ovh", "gpt-oss-120b", OVH_ENDPOINT, "reasoning", "OVH GPT-OSS 120B без ключа, мощный reasoning.", "OVH 120B", false, true, 21, 1800));
-        list.add(new AIProvider("ovh-llama-70b", "OVH Llama 3.3 70B", "Meta · OVH Cloud", "ovh", "Meta-Llama-3_3-70B-Instruct", OVH_ENDPOINT, "universal", "Llama 3.3 70B через OVH анонимно, 2 RPM.", "Llama 70B", false, true, 22, 1300));
-        list.add(new AIProvider("ovh-qwen-coder", "OVH Qwen3 Coder 30B", "Qwen · OVH Cloud", "ovh", "Qwen3-Coder-30B-A3B-Instruct", OVH_ENDPOINT, "coding", "Qwen3 Coder через OVH, отлично для кода.", "Qwen Code", false, true, 23, 1200));
-        list.add(new AIProvider("ovh-mistral-small", "OVH Mistral Small 24B", "Mistral · OVH Cloud", "ovh", "Mistral-Small-3.2-24B-Instruct", OVH_ENDPOINT, "fast", "Mistral Small 24B через OVH, быстро.", "Mistral", false, true, 24, 900));
-        list.add(new AIProvider("ovh-qwen-vl", "OVH Qwen2.5 VL 72B", "Qwen · OVH Cloud", "ovh", "Qwen2.5-VL-72B-Instruct", OVH_ENDPOINT, "vision", "Vision модель Qwen2.5 VL 72B через OVH.", "VL 72B", true, true, 25, 2000));
+        // === ПРИОРИТЕТ 2: Kilo Gateway — анонимно без ключа для :free моделей, 200/hour per IP — НАСТОЯЩИЕ БЕЗ КРЕДИТОВ ===
+        list.add(new AIProvider("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek · Kilo Gateway", "kilo", "deepseek/deepseek-v4-flash-0731:free", KILO_ENDPOINT, "reasoning", "Флагманская reasoning-модель DeepSeek V4. Глубокий анализ, математика. Без ключа 200/hour.", "Reasoning", false, true, 7, 920));
+        list.add(new AIProvider("nemotron-ultra-550b", "Nemotron 3 Ultra 550B", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-ultra-550b-a55b:free", KILO_ENDPOINT, "reasoning", "Крупнейшая открытая MoE-модель NVIDIA 550B. Без ключа.", "550B MoE", false, true, 8, 1450));
+        list.add(new AIProvider("nemotron-super-120b", "Nemotron 3 Super 120B", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-super-120b-a12b:free", KILO_ENDPOINT, "reasoning", "Сбалансированная 120B-модель NVIDIA с reasoning. Без ключа.", "120B", false, true, 9, 1200));
+        list.add(new AIProvider("cohere-north-code", "Cohere North Code", "Cohere · Kilo", "kilo", "cohere/north-mini-code:free", KILO_ENDPOINT, "coding", "Компактная кодовая модель Cohere North. Быстрые правки. Без ключа.", "Код", false, true, 10, 1100));
+        list.add(new AIProvider("nex-n2-5-mini", "Nex N2.5 Mini", "Nex AGI · Kilo", "kilo", "nex-agi/nex-n2.5-mini:free", KILO_ENDPOINT, "coding", "Быстрая кодовая модель Nex AGI. Чистый код. Без ключа.", "Код", false, true, 11, 1200));
+        list.add(new AIProvider("nemotron-lightning", "Nemotron 3.5 Lightning", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3.5-lightning:free", KILO_ENDPOINT, "fast", "Сверхлёгкая модель NVIDIA нового поколения. Без ключа.", "Быстро", false, true, 12, 700));
+        list.add(new AIProvider("ling-flash-vl", "Ling 3.0 Flash VL", "InclusionAI · Kilo", "kilo", "inclusionai/ling-3.0-flash-vl:free", KILO_ENDPOINT, "vision", "Мультимодальная: анализирует фото, скриншоты, схемы. Без ключа.", "Зрение", true, true, 13, 1300));
+        list.add(new AIProvider("nemotron-nano-omni", "Nemotron 3 Nano Omni", "NVIDIA NIM · Kilo", "kilo", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", KILO_ENDPOINT, "vision", "Омни-модель NVIDIA с reasoning для изображений. Без ключа.", "Зрение", true, true, 14, 4200));
+        list.add(new AIProvider("laguna-s-2-1", "Laguna S 2.1", "Poolside · Kilo", "kilo", "poolside/laguna-s-2.1:free", KILO_ENDPOINT, "creative", "Творческая модель Poolside: художественные тексты, сценарии. Без ключа.", "Креатив", false, true, 15, 1600));
+        list.add(new AIProvider("dots-3-note", "Dots 3 Note", "dots.studio · Kilo", "kilo", "dots-studio/dots-3-note-preview:free", KILO_ENDPOINT, "creative", "Писательская модель dots.studio: связные тексты. Без ключа.", "Тексты", false, true, 16, 1800));
+        list.add(new AIProvider("nex-n2-5-pro", "Nex N2.5 Pro", "Nex AGI · Kilo", "kilo", "nex-agi/nex-n2.5-pro:free", KILO_ENDPOINT, "reasoning", "Универсальная reasoning-модель Nex AGI. Без ключа.", "Reasoning", false, true, 17, 1500));
+        list.add(new AIProvider("qwen3-8-27b", "Qwen 3.8 27B", "Alibaba Qwen · Kilo", "kilo", "qwen/qwen3.8-27b:free", KILO_ENDPOINT, "universal", "Свежая 27B-модель Qwen: универсальные ответы. Без ключа.", "Универсал", false, true, 18, 1300));
+        list.add(new AIProvider("glm-5-2", "GLM 5.2", "Zhipu Z.AI · Kilo", "kilo", "z-ai/glm-5.2:free", KILO_ENDPOINT, "reasoning", "Аналитическая модель GLM 5.2 от Zhipu AI. Без ключа.", "Reasoning", false, true, 19, 1400));
 
-        // Groq - сверхбыстрый, 500+ tok/s, free tier no card (требует ключ, но добавим с fallback)
-        list.add(new AIProvider("groq-llama-70b", "Groq Llama 3.3 70B", "Groq · LPU 500t/s", "groq", "llama-3.3-70b-versatile", GROQ_ENDPOINT, "universal", "Groq LPU 500 токенов/сек, бесплатно 30 RPM 14k RPD.", "Groq Fast", false, true, 26, 400));
-        list.add(new AIProvider("groq-llama-8b", "Groq Llama 3.1 8B", "Groq · Instant", "groq", "llama-3.1-8b-instant", GROQ_ENDPOINT, "fast", "Groq мгновенный 8B, 30 RPM.", "Instant", false, true, 27, 300));
-        list.add(new AIProvider("groq-qwen-32b", "Groq Qwen3 32B", "Groq · Qwen", "groq", "qwen/qwen3-32b", GROQ_ENDPOINT, "reasoning", "Groq Qwen3 32B reasoning.", "Qwen3", false, true, 28, 450));
-        list.add(new AIProvider("groq-gpt-oss-20b", "Groq GPT-OSS 20B", "Groq · GPT-OSS", "groq", "openai/gpt-oss-20b", GROQ_ENDPOINT, "universal", "Groq GPT-OSS 20B, open-weight.", "GPT-OSS", false, true, 29, 350));
+        // === ПРИОРИТЕТ 3: LLM7 — анонимно без ключа, 60/hour — НАСТОЯЩИЕ БЕЗ КРЕДИТОВ ===
+        list.add(new AIProvider("minimax-m2-7", "MiniMax M2.7", "MiniMax · LLM7 Gateway", "llm7", "minimax-m2.7", LLM7_ENDPOINT, "reasoning", "Модель глубокого мышления с потоком рассуждений. Без ключа 60/hour.", "DeepThink", false, true, 20, 960));
+        list.add(new AIProvider("mistral-codestral", "Codestral 25.01", "Mistral AI · LLM7", "llm7", "codestral-latest", LLM7_ENDPOINT, "coding", "Специализированная кодовая модель Mistral: 80+ языков. Без ключа.", "Код", false, true, 21, 840));
+        list.add(new AIProvider("mistral-nemo", "Mistral Nemo 12B", "Mistral × NVIDIA · LLM7", "llm7", "mistral-Nemo-Instruct-2407", LLM7_ENDPOINT, "fast", "Скоростная 12B-модель для мгновенных ответов. Без ключа.", "Быстро", false, true, 22, 640));
+        list.add(new AIProvider("glm-5-3-flash", "GLM 5.3 Flash", "Zhipu Z.AI · LLM7", "llm7", "GLM-5.3-Flash", LLM7_ENDPOINT, "reasoning", "Быстрая reasoning-модель GLM 5.3 через LLM7. Без ключа.", "Reasoning", false, true, 23, 2600));
 
-        // OpenRouter free - 19 моделей :free, 20 RPM 50/day (1000 с $10)
-        list.add(new AIProvider("or-nemotron-ultra", "OR Nemotron Ultra 550B", "NVIDIA · OpenRouter Free", "openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", OPENROUTER_ENDPOINT, "reasoning", "OpenRouter free tier, Nemotron Ultra 550B.", "OR Free", false, true, 30, 1200));
-        list.add(new AIProvider("or-gpt-oss-20b", "OR GPT-OSS 20B", "OpenAI · OpenRouter Free", "openrouter", "openai/gpt-oss-20b:free", OPENROUTER_ENDPOINT, "universal", "OpenRouter GPT-OSS 20B free.", "OR GPT", false, true, 31, 800));
-        list.add(new AIProvider("or-gemini-flash", "OR Gemini 2.0 Flash", "Google · OpenRouter Free", "openrouter", "google/gemini-2.0-flash-exp:free", OPENROUTER_ENDPOINT, "fast", "Gemini 2.0 Flash через OpenRouter free.", "Gemini", false, true, 32, 700));
+        // === ПРИОРИТЕТ 4: Pollinations — анонимно, без ключа, базовые модели openai-fast/mistral — БЕЗ КРЕДИТОВ, 1 req/15s ===
+        // Используем openai-fast (gpt-5-nano) — бесплатная базовая модель, не требует pollen credits
+        list.add(new AIProvider("gpt-oss-20b", "Pollinations Fast", "Pollinations · Free", "pollinations", "openai-fast", POLLI_OPENAI_ENDPOINT, "universal", "Бесплатная базовая модель openai-fast (gpt-5-nano) без ключа, 1 req/15s. Без кредитов.", "Универсал", false, true, 24, 780));
+        list.add(new AIProvider("pollinations-mistral", "Pollinations Mistral", "Pollinations · Free", "pollinations", "mistral", POLLI_OPENAI_ENDPOINT, "fast", "Mistral через Pollinations бесплатно, без ключа.", "Mistral", false, true, 25, 850));
+        list.add(new AIProvider("pollinations-direct", "Pollinations Edge", "Pollinations Edge Network", "pollinations-direct", "openai-fast", POLLI_DIRECT_ENDPOINT, "universal", "Резервный edge-узел GET без кредитов. Гарантирует ответ.", "Резерв", false, false, 26, 900));
+
+        // Groq - сверхбыстрый, 500+ tok/s, free tier no card (требует ключ, опционально, отключен по умолчанию)
+        list.add(new AIProvider("groq-llama-70b", "Groq Llama 3.3 70B", "Groq · LPU 500t/s", "groq", "llama-3.3-70b-versatile", GROQ_ENDPOINT, "universal", "Groq LPU 500 токенов/сек, бесплатно 30 RPM 14k RPD. Требует ключ.", "Groq Fast", false, true, 30, 400));
+        list.add(new AIProvider("groq-llama-8b", "Groq Llama 3.1 8B", "Groq · Instant", "groq", "llama-3.1-8b-instant", GROQ_ENDPOINT, "fast", "Groq мгновенный 8B, 30 RPM. Требует ключ.", "Instant", false, true, 31, 300));
+        list.add(new AIProvider("groq-qwen-32b", "Groq Qwen3 32B", "Groq · Qwen", "groq", "qwen/qwen3-32b", GROQ_ENDPOINT, "reasoning", "Groq Qwen3 32B reasoning. Требует ключ.", "Qwen3", false, true, 32, 450));
+        list.add(new AIProvider("groq-gpt-oss-20b", "Groq GPT-OSS 20B", "Groq · GPT-OSS", "groq", "openai/gpt-oss-20b", GROQ_ENDPOINT, "universal", "Groq GPT-OSS 20B, open-weight. Требует ключ.", "GPT-OSS", false, true, 33, 350));
+
+        // OpenRouter free - 19 моделей :free, 20 RPM 50/day (1000 с $10) — опционально, отключен по умолчанию
+        list.add(new AIProvider("or-nemotron-ultra", "OR Nemotron Ultra 550B", "NVIDIA · OpenRouter Free", "openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", OPENROUTER_ENDPOINT, "reasoning", "OpenRouter free tier, Nemotron Ultra 550B. Требует ключ.", "OR Free", false, true, 34, 1200));
+        list.add(new AIProvider("or-gpt-oss-20b", "OR GPT-OSS 20B", "OpenAI · OpenRouter Free", "openrouter", "openai/gpt-oss-20b:free", OPENROUTER_ENDPOINT, "universal", "OpenRouter GPT-OSS 20B free. Требует ключ.", "OR GPT", false, true, 35, 800));
+        list.add(new AIProvider("or-gemini-flash", "OR Gemini 2.0 Flash", "Google · OpenRouter Free", "openrouter", "google/gemini-2.0-flash-exp:free", OPENROUTER_ENDPOINT, "fast", "Gemini 2.0 Flash через OpenRouter free. Требует ключ.", "Gemini", false, true, 36, 700));
 
         // === ОФЛАЙН провайдер — работает без интернета, авто-роутинг офлайн ===
         list.add(new AIProvider("lumi-offline", "Люми Офлайн", "Local · Offline", "offline", "lumi-offline", "offline://local", "universal", "Работает без интернета. Авто-роутинг и базовые ответы локально.", "Офлайн", false, true, 99, 10));
@@ -359,29 +364,58 @@ public class AiRouter {
     private String callPollinationsDirect(AIProvider provider, List<com.aether.app.models.ChatMessage> history,
                                           String prompt, String systemPersona, String attachment,
                                           StreamingCallback callback) throws Exception {
-        JsonObject body = new JsonObject();
-        JsonArray messages = new JsonArray();
-        JsonObject sys = new JsonObject(); sys.addProperty("role", "system"); sys.addProperty("content", getSystemPrompt(systemPersona)); messages.add(sys);
-        for (com.aether.app.models.ChatMessage m : history) { if (m.content == null) continue; JsonObject msg = new JsonObject(); msg.addProperty("role", m.role); msg.addProperty("content", m.content); messages.add(msg); }
-        JsonObject user = new JsonObject(); user.addProperty("role", "user"); user.addProperty("content", prompt); messages.add(user);
-        body.add("messages", messages); body.addProperty("model", "openai"); body.addProperty("private", true);
-        Request request = new Request.Builder().url(provider.endpoint).post(RequestBody.create(body.toString(), JSON)).addHeader("Content-Type", "application/json").build();
-        try (Response response = client.newCall(request).execute()) {
-            String respBody = response.body() != null ? response.body().string() : "";
-            if (!response.isSuccessful()) {
-                if (respBody.contains("credits") || respBody.contains("low_balance")) throw new Exception("Pollinations credits low: " + respBody.substring(0, Math.min(200, respBody.length())));
-                throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(200, respBody.length())));
-            }
-            try {
-                JsonObject json = JsonParser.parseString(respBody).getAsJsonObject();
-                if (json.has("choices")) {
-                    String content = json.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message").get("content").getAsString();
-                    for (int i = 0; i < content.length(); i += 20) { int end = Math.min(i + 20, content.length()); callback.onDelta(content.substring(i, end)); try { Thread.sleep(8); } catch (InterruptedException ignored) {} }
-                    return content;
+        // Используем GET endpoint text.pollinations.ai/{prompt}?model=openai-fast — полностью без кредитов, анонимно
+        // Это самый надежный Pollinations endpoint, работает без ключа, без pollen
+        try {
+            String encoded = java.net.URLEncoder.encode(prompt, "UTF-8");
+            String url = provider.endpoint + encoded + "?model=" + provider.modelId + "&system=" + java.net.URLEncoder.encode(getSystemPrompt(systemPersona), "UTF-8");
+            // Ограничиваем длину URL для GET (если prompt слишком длинный, fallback на POST)
+            if (url.length() > 1800) {
+                // Fallback на POST с free моделью
+                JsonObject body = new JsonObject();
+                JsonArray messages = new JsonArray();
+                JsonObject sys = new JsonObject(); sys.addProperty("role", "system"); sys.addProperty("content", getSystemPrompt(systemPersona)); messages.add(sys);
+                for (com.aether.app.models.ChatMessage m : history) { if (m.content == null) continue; JsonObject msg = new JsonObject(); msg.addProperty("role", m.role); msg.addProperty("content", m.content); messages.add(msg); }
+                JsonObject user = new JsonObject(); user.addProperty("role", "user"); user.addProperty("content", prompt); messages.add(user);
+                body.add("messages", messages); body.addProperty("model", provider.modelId); body.addProperty("stream", false);
+                Request postReq = new Request.Builder().url(POLLI_OPENAI_ENDPOINT).post(RequestBody.create(body.toString(), JSON)).addHeader("Content-Type", "application/json").build();
+                try (Response response = client.newCall(postReq).execute()) {
+                    String respBody = response.body() != null ? response.body().string() : "";
+                    if (!response.isSuccessful()) {
+                        if (respBody.contains("credits") || respBody.contains("low_balance") || respBody.contains("top-up") || respBody.contains("Pollen") || respBody.contains("balance")) {
+                            throw new Exception("Pollinations credits low, failover: " + respBody.substring(0, Math.min(300, respBody.length())));
+                        }
+                        throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(300, respBody.length())));
+                    }
+                    try {
+                        JsonObject json = JsonParser.parseString(respBody).getAsJsonObject();
+                        if (json.has("choices")) {
+                            String content = json.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message").get("content").getAsString();
+                            for (int i = 0; i < content.length(); i += 20) { int end = Math.min(i + 20, content.length()); callback.onDelta(content.substring(i, end)); try { Thread.sleep(8); } catch (InterruptedException ignored) {} }
+                            return content;
+                        }
+                    } catch (Exception ignored) {}
+                    for (int i = 0; i < respBody.length(); i += 20) { int end = Math.min(i + 20, respBody.length()); callback.onDelta(respBody.substring(i, end)); try { Thread.sleep(8); } catch (InterruptedException ignored) {} }
+                    return respBody;
                 }
-            } catch (Exception ignored) {}
-            for (int i = 0; i < respBody.length(); i += 20) { int end = Math.min(i + 20, respBody.length()); callback.onDelta(respBody.substring(i, end)); try { Thread.sleep(8); } catch (InterruptedException ignored) {} }
-            return respBody;
+            }
+            Request request = new Request.Builder().url(url).get().build();
+            try (Response response = client.newCall(request).execute()) {
+                String respBody = response.body() != null ? response.body().string() : "";
+                if (!response.isSuccessful()) {
+                    if (respBody.contains("credits") || respBody.contains("low_balance") || respBody.contains("top-up") || respBody.contains("Pollen") || respBody.contains("balance")) {
+                        throw new Exception("Pollinations credits low GET, failover: " + respBody.substring(0, Math.min(300, respBody.length())));
+                    }
+                    throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(300, respBody.length())));
+                }
+                if (respBody.contains("credits") || respBody.contains("low_balance") || respBody.contains("top-up")) {
+                    throw new Exception("Pollinations credits in body, failover: " + respBody.substring(0, Math.min(300, respBody.length())));
+                }
+                for (int i = 0; i < respBody.length(); i += 20) { int end = Math.min(i + 20, respBody.length()); callback.onDelta(respBody.substring(i, end)); try { Thread.sleep(8); } catch (InterruptedException ignored) {} }
+                return respBody;
+            }
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new Exception("Encode error: " + e.getMessage());
         }
     }
 
@@ -393,12 +427,18 @@ public class AiRouter {
         for (com.aether.app.models.ChatMessage m : history) { if (m.content == null) continue; JsonObject msg = new JsonObject(); msg.addProperty("role", m.role); msg.addProperty("content", m.content); messages.add(msg); }
         JsonObject user = new JsonObject(); user.addProperty("role", "user"); user.addProperty("content", attachment != null && !attachment.isEmpty() ? prompt + "\n\n[Изображение прикреплено]" : prompt); messages.add(user);
         body.add("messages", messages); body.addProperty("model", provider.modelId); body.addProperty("stream", false); body.addProperty("temperature", 0.7); body.addProperty("max_tokens", 3072);
+        // Pollinations free tier — без Authorization, используем openai-fast / mistral которые не требуют pollen credits
         Request request = new Request.Builder().url(provider.endpoint).post(RequestBody.create(body.toString(), JSON)).addHeader("Content-Type", "application/json").build();
         try (Response response = client.newCall(request).execute()) {
             String respBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                if (respBody.contains("credits")) throw new Exception("Pollinations credits low, trying next: " + respBody.substring(0, Math.min(200, respBody.length())));
-                throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(200, respBody.length())));
+                if (respBody.contains("credits") || respBody.contains("low_balance") || respBody.contains("top-up") || respBody.contains("Pollen") || respBody.contains("balance") || respBody.contains("pollen")) {
+                    throw new Exception("Pollinations credits low (" + provider.modelId + "), trying next: " + respBody.substring(0, Math.min(400, respBody.length())));
+                }
+                throw new Exception("HTTP " + response.code() + " " + respBody.substring(0, Math.min(400, respBody.length())));
+            }
+            if (respBody.contains("credits") || respBody.contains("low_balance") || respBody.contains("top-up") || respBody.contains("\"error\"") && respBody.contains("balance")) {
+                throw new Exception("Pollinations credits in body, failover: " + respBody.substring(0, Math.min(400, respBody.length())));
             }
             try {
                 JsonObject json = JsonParser.parseString(respBody).getAsJsonObject();
