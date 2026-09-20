@@ -37,8 +37,8 @@ set -Eeuo pipefail
 
 # ------------------------------ параметры -----------------------------------
 TG_DIR=${TG_DIR:-telegram-src}
-APP_NAME=${APP_NAME:-MslGram}
-APP_PACKAGE=${APP_PACKAGE:-com.kamisakyy.mgram}
+APP_NAME=${APP_NAME:-KamiGram}
+APP_PACKAGE=${APP_PACKAGE:-com.kami.gram}
 APP_VERSION_SUFFIX=${APP_VERSION_SUFFIX:--mod}
 ABIS=${ABIS:-arm64-v8a}
 BRAND_STRINGS=${BRAND_STRINGS:-1}
