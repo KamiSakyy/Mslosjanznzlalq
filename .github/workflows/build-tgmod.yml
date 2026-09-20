@@ -178,6 +178,13 @@ jobs:
           TG_DIR: ${{ github.workspace }}/telegram-src
         run: bash modrepo/mod/apply-mod.sh
 
+      - name: Быстрая проверка кода (fail-fast, ~10 мин)
+        working-directory: telegram-src
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace --console=plain \
+            :TMessagesProj_App:compileAfatReleaseJavaWithJavac 2>&1 | tee ../javac.log
+
       - name: Сборка APK (assembleAfatRelease, arm64, экономия трафика)
         working-directory: telegram-src
         run: |
@@ -192,6 +199,9 @@ jobs:
         run: |
           echo "### Свободное место"; df -h / || true
           echo "### Память"; free -h || true
+          for f in javac.log build.log; do
+            [ -f "$f" ] && { echo "### последние строки $f"; tail -n 25 "$f"; }
+          done
           if [ -f build.log ]; then
             echo "### Последние 60 строк сборки"
             tail -n 60 build.log || true
@@ -208,7 +218,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-log-${{ github.run_number }}
-          path: build.log
+          path: |
+            build.log
+            javac.log
           if-no-files-found: ignore
           retention-days: 7
 
