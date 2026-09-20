@@ -172,6 +172,33 @@ jobs:
       - name: Кэш Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Свой ключ подписи (генерируется один раз и коммитится в repo)
+        env:
+          KS_ALIAS: kamigram
+          KS_PASSWORD: kamigram2026
+        run: |
+          set -euo pipefail
+          KS=modrepo/mod/keys/kamigram.jks
+          if [ -f "$KS" ]; then
+            echo "::notice title=Подпись::ключ уже в репозитории"
+            exit 0
+          fi
+          echo "::notice title=Подпись::генерирую новый ключ KamiGram (4096-bit RSA, JKS)"
+          mkdir -p "$(dirname "$KS")"
+          keytool -genkeypair -v \
+            -keystore "$KS" -storetype JKS -alias "$KS_ALIAS" \
+            -keyalg RSA -keysize 4096 -validity 10950 \
+            -storepass "$KS_PASSWORD" -keypass "$KS_PASSWORD" \
+            -dname "CN=KamiGram, OU=Mod, O=KamiGram, L=Telegram Mod, ST=NRW, C=DE"
+          base64 -w0 "$KS" > "$KS.b64"
+          keytool -list -v -keystore "$KS" -storepass "$KS_PASSWORD" | grep -m1 "SHA256:" || true
+          cd modrepo
+          git config user.name "arena-ai-coding-agent[bot]"
+          git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
+          git add -f mod/keys/kamigram.jks mod/keys/kamigram.jks.b64
+          git commit -m "chore(keys): собственный ключ подписи KamiGram (alias=$KS_ALIAS) [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+
       - name: Применить мод (брендинг, package id, свой ключ подписи)
         env:
           TG_DIR: ${{ github.workspace }}/telegram-src
