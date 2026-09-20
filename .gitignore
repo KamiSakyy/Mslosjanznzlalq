@@ -3,6 +3,9 @@ telegram-src/
 telegram/
 *.apk
 !handoff/*.apk
+!handoff/apk/*.apk
+!handoff/apk/*
+!handoff/sources/*
 *.aab
 *.jks
 !mod/keys/kamigram.jks

@@ -334,33 +334,23 @@ jobs:
             echo "sha=$(cut -d' ' -f1 SHA256SUMS.txt)"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Обновить папку handoff/ (APK в репозитории)
+      - name: Архив в handoff/ (APK + исходники всех версий, ничего не удаляем)
         if: steps.apk.outputs.out != ''
         run: |
           set -uo pipefail
-          mkdir -p modrepo/handoff
           APK="${{ steps.apk.outputs.out }}"
-          cp "$APK" modrepo/handoff/ || { echo "::warning title=Handoff::не удалось скопировать APK"; exit 0; }
-          cp "$APK" modrepo/handoff/KamiGram-latest.apk 2>/dev/null || true
-          cp SHA256SUMS.txt modrepo/handoff/ 2>/dev/null || true
-          cp telegram-src/MOD_INFO.txt modrepo/handoff/ 2>/dev/null || true
-          ( cd modrepo/handoff && sha256sum *.apk > SHA256SUMS.txt ) || true
-
-          echo "::notice title=Handoff::handoff/$APK обновлён (${{ steps.apk.outputs.size }})"
-          cd modrepo
-          git config user.name "arena-ai-coding-agent[bot]"
-          git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
-          git add -f handoff
-          if git diff --cached --quiet; then
-            echo "handoff: изменений нет"
-            exit 0
+          VERSION="${{ steps.apk.outputs.version }}"
+          RUN="${{ github.run_number }}"
+          # полный diff против исходников Telegram — это и есть архив исходников
+          PATCH=""
+          if [ -d telegram-src/.git ]; then
+            ( cd telegram-src && git add -A >/dev/null 2>&1; \
+              git diff --cached --binary HEAD -- . ':(exclude)mod-changes.patch' > ../changes.patch 2>/dev/null ) || true
+            [ -s changes.patch ] && PATCH="$PWD/changes.patch"
           fi
-          git commit -m "chore(handoff): APK ${{ steps.apk.outputs.version }} в handoff/ [skip ci]"
-          for i in 1 2 3; do
-            if git push origin "HEAD:${GITHUB_REF_NAME}"; then echo "handoff запушен"; exit 0; fi
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
-          done
-          echo "::warning title=Handoff::не удалось запушить handoff/ (APK всё равно есть в артефактах и релизе)"
+          ARCHIVE_DIR=modrepo/handoff PUSH=1 \
+            bash modrepo/mod/archive-handoff.sh "$APK" "$VERSION" "$RUN" telegram-src/MOD_INFO.txt "$PATCH" \
+            || echo "::warning title=Handoff::архив не обновлён (APK есть в артефактах и релизе)"
 
       - name: Итоги в summary
         if: always()

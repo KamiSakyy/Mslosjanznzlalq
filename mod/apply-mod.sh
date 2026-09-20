@@ -29,6 +29,10 @@
 #     MAX_ECONOMY          1 = принудительный power-saver (анимации/автоплей off) [1]
 #     RES_CONFIGS          какие локали оставить в APK ("ru,en" | "all")   [ru,en]
 #     SLIM_HEAVY           заглушки тяжёлых Lottie-анимаций: 1 | all | 0   [1]
+#     IOS_THEME            1 = iOS-тёмная тема (чёрный, без градиентов/стекла) [1]
+#     FLAT_UI              1 = убрать тяжёлый узор чата (плоский фон)      [1]
+#     AUTO_PROXY           1 = ссылка на прокси активирует его сразу       [1]
+#     DROP_APPINDEXING     1 = вырезать Google App Indexing (меньше APK)   [1]
 #     KEYSTORE_B64         base64 от .jks, если нужна своя подпись       [пусто]
 #     KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD — для своей подписи   [пусто]
 # =============================================================================
@@ -52,6 +56,10 @@ MAX_ECONOMY=${MAX_ECONOMY:-1}             # принудительный power-s
 RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
 SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
 PATCH_GS=${PATCH_GS:-1}                   # правка google-services.json под свой applicationId
+IOS_THEME=${IOS_THEME:-1}                 # iOS-тёмная тема KamiGram (чистый чёрный, без градиентов)
+FLAT_UI=${FLAT_UI:-1}                     # плоский дизайн: убрать тяжёлый узор чата
+AUTO_PROXY=${AUTO_PROXY:-1}               # ссылка на прокси активирует его сразу
+DROP_APPINDEXING=${DROP_APPINDEXING:-1}   # вырезать Google App Indexing (меньше APK)
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
@@ -432,6 +440,13 @@ if [ "$SLIM_HEAVY" != "0" ] && [ -d "$RAW" ]; then
     stubbed=0
     while IFS= read -r f; do
         size=$(wc -c < "$f")
+        # заглушаем только настоящие Lottie (в шапке есть маркер "v"), чтобы не сломать
+        # mapstyle_night.json (стиль Google Maps) и прочие не-анимационные JSON
+        head20=$(head -c 20 "$f" | tr -d '\n')
+        case "$head20" in
+            *'"v"'*) ;;
+            *) continue ;;
+        esac
         if [ "$SLIM_HEAVY" = "all" ] || [ "$size" -gt 102400 ]; then
             printf '%s' '{"v":"5.7.4","fr":1,"ip":0,"op":1,"w":1,"h":1,"assets":[],"layers":[]}' > "$f"
             stubbed=$((stubbed+1))
@@ -477,6 +492,435 @@ else
 fi
 
 # =============================================================================
+# P16. iOS-СТИЛЬ: тёмная тема KamiGram (чистый чёрный, без градиентов и стекла).
+#      Темы Telegram лежат в assets/*.attheme обычным текстом (ключ=значение),
+#      поэтому палитра меняется без правки Java: переписываем тему дня ("Blue"
+#      → bluebubbles.attheme), тему ночи ("Dark Blue" → darkblue.attheme) и night,
+#      чтобы приложение выглядело одинаково тёмно-iOS в любом режиме.
+# =============================================================================
+if [ "$IOS_THEME" = "1" ]; then
+    python3 - "$TG_DIR" <<'PY' || die "P16: не удалось применить iOS-палитру"
+import io, os, sys
+
+root = sys.argv[1]
+assets = os.path.join(root, 'TMessagesProj/src/main/assets')
+base_file = os.path.join(assets, 'darkblue.attheme')
+
+def to_int(hexstr):
+    s = hexstr.lstrip('#')
+    if len(s) == 8:
+        v = int(s, 16)
+    else:
+        v = 0xff000000 | int(s, 16)
+    return v - (1 << 32) if v >= (1 << 31) else v
+
+P = {
+    # --- фоны и поверхности ---
+    'chat_wallpaper': '#000000',
+    'windowBackgroundGray': '#000000',
+    'windowBackgroundWhite': '#1C1C1E',
+    'actionBarDefault': '#1C1C1E',
+    'dialogBackground': '#1C1C1E',
+    'dialogBackgroundGray': '#2C2C2E',
+    'graySection': '#1C1C1E',
+    'key_graySectionText': '#8E8E93',
+    'divider': '#38383A',
+    'dialogGrayLine': '#38383A',
+    'dialogShadowLine': '#00000000',
+    'dialogLineProgressBackground': '#3A3A3C',
+    'chat_topPanelBackground': '#1C1C1E',
+    'chat_topPanelLine': '#38383A',
+    'chat_messagePanelBackground': '#1C1C1E',
+    'chat_emojiPanelBackground': '#1C1C1E',
+    'chat_emojiPanelShadowLine': '#2C2C2E',
+    'chat_stickersHintPanel': '#1C1C1E',
+    'chats_menuBackground': '#1C1C1E',
+    'chats_menuTopBackgroundCats': '#1C1C1E',
+    'chats_menuTopShadow': '#00000000',
+    'chats_archivePinBackground': '#1C1C1E',
+    'actionBarDefaultSubmenuBackground': '#1C1C1E',
+    'actionBarDefaultSubmenuSeparator': '#38383A',
+    'undo_background': '#2C2C2E',
+    'inappPlayerBackground': '#1C1C1E',
+    'player_background': '#1C1C1E',
+    'sharedMedia_linkPlaceholder': '#1C1C1E',
+    # --- тексты ---
+    'actionBarDefaultTitle': '#FFFFFF',
+    'actionBarDefaultIcon': '#FFFFFF',
+    'actionBarDefaultSubtitle': '#8E8E93',
+    'actionBarDefaultSearchPlaceholder': '#8E8E93',
+    'actionBarTabActiveText': '#FFFFFF',
+    'actionBarTabUnactiveText': '#8E8E93',
+    'chats_name': '#FFFFFF',
+    'chats_message': '#8E8E93',
+    'chats_date': '#8E8E93',
+    'chats_nameMessage': '#8E8E93',
+    'windowBackgroundWhiteBlackText': '#FFFFFF',
+    'windowBackgroundWhiteGrayText': '#8E8E93',
+    'windowBackgroundWhiteGrayText2': '#8E8E93',
+    'windowBackgroundWhiteGrayText3': '#8E8E93',
+    'windowBackgroundWhiteGrayText4': '#8E8E93',
+    'windowBackgroundWhiteGrayText5': '#8E8E93',
+    'windowBackgroundWhiteGrayText6': '#8E8E93',
+    'windowBackgroundWhiteGrayText8': '#8E8E93',
+    'windowBackgroundWhiteHintText': '#8E8E93',
+    'windowBackgroundWhiteGrayIcon': '#8E8E93',
+    'windowBackgroundWhiteBlueHeader': '#8E8E93',
+    'windowBackgroundWhiteValueText': '#0A84FF',
+    'windowBackgroundWhiteLinkText': '#0A84FF',
+    'windowBackgroundWhiteLinkSelection': '#330A84FF',
+    'dialogTextBlack': '#FFFFFF',
+    'dialogTextGray': '#8E8E93',
+    'dialogTextGray2': '#8E8E93',
+    'dialogTextGray3': '#8E8E93',
+    'dialogTextGray4': '#8E8E93',
+    'dialogTextHint': '#8E8E93',
+    'dialogTextLink': '#0A84FF',
+    'dialogTextBlue': '#0A84FF',
+    'dialogTextBlue2': '#0A84FF',
+    'dialogTextBlue4': '#0A84FF',
+    'dialogButton': '#0A84FF',
+    'dialogButtonSelector': '#330A84FF',
+    'dialogIcon': '#8E8E93',
+    'profile_title': '#8E8E93',
+    'profile_status': '#8E8E93',
+    'profile_actionIcon': '#0A84FF',
+    'profile_creatorIcon': '#0A84FF',
+    'profile_actionBackground': '#00000000',
+    'profile_actionPressedBackground': '#00000000',
+    'avatar_subtitleInProfileBlue': '#8E8E93',
+    'emptyListPlaceholder': '#8E8E93',
+    'fastScrollInactive': '#3A3A3C',
+    'contextProgressInner1': '#3A3A3C',
+    'contextProgressOuter1': '#0A84FF',
+    'text_RedBold': '#FF453A',
+    'text_RedRegular': '#FF453A',
+    'windowBackgroundWhiteGreenText': '#30D158',
+    'windowBackgroundWhiteGreenText2': '#30D158',
+    'windowBackgroundWhiteBlueText': '#0A84FF',
+    'windowBackgroundWhiteBlueText2': '#0A84FF',
+    'windowBackgroundWhiteBlueText3': '#0A84FF',
+    'windowBackgroundWhiteBlueText4': '#0A84FF',
+    'windowBackgroundWhiteBlueText5': '#0A84FF',
+    'windowBackgroundWhiteBlueText7': '#0A84FF',
+    'calls_callReceivedGreenIcon': '#30D158',
+    # --- чат: пузыри, время, статусы ---
+    'chat_inBubble': '#262628',
+    'chat_outBubble': '#2B5278',
+    'chat_inBubbleSelected': '#2C2C2E',
+    'chat_outBubbleSelected': '#33608A',
+    'chat_inBubbleShadow': '#00000000',
+    'chat_outBubbleShadow': '#00000000',
+    'chat_outBubbleGradientSelectedOverlay': '#33FFFFFF',
+    'chat_messageTextIn': '#FFFFFF',
+    'chat_messageTextOut': '#FFFFFF',
+    'chat_messageLinkIn': '#0A84FF',
+    'chat_messageLinkOut': '#A8D4FF',
+    'chat_serviceBackground': '#CC1C1C1E',
+    'chat_serviceBackgroundSelected': '#CC2C2C2E',
+    'chat_status': '#8E8E93',
+    'chat_inTimeText': '#8E8E93',
+    'chat_outTimeText': '#A8C7E8',
+    'chat_outTimeSelectedText': '#FFFFFF',
+    'chat_inTimeSelectedText': '#8E8E93',
+    'chat_inSentClock': '#8E8E93',
+    'chat_outSentClock': '#A8C7E8',
+    'chat_outSentClockSelected': '#FFFFFF',
+    'chat_outSentCheck': '#A8C7E8',
+    'chat_outSentCheckSelected': '#FFFFFF',
+    'chats_sentCheck': '#0A84FF',
+    'chats_sentClock': '#8E8E93',
+    'chat_fieldOverlayText': '#0A84FF',
+    'chat_messagePanelText': '#FFFFFF',
+    'chat_messagePanelHint': '#8E8E93',
+    'chat_messagePanelIcons': '#8E8E93',
+    'chat_messagePanelSend': '#0A84FF',
+    'chat_recordTime': '#FF453A',
+    'chat_recordedVoiceDot': '#FF453A',
+    'chat_recordVoiceCancel': '#FF453A',
+    'chat_recordVoiceCancelSelected': '#FF453A',
+    'chat_goDownButton': '#2C2C2E',
+    'chat_goDownButtonCounter': '#0A84FF',
+    'chat_selectedBackground': '#14FFFFFF',
+    'chat_attachActiveTab': '#0A84FF',
+    'chat_attachUnactiveTab': '#8E8E93',
+    'chat_unreadMessagesStartBackground': '#2C2C2E',
+    'chat_unreadMessagesStartText': '#FFFFFF',
+    'chat_unreadMessagesStartArrowIcon': '#8E8E93',
+    'chat_topPanelTitle': '#FFFFFF',
+    'chat_topPanelMessage': '#8E8E93',
+    'chat_topPanelClose': '#8E8E93',
+    'chat_replyPanelLine': '#38383A',
+    'chat_replyPanelIcons': '#8E8E93',
+    'chat_replyPanelName': '#0A84FF',
+    'chat_addContact': '#0A84FF',
+    'chat_inSiteNameText': '#0A84FF',
+    'chat_outSiteNameText': '#A8D4FF',
+    'chat_inForwardedNameText': '#0A84FF',
+    'chat_outForwardedNameText': '#A8D4FF',
+    'chat_inReplyNameText': '#0A84FF',
+    'chat_outReplyNameText': '#A8D4FF',
+    'chat_inVenueInfoText': '#8E8E93',
+    'chat_outVenueInfoText': '#A8C7E8',
+    'chat_inFileInfoText': '#8E8E93',
+    'chat_outFileInfoText': '#A8C7E8',
+    'chat_inContactNameText': '#0A84FF',
+    'chat_outContactNameText': '#A8D4FF',
+    'chat_inAudioPerfomerText': '#8E8E93',
+    'chat_outAudioPerfomerText': '#A8C7E8',
+    'chat_inAudioTitleText': '#0A84FF',
+    'chat_outAudioTitleText': '#A8D4FF',
+    'chat_inMenu': '#8E8E93',
+    'chat_inMenuSelected': '#FFFFFF',
+    'chat_outMenu': '#A8C7E8',
+    'chat_outMenuSelected': '#FFFFFF',
+    'chat_inViews': '#8E8E93',
+    'chat_outViews': '#A8C7E8',
+    'chat_inViewsSelected': '#FFFFFF',
+    'chat_outViewsSelected': '#FFFFFF',
+    'chat_mediaMenu': '#8E8E93',
+    'chat_emojiPanelIcon': '#8E8E93',
+    'chat_emojiPanelIconSelected': '#0A84FF',
+    'chat_emojiPanelEmptyText': '#8E8E93',
+    'chat_emojiPanelBadgeBackground': '#0A84FF',
+    'chat_emojiPanelTrendingTitle': '#FFFFFF',
+    'chat_emojiPanelTrendingDescription': '#8E8E93',
+    'chat_emojiPanelBackspace': '#8E8E93',
+    'chat_emojiPanelStickerPackSelector': '#3A3A3C',
+    # --- переключатели, чекбоксы, списки ---
+    'switchTrack': '#3A3A3C',
+    'switchTrackChecked': '#30D158',
+    'switchTrackBlue': '#3A3A3C',
+    'switchTrackBlueChecked': '#0A84FF',
+    'switchTrackBlueThumb': '#FFFFFF',
+    'switchTrackBlueThumbChecked': '#FFFFFF',
+    'switchTrackBlueSelector': '#330A84FF',
+    'switchTrackBlueSelectorChecked': '#330A84FF',
+    'checkboxSquareBackground': '#0A84FF',
+    'checkboxSquareUnchecked': '#8E8E93',
+    'checkboxSquareDisabled': '#3A3A3C',
+    'radioBackground': '#8E8E93',
+    'radioBackgroundChecked': '#0A84FF',
+    'windowBackgroundChecked': '#0A84FF',
+    'windowBackgroundUnchecked': '#8E8E93',
+    'windowBackgroundCheckText': '#FFFFFF',
+    'dialogCheckboxSquareUnchecked': '#8E8E93',
+    'dialogCheckboxSquareDisabled': '#3A3A3C',
+    'dialogRoundCheckBox': '#0A84FF',
+    'listSelectorSDK21': '#0FFFFFFF',
+    'actionBarDefaultSelector': '#14FFFFFF',
+    'actionBarWhiteSelector': '#14FFFFFF',
+    'actionBarDefaultArchivedSelector': '#14FFFFFF',
+    'actionBarActionModeDefaultSelector': '#14FFFFFF',
+    'actionBarActionModeDefaultIcon': '#FFFFFF',
+    'actionBarActionModeDefault': '#1C1C1E',
+    'actionBarTabSelector': '#330A84FF',
+    'profile_tabSelector': '#330A84FF',
+    'profile_tabText': '#8E8E93',
+    'actionBarDefaultSubmenuItem': '#FFFFFF',
+    'actionBarDefaultSubmenuItemIcon': '#8E8E93',
+    'chats_menuItemText': '#FFFFFF',
+    'chats_menuItemIcon': '#8E8E93',
+    'chats_menuPhone': '#8E8E93',
+    'chats_menuPhoneCats': '#8E8E93',
+    'chats_actionBackground': '#0A84FF',
+    'chats_actionMessage': '#8E8E93',
+    'chats_unreadCounter': '#0A84FF',
+    'chats_unreadCounterMuted': '#3A3A3C',
+    'chats_archiveBackground': '#0A84FF',
+    'chats_pinnedOverlay': '#0AFFFFFF',
+    'chats_tabletSelectedOverlay': '#0AFFFFFF',
+    'chats_secretIcon': '#30D158',
+    'chats_secretName': '#30D158',
+    'chats_verifiedBackground': '#0A84FF',
+    'chats_pinnedIcon': '#8E8E93',
+    'chats_muteIcon': '#8E8E93',
+    'chats_attachMessage': '#0A84FF',
+    'chats_draft': '#FF453A',
+    'groupcreate_cursor': '#0A84FF',
+    'groupcreate_spanBackground': '#3A3A3C',
+    'groupcreate_spanText': '#FFFFFF',
+    'groupcreate_hintText': '#8E8E93',
+    'groupcreate_sectionText': '#8E8E93',
+    'featuredStickers_addedIcon': '#0A84FF',
+    'sharedMedia_startStopLoadIcon': '#0A84FF',
+    'inappPlayerTitle': '#FFFFFF',
+    'inappPlayerPerformer': '#8E8E93',
+    'inappPlayerPlayPause': '#0A84FF',
+    'inappPlayerClose': '#8E8E93',
+    'player_time': '#8E8E93',
+    'player_actionBarTitle': '#FFFFFF',
+    'player_actionBarSubtitle': '#8E8E93',
+    'player_actionBarItems': '#8E8E93',
+    'player_actionBarSelector': '#14FFFFFF',
+    'player_button': '#8E8E93',
+    'player_buttonActive': '#0A84FF',
+    'player_progress': '#0A84FF',
+    'player_progressBackground': '#3A3A3C',
+    'key_player_progressCachedBackground': '#3A3A3C',
+    # --- без градиентов, без стекла ---
+    'chat_BlurAlpha': '#00000000',
+    'chat_BlurAlphaSlow': '#00000000',
+    'premiumGradientBackground1': '#0A84FF',
+    'premiumGradientBackground2': '#0A84FF',
+    'premiumGradientBackground3': '#0A84FF',
+    'premiumGradientBackground4': '#0A84FF',
+    'premiumStarGradient1': '#0A84FF',
+    'premiumStarGradient2': '#0A84FF',
+    'premiumStartSmallStarsColor': '#0A84FF',
+    'stories_circle1': '#0A84FF',
+    'stories_circle2': '#0A84FF',
+    'stories_circle_dialog1': '#0A84FF',
+    'stories_circle_dialog2': '#0A84FF',
+    'stories_circle_closeFriends1': '#0A84FF',
+    'stories_circle_closeFriends2': '#0A84FF',
+    'glass_defaultIcon': '#FFFFFF',
+    'glass_defaultText': '#FFFFFF',
+    'glass_targetMainTabs': '#00000000',
+    'glass_targetMainTopPanel': '#00000000',
+}
+
+text = io.open(base_file, encoding='utf-8').read()
+out, applied, seen = [], 0, set()
+for line in text.split('\n'):
+    if '=' in line:
+        k = line.split('=', 1)[0]
+        if k in P:
+            line = k + '=' + str(to_int(P[k]))
+            applied += 1
+            seen.add(k)
+    out.append(line)
+missing = [k for k in P if k not in seen]
+if applied < 60:
+    sys.stderr.write('P16: применилось только %d ключей — палитра не подходит под эту версию темы\n' % applied)
+    sys.exit(1)
+if missing:
+    sys.stderr.write('P16: ключи не найдены (пропущены): %s\n' % ', '.join(sorted(missing)[:25]))
+new_theme = '\n'.join(out)
+for name in ('bluebubbles.attheme', 'darkblue.attheme', 'night.attheme'):
+    io.open(os.path.join(assets, name), 'w', encoding='utf-8').write(new_theme)
+print('применено ключей: %d (файлов тем: 3)' % applied)
+PY
+    grep -q "chat_wallpaper=-16777216" "$TG_DIR/TMessagesProj/src/main/assets/bluebubbles.attheme" \
+        || die "P16: тема дня не переписана на чистый чёрный (#000000)"
+    ok "P16 iOS-тема KamiGram: фон #000000, поверхности #1C1C1E, акцент iOS #0A84FF, градиенты и стекло — плоские"
+else
+    skip "P16 iOS-тема не применяется (IOS_THEME=0)"
+fi
+
+# =============================================================================
+# P17. ПЛОСКИЙ ДИЗАЙН: тяжёлый узор чата (496 КБ) заменяем минимальным SVG
+# =============================================================================
+PATTERN="$TG_DIR/TMessagesProj/src/main/res/raw/default_pattern.svg"
+if [ "$FLAT_UI" = "1" ] && [ -f "$PATTERN" ]; then
+    before=$(wc -c < "$PATTERN")
+    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="#000000"/></svg>' > "$PATTERN"
+    after=$(wc -c < "$PATTERN")
+    ok "P17 узор чата заменён минимальным SVG (-$(( (before-after)/1024 )) КБ): фон плоский, без паттерна"
+else
+    skip "P17 узор чата не тронут (FLAT_UI=$FLAT_UI)"
+fi
+
+# =============================================================================
+# P18. ПРОКСИ ПО ССЫЛКЕ: вставил ссылку (t.me/proxy, tg://proxy, socks, webproxy)
+#      — прокси сразу активируется, без лишних нажатий.
+# =============================================================================
+AU="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/AndroidUtilities.java"
+if [ "$AUTO_PROXY" = "1" ]; then
+    if ! grep -q "^import android.widget.Toast;" "$AU"; then
+        sed_i '0,/^import android.content.SharedPreferences;$/s//import android.content.SharedPreferences;\nimport android.widget.Toast;/' "$AU"
+    fi
+    python3 - "$AU" <<'PY' || die "P18: не удалось внедрить автоактивацию прокси"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+marker = '/* KAMIGRAM_AUTO_PROXY */'
+old = (
+    "                final ProxySettings proxySettings = ProxySettings.fromUri(data);\n"
+    "                if (proxySettings != null && proxySettings.isValid()) {\n"
+    "                    if (invoked) showProxyAlert(activity, proxySettings);\n"
+    "                    return true;\n"
+    "                }"
+)
+new = (
+    "                final ProxySettings proxySettings = ProxySettings.fromUri(data);\n"
+    "                if (proxySettings != null && proxySettings.isValid()) {\n"
+    "                    if (invoked) {\n"
+    "                        " + marker + "\n"
+    "                        try {\n"
+    "                            final SharedConfig.ProxyInfo info = new SharedConfig.ProxyInfo(proxySettings);\n"
+    "                            SharedConfig.addProxy(info);\n"
+    "                            SharedConfig.currentProxy = info;\n"
+    "                            SharedConfig.saveProxyList();\n"
+    "                            final SharedPreferences.Editor editor = MessagesController.getGlobalMainSettings().edit();\n"
+    "                            editor.putBoolean(\"proxy_enabled\", true);\n"
+    "                            proxySettings.toSharedPreferences(editor);\n"
+    "                            editor.commit();\n"
+    "                            ConnectionsManager.setProxySettings(true, proxySettings);\n"
+    "                            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);\n"
+    "                            Toast.makeText(activity, proxySettings.getAddress() + \":\" + proxySettings.getPort() + \" \\u2014 \\u043f\\u0440\\u043e\\u043a\\u0441\\u0438 \\u0432\\u043a\\u043b\\u044e\\u0447\\u0451\\u043d\", Toast.LENGTH_SHORT).show();\n"
+    "                        } catch (Exception e) {\n"
+    "                            FileLog.e(e);\n"
+    "                            showProxyAlert(activity, proxySettings);\n"
+    "                        }\n"
+    "                    } else {\n"
+    "                        showProxyAlert(activity, proxySettings);\n"
+    "                    }\n"
+    "                    return true;\n"
+    "                }"
+)
+if marker in src:
+    pass
+elif old in src:
+    io.open(path, 'w', encoding='utf-8').write(src.replace(old, new, 1))
+else:
+    sys.stderr.write('P18: не найден блок обработки прокси-ссылки (структура изменилась)\n')
+    sys.exit(1)
+PY
+    [ "$(grep -c 'KAMIGRAM_AUTO_PROXY' "$AU")" = "1" ] || die "P18: маркер автоактивации не один"
+    ok "P18 ссылка на прокси активирует его сразу (t.me/proxy, tg://proxy, socks, webproxy) с тостом-подтверждением"
+else
+    skip "P18 автоактивация прокси отключена (AUTO_PROXY=0)"
+fi
+
+# =============================================================================
+# P19. РАЗМЕР APK: вырезаем Google App Indexing (Firebase) — моду он не нужен
+# =============================================================================
+LA="$TG_DIR/TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java"
+TGPROJ_GRADLE="$TG_DIR/TMessagesProj/build.gradle"
+if [ "$DROP_APPINDEXING" = "1" ]; then
+    python3 - "$LA" "$TGPROJ_GRADLE" <<'PY' || die "P19: не удалось вырезать appindexing"
+import io, re, sys
+la, gradle = sys.argv[1], sys.argv[2]
+src = io.open(la, encoding='utf-8').read()
+marker = '/* KAMIGRAM_NO_APPINDEXING */'
+if marker not in src:
+    src = src.replace('import com.google.firebase.appindexing.Action;\n', '', 1)
+    src = src.replace('import com.google.firebase.appindexing.FirebaseUserActions;\n', '', 1)
+    src = src.replace('import com.google.firebase.appindexing.builders.AssistActionBuilder;\n', '', 1)
+    pattern = re.compile(
+        r'[ \t]*final Action assistAction = new AssistActionBuilder\(\)\s*.*?FirebaseUserActions\.getInstance\(this\)\.end\(assistAction\);\n',
+        re.S)
+    src, n = pattern.subn('', src)
+    if n == 0:
+        sys.stderr.write('P19: блоков AssistActionBuilder не найдено\n')
+        sys.exit(1)
+    src = src.replace('intent.removeExtra(EXTRA_ACTION_TOKEN);',
+                      'intent.removeExtra(EXTRA_ACTION_TOKEN); ' + marker, 1)
+    io.open(la, 'w', encoding='utf-8').write(src)
+
+g = io.open(gradle, encoding='utf-8').read()
+g = g.replace("    implementation 'com.google.firebase:firebase-appindexing:20.0.0'\n", '')
+io.open(gradle, 'w', encoding='utf-8').write(g)
+PY
+    grep -q "firebase-appindexing" "$TGPROJ_GRADLE" && die "P19: зависимость appindexing осталась" || true
+    grep -q "AssistActionBuilder" "$LA" && die "P19: в LaunchActivity остались ссылки на AssistActionBuilder" || true
+    ok "P19 Google App Indexing вырезан (AssistActionBuilder, FirebaseUserActions и зависимость удалены)"
+else
+    skip "P19 appindexing оставлен (DROP_APPINDEXING=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -491,6 +935,10 @@ MOD_AUTODOWNLOAD_OFF=$AUTODOWNLOAD_OFF
 MOD_RES_CONFIGS=$RES_CONFIGS
 MOD_SLIM_HEAVY=$SLIM_HEAVY
 MOD_BUILD_LEAN=$BUILD_LEAN
+MOD_IOS_THEME=$IOS_THEME
+MOD_FLAT_UI=$FLAT_UI
+MOD_AUTO_PROXY=$AUTO_PROXY
+MOD_DROP_APPINDEXING=$DROP_APPINDEXING
 MOD_BUILD_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 UPSTREAM_REPO=https://github.com/DrKLO/Telegram
 UPSTREAM_COMMIT=$UPSTREAM_COMMIT
