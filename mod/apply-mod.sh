@@ -36,6 +36,8 @@
 #     IOS_UI               1 = собственный iOS-интерфейс в коде (табы, шапка) [1]
 #     GHOST_MODE           1 = режим «невидимка» (нет «прочитано»/«печатает»/онлайна) [1]
 #     NO_RESTRICTIONS      1 = снять запреты защищённого контента       [1]
+#     FIX_LOGIN            1 = вход через обычный SMS (без Google Play) [1]
+#     SMART_PROXY          1 = прокси из буфера сам вкл/выкл по состоянию связи [1]
 #     KEYSTORE_B64         base64 от .jks, если нужна своя подпись       [пусто]
 #     KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD — для своей подписи   [пусто]
 # =============================================================================
@@ -66,6 +68,8 @@ DROP_APPINDEXING=${DROP_APPINDEXING:-1}   # вырезать Google App Indexing
 IOS_UI=${IOS_UI:-1}                       # НАСТОЯЩИЙ КОД: собственный iOS-интерфейс KamiGram
 GHOST_MODE=${GHOST_MODE:-1}               # уникальная функция: режим «невидимка»
 NO_RESTRICTIONS=${NO_RESTRICTIONS:-1}     # уникальная функция: снять запреты защищённого контента
+FIX_LOGIN=${FIX_LOGIN:-1}                   # фикс входа: обычный SMS вместо Google Play Integrity
+SMART_PROXY=${SMART_PROXY:-1}             # прокси из буфера сам включается, мёртвый — сам выключается
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
@@ -1256,6 +1260,141 @@ else
 fi
 
 # =============================================================================
+# P24. ВХОД В АККАУНТ (ГЛАВНЫЙ ФИКС): Telegram требует проверку Google Play
+#      Integrity / Firebase, чтобы отправить SMS. Мод опубликован не в Google
+#      Play и подписан другим ключом, поэтому проверка не проходит и может
+#      висеть бесконечно — кнопка «Войти» крутится и ничего не происходит.
+#      KamiGram просит у сервера обычный SMS-код и не ждёт Google.
+# =============================================================================
+if [ "$FIX_LOGIN" = "1" ]; then
+    LA_LOGIN="$JAVA_ROOT/org/telegram/ui/LoginActivity.java"
+    python3 - "$LA_LOGIN" "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" <<'PY' || die "P24: не удалось включить обычный SMS-вход"
+import io, sys
+login_path, launch_path = sys.argv[1], sys.argv[2]
+config = 'org.telegram.messenger.kamigram.KamiGramConfig'
+changed = []
+
+src = io.open(login_path, encoding='utf-8').read()
+if 'KAMIGRAM_FORCE_SMS' not in src:
+    # 1) не объявляем серверу поддержку firebase/app-hash — пусть шлёт обычный SMS
+    old_settings = ('            settings.allow_app_hash = settings.allow_firebase = PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
+    if old_settings not in src:
+        sys.stderr.write('P24: не найдена настройка allow_app_hash в LoginActivity\n')
+        sys.exit(1)
+    new_settings = ('            /* KAMIGRAM_FORCE_SMS: mod is not in Google Play, so Play Integrity cannot pass */\n'
+                    '            final boolean kamigramForceSms = ' + config + '.forceSmsLogin();\n'
+                    '            settings.allow_app_hash = settings.allow_firebase = !kamigramForceSms && PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
+    src = src.replace(old_settings, new_settings, 1)
+
+    # 2) если сервер всё равно ответил типом firebase — не ждём Google, сразу просим SMS
+    old_firebase = ('        if (res.type instanceof TLRPC.TL_auth_sentCodeTypeFirebaseSms && !res.type.verifiedFirebase && !isRequestingFirebaseSms) {\n')
+    if old_firebase not in src:
+        sys.stderr.write('P24: не найден блок firebase в fillNextCodeParams\n')
+        sys.exit(1)
+    new_firebase = (old_firebase +
+                    '            ' + '/* KAMIGRAM_FORCE_SMS */' + '\n'
+                    '            if (' + config + '.forceSmsLogin()) {\n'
+                    '                needShowProgress(0);\n'
+                    '                isRequestingFirebaseSms = true;\n'
+                    '                resendCodeFromSafetyNet(params, res, "KAMIGRAM_FORCE_SMS");\n'
+                    '                return;\n'
+                    '            }\n')
+    src = src.replace(old_firebase, new_firebase, 1)
+    io.open(login_path, 'w', encoding='utf-8').write(src)
+    changed.append('LoginActivity')
+
+src = io.open(launch_path, encoding='utf-8').read()
+if 'KAMIGRAM_FORCE_SMS' not in src:
+    old_launch = ('                                req.settings.allow_app_hash = req.settings.allow_firebase = PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
+    if old_launch not in src:
+        sys.stderr.write('P24: не найден allow_app_hash в LaunchActivity\n')
+        sys.exit(1)
+    new_launch = ('                                /* KAMIGRAM_FORCE_SMS: plain SMS instead of Google Play Integrity */\n'
+                  '                                req.settings.allow_app_hash = req.settings.allow_firebase = !' + config + '.forceSmsLogin() && PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
+    src = src.replace(old_launch, new_launch, 1)
+    io.open(launch_path, 'w', encoding='utf-8').write(src)
+    changed.append('LaunchActivity')
+
+if not changed:
+    sys.stderr.write('P24: ни одна точка не найдена\n')
+    sys.exit(1)
+print('fix login applied to: ' + ', '.join(changed))
+PY
+    [ "$(grep -c 'KAMIGRAM_FORCE_SMS' "$LA_LOGIN")" -ge 2 ] || die "P24: маркеров в LoginActivity меньше двух"
+    ok "P24 ФИКС ВХОДА: код приходит обычным SMS — мод не ждёт Google Play Integrity/Firebase (из-за этого кнопка «Войти» висела без ответа)"
+else
+    skip "P24 фикс входа отключён (FIX_LOGIN=0)"
+fi
+
+# =============================================================================
+# P25. ПРОКСИ БЕЗ РУЧНЫХ ШАГОВ: ссылка в буфере обмена активирует прокси сама,
+#      а мёртвый прокси автоматически выключается, чтобы работал VPN/прямое
+#      соединение (иначе включённый, но нерабочий прокси блокирует всё).
+# =============================================================================
+if [ "$SMART_PROXY" = "1" ]; then
+    [ -f "$KAMIGRAM_SRC/KamiGramProxyHelper.java" ] || die "P25: нет $KAMIGRAM_SRC/KamiGramProxyHelper.java"
+    cp -f "$KAMIGRAM_SRC/KamiGramProxyHelper.java" "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramProxyHelper.java"
+
+    python3 - "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "$JAVA_ROOT/org/telegram/ui/LoginActivity.java" <<'PY' || die "P25: не удалось внедрить умный прокси"
+import io, sys
+launch_path, login_path = sys.argv[1], sys.argv[2]
+
+def insert_after(path, anchor, block, marker, context_expr):
+    src = io.open(path, encoding='utf-8').read()
+    if marker in src:
+        return False
+    if anchor not in src:
+        sys.stderr.write('P25: не найден якорь: %r\n' % anchor[:60])
+        sys.exit(1)
+    src = src.replace(anchor, anchor + block.replace('__CTX__', context_expr), 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+    return True
+
+resume_block = (
+    '        /* ' + 'KAMIGRAM_SMART_PROXY' + ' */\n'
+    '        try {\n'
+    '            org.telegram.messenger.kamigram.KamiGramProxyHelper.activateFromClipboard(__CTX__);\n'
+    '            org.telegram.messenger.kamigram.KamiGramProxyHelper.watchProxy(__CTX__);\n'
+    '        } catch (Throwable ignore) {\n'
+    '        }\n'
+)
+
+done = []
+if insert_after(launch_path, '    protected void onResume() {\n        super.onResume();\n', resume_block, 'KAMIGRAM_SMART_PROXY', 'this'):
+    done.append('LaunchActivity.onResume')
+if insert_after(login_path, '    public void onResume() {\n        super.onResume();\n', resume_block, 'KAMIGRAM_SMART_PROXY', 'getParentActivity()'):
+    done.append('LoginActivity.onResume')
+
+# нажатие «Войти»: поднимаем прокси из буфера и предупреждаем, если связи нет
+src = io.open(login_path, encoding='utf-8').read()
+anchor = '            nextPressed = true;\n'
+marker = 'KAMIGRAM_LOGIN_PROXY'
+if marker not in src and anchor in src:
+    block = ('            ' + '/* ' + marker + ': fix proxy and warn before sending the code */' + '\n'
+             '            try {\n'
+             '                org.telegram.messenger.kamigram.KamiGramProxyHelper.prepareForLogin(getParentActivity());\n'
+             '                final int kamigramState = ConnectionsManager.getInstance(currentAccount).getConnectionState();\n'
+             '                if (kamigramState != ConnectionsManager.ConnectionStateConnected && kamigramState != ConnectionsManager.ConnectionStateUpdating) {\n'
+             '                    Toast.makeText(getParentActivity(), LocaleController.getString(R.string.WaitingForNetwork), Toast.LENGTH_SHORT).show();\n'
+             '                }\n'
+             '            } catch (Throwable ignore) {\n'
+             '            }\n')
+    src = src.replace(anchor, block + anchor, 1)
+    io.open(login_path, 'w', encoding='utf-8').write(src)
+    done.append('LoginActivity.loginButton')
+
+if not done:
+    sys.stderr.write('P25: ничего не внедрено\n')
+    sys.exit(1)
+print('smart proxy hook: ' + ', '.join(done))
+PY
+    [ "$(grep -c 'KAMIGRAM_SMART_PROXY' "$JAVA_ROOT/org/telegram/ui/LoginActivity.java")" = "1" ] || die "P25: хук в LoginActivity не один"
+    ok "P25 УМНЫЙ ПРОКСИ: ссылка в буфере обмена включает прокси сама (при запуске, при входе и по кнопке «Войти»), а нерабочий прокси автоматически выключается — VPN и прямое соединение больше не блокируются"
+else
+    skip "P25 умный прокси отключён (SMART_PROXY=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -1277,6 +1416,8 @@ MOD_DROP_APPINDEXING=$DROP_APPINDEXING
 MOD_IOS_UI=$IOS_UI
 MOD_GHOST_MODE=$GHOST_MODE
 MOD_NO_RESTRICTIONS=$NO_RESTRICTIONS
+MOD_FIX_LOGIN=$FIX_LOGIN
+MOD_SMART_PROXY=$SMART_PROXY
 MOD_BUILD_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 UPSTREAM_REPO=https://github.com/DrKLO/Telegram
 UPSTREAM_COMMIT=$UPSTREAM_COMMIT

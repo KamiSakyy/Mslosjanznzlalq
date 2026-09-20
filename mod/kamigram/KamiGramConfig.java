@@ -20,6 +20,16 @@ public final class KamiGramConfig {
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
     /** Flat iOS-style tabs (no glass, no blur). */
     public static final String KEY_IOS_TABS = "kamigram_ios_tabs";
+    /**
+     * Force the plain SMS login code instead of the Google Play Integrity / Firebase flow.
+     * A mod is not published in Google Play and is signed with a different key, so the
+     * integrity request can hang forever and the login button just spins.
+     */
+    public static final String KEY_FORCE_SMS = "kamigram_force_sms";
+    /** Activate a proxy automatically when its link appears in the clipboard. */
+    public static final String KEY_AUTO_PROXY_CLIPBOARD = "kamigram_auto_proxy_clipboard";
+    /** Switch a dead proxy off automatically so VPN / direct connection can work. */
+    public static final String KEY_PROXY_FALLBACK = "kamigram_proxy_fallback";
 
     private KamiGramConfig() {
     }
@@ -51,5 +61,20 @@ public final class KamiGramConfig {
     /** Flat iOS-style tab bar. */
     public static boolean iosTabs() {
         return get(KEY_IOS_TABS);
+    }
+
+    /** Ask the server for a plain SMS code (no Play Integrity / Firebase). */
+    public static boolean forceSmsLogin() {
+        return get(KEY_FORCE_SMS);
+    }
+
+    /** Auto-enable a proxy link found in the clipboard. */
+    public static boolean autoProxyFromClipboard() {
+        return get(KEY_AUTO_PROXY_CLIPBOARD);
+    }
+
+    /** Auto-disable a proxy that does not connect. */
+    public static boolean proxyFallback() {
+        return get(KEY_PROXY_FALLBACK);
     }
 }

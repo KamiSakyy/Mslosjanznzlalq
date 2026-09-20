@@ -54,6 +54,8 @@ Telegram-FOSS: берём официальные открытые исходни
 | `drop_appindexing` | `1` | Вырезать Google App Indexing (код + зависимость) — APK легче, старт быстрее |
 | `ios_ui` | `1` | **Собственный iOS-интерфейс в коде**: свой таб-бар KamiGram с плоским фоном и своими иконками, шеврон «назад» как в iOS, плоская шапка без «стекла» |
 | `ghost_mode` | `1` | **Режим «невидимка»**: собеседнику не уходят «прочитано», «печатает» и статус «в сети» |
+| `fix_login` | `1` | **Вход в аккаунт**: обычный SMS вместо проверки Google Play Integrity, из-за которой кнопка «Войти» висела без ответа |
+| `smart_proxy` | `1` | **Умный прокси**: ссылка из буфера обмена включает прокси сама, мёртвый прокси сам выключается |
 | `no_restrictions` | `1` | **Защищённый контент без запретов**: пересылка, сохранение, копирование и скриншоты разрешены |
 | `disable_billing` | `0` | `1` — выключить Google Play Billing (в сборке вне Play он всё равно мёртв) |
 | `create_release` | `true` | Публиковать APK в Releases |
@@ -88,6 +90,8 @@ Telegram-FOSS: берём официальные открытые исходни
 | P20 | Новый код мода: `org/telegram/messenger/kamigram/KamiGramConfig.java`, `org/telegram/ui/Components/kamigram/KamiGramIOSTabBarDrawable.java`, `GlassTabView.createKamiGramIOSTab()`, `MainTabsActivity`, `res/drawable/ic_ab_back.xml` | **Настоящий iOS-интерфейс в коде, а не тема**: собственные 4 иконки табов (вектор, рисуются кодом мода), плоский таб-бар без «стекла»/размытия и без подложки-пилюли, табы всегда в палитре iOS (`#0A84FF` / `#8E8E93`), кнопка «назад» — iOS-шеврон вместо стрелки Telegram |
 | P21 | `MessagesController.completeReadTask()`, `sendTyping()`, `ConnectionsManager.sendRequest()` | **Ghost-режим** (`KamiGramConfig.ghostMode()`): серверу не уходят read-receipts, «печатает» и онлайн-статус |
 | P22 | `MessagesController.isPeerNoForwards()`, `MessageObject.canForwardMessage()`, `ChatActivity` (flagSecure, canCopy, canShowQuote, hint) | **Снятие ограничений** (`KamiGramConfig.noRestrictions()`): защищённый контент можно пересылать, сохранять, копировать, скриншотить |
+| P24 | `LoginActivity` (`TL_codeSettings`, `fillNextCodeParams`), `LaunchActivity` (`sendConfirmPhoneCode`) | **Фикс входа**: мод не проходит Google Play Integrity/Firebase (не в Google Play и подписан другим ключом) — вместо этого сразу запрашивается обычный SMS-код |
+| P25 | Новый код мода `KamiGramProxyHelper.java` + `LaunchActivity.onResume()`, `LoginActivity.onResume()`, нажатие «Войти» | **Прокси без ручных шагов**: ссылка в буфере обмена включает прокси автоматически; нерабочий прокси через 25 с выключается сам, чтобы не блокировать VPN/прямое соединение |
 | P23 | `ActionBar.setupGlass()` | **Плоская шапка** без «стекла» и размытия — iOS-стиль в коде |
 | P19 | `LaunchActivity` + `build.gradle` | Google App Indexing (`AssistActionBuilder`, `FirebaseUserActions`, зависимость `firebase-appindexing`) вырезан |
 | P14 | Заглушки Lottie `res/raw/*.json` | Тяжёлые Lottie-анимации (режим `all`: 328 файлов, −15 МБ исходников) проигрываются за 1 кадр — эффекты премиума и подарков невидимы, APK легче. Заглушаются **только** настоящие Lottie (по маркеру `"v"` в первых байтах), служебные JSON (`mapstyle_night`, `qr_code_logo`) не трогаются |

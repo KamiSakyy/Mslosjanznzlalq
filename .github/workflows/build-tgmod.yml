@@ -34,6 +34,10 @@ on:
         options:
           - "arm64-v8a"
           - "arm64-v8a,armeabi-v7a"
+      fail_fast:
+        description: "Сначала отдельно проверить Java (дольше на ~5 мин; по умолчанию выключено)"
+        default: "0"
+        type: string
       tg_ref:
         description: "Ветка/коммит DrKLO/Telegram"
         default: "master"
@@ -206,19 +210,13 @@ jobs:
           TG_DIR: ${{ github.workspace }}/telegram-src
         run: |
           set -euo pipefail
-          B64=modrepo/mod/keys/kamigram.jks.b64
-          if [ -f "$B64" ]; then
-            export KEYSTORE_B64="$(tr -d '\n\r' < "$B64")"
-            export KEYSTORE_PASSWORD='kamigram2026'
-            export KEY_ALIAS='kamigram'
-            export KEY_PASSWORD='kamigram2026'
-            echo "::notice title=Подпись::собственный ключ KamiGram (alias=kamigram)"
-          else
-            echo "::warning title=Подпись::свой ключ не найден — подпись публичным upstream-ключом"
-          fi
+          # Подпись — оригинальный ключ Telegram (android / androidkey), как просил заказчик:
+          # сборка быстрее, ключ не генерируется и не хранится. Своя подпись отключается.
+          echo "::notice title=Подпись::оригинальный ключ Telegram (android / androidkey)"
           bash modrepo/mod/apply-mod.sh
 
-      - name: Быстрая проверка кода (fail-fast, ~10 мин)
+      - name: Быстрая проверка кода (fail-fast, только по запросу)
+        if: ${{ inputs.fail_fast == '1' || inputs.fail_fast == 'true' }}
         working-directory: telegram-src
         run: |
           set +e
@@ -236,7 +234,7 @@ jobs:
         run: |
           set -o pipefail
           free -h || true
-          ./gradlew --no-daemon --stacktrace --console=plain \
+          ./gradlew --no-daemon --build-cache --stacktrace --console=plain \
             :TMessagesProj_App:assembleAfatRelease 2>&1 | tee ../build.log
           df -h / || true
 
