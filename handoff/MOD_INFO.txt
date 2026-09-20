@@ -1,0 +1,36 @@
+MOD_NAME=KamiGram
+MOD_PACKAGE=com.kami.gram
+MOD_VERSION=12.10.3-mod
+MOD_BASE_VERSION=12.10.3
+MOD_ABIS=arm64-v8a
+MOD_MAX_ECONOMY=1
+MOD_NO_STICKERS=1
+MOD_AUTODOWNLOAD_OFF=1
+MOD_RES_CONFIGS=ru,en
+MOD_SLIM_HEAVY=1
+MOD_BUILD_LEAN=1
+MOD_BUILD_UTC=2026-09-20T18:28:18Z
+UPSTREAM_REPO=https://github.com/DrKLO/Telegram
+UPSTREAM_COMMIT=9552e554
+UPSTREAM_DATE=2026-09-17
+TELEGRAM_API_ID_SOURCE=upstream-buildvars (official built-in, no api_id/api_hash required)
+PATCHES:
+ - креденшелы Telegram встроены в исходники (APP_ID=4, APP_HASH=014b35b6…): свои api_id/api_hash НЕ нужны
+ - P1 package id + версия: com.kami.gram / 12.10.3-mod (база 12.10.3, code 7089)
+ - P2 имя приложения в ресурсах: 'KamiGram' (файлов: 10)
+ - P3 брендинг UI внедрён ('KamiGram' возвращается для R.string.AppName)
+ - P4 google-services.json: app-модули → com.kami.gram(.beta/.web), библиотека оставлена как org.telegram.messenger
+ - P5 ABI ограничены: "arm64-v8a" (файлов: 5)
+ - P6 проверка обновлений выключена (не тянет официальный Telegram)
+ - P8 ccache подключён к native-сборке (файлов: 6)
+ - P10 автоскачивание медиа выключено по умолчанию (моб./Wi-Fi/роуминг), preload видео/музыки/историй — off
+ - P11 загрузка наборов стикеров/масок/премиум-эмодзи/подарков заблокирована (0 байт трафика)
+ - P12 power-saver принудительно: animated emoji/стикеры, автоплей GIF/видео, частицы, blur, обои — off
+ - P13 в APK остаются локали: ru,en (+zz) — файлов: 5
+ - P14 обнулено Lottie-анимаций: 54 (res/raw: -11 МБ исходников; режим SLIM_HEAVY=1)
+ - P15 нативная сборка без -g (объекты и .so легче, линковка быстрее)
+ - P15 debugSymbolLevel = SYMBOL_TABLE в 6 модулях (не пишем гигабайты символов)
+ - P15 Gradle heap ограничен 5 ГБ (защита от OOM на CI)
+SKIPPED:
+ - P7 billing оставлен как в upstream (DISABLE_BILLING=0)
+ - P9 подпись: публичный upstream-ключ (android / androidkey) — менять не обязательно
