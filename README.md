@@ -65,7 +65,7 @@ Telegram-FOSS: берём официальные открытые исходни
 | P1 | `APP_PACKAGE`, `APP_VERSION_NAME` в `gradle.properties` | Свой `package id` (ставится рядом с оригиналом) и версия с суффиксом |
 | P2 | `<string name="AppName">` во всех локалях | Ярлык и системные упоминания = имя мода |
 | P3 | `LocaleController.getStringInternal()` | Иначе «облачные» строки Telegram перетирают имя мода в UI обратно на «Telegram» |
-| P4 | `google-services.json` (все модули) | Без этого сборка падает: `No matching client found for package name` |
+| P4 | `google-services.json` только app-модулей | Их `package_name` должен совпадать с `applicationId` мода, а вот у **библиотечного** модуля `TMessagesProj` он обязан остаться `org.telegram.messenger` — иначе `:TMessagesProj:processReleaseGoogleServices` падает с `No matching client found for package name`. Скрипт правит строго первые и не трогает вторые |
 | P5 | `abiFilters` | Собираем только нужные ABI — в разы быстрее |
 | P6 | `BuildVars.CHECK_UPDATES = false` | Мод не должен предлагать скачать официальный Telegram APK |
 | P7 | `IS_BILLING_UNAVAILABLE` (опция) | Убирает бесполезные покупки вне Google Play |
@@ -165,6 +165,17 @@ ok "P10 описание патча"
 * «сохранить в галерею» без ограничений для self-destruct медиа (спорно с точки зрения приватности).
 
 ---
+
+## Что уже проверено на практике
+
+* Сборка в CI ловит реальные ошибки, а не «тихо выпускает стоковый Telegram»: патчер падает с понятным
+  сообщением, а в пайплайне есть отдельный fail-fast шаг компиляции Java и шаг диагностики, который
+  печатает последние строки Gradle в аннотации (их видно в интерфейсе Actions).
+* Найденная и исправленная реальная проблема: плагин Google Services применяется и к библиотеке
+  `TMessagesProj`, поэтому её `google-services.json` должен оставаться с upstream-пакетом
+  `org.telegram.messenger` — иначе сборка падает на `processReleaseGoogleServices`.
+* Нативная часть собирается без `-g` (P15): объектные файлы и `.so` перестают раздуваться на десятки
+  гигабайт, сборка быстрее и не падает по диску на CI-раннере.
 
 ## Дисклеймер
 
