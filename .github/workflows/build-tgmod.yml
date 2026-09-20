@@ -80,7 +80,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: tgmod-${{ github.ref }}
+  group: tgmod-fast-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
