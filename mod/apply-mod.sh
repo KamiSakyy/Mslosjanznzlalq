@@ -309,6 +309,8 @@ targets = [
      '        if (true) { ' + marker + ' return; }'),
     ('public void loadStickersByEmojiOrName(String name, boolean isEmoji, boolean cache) {',
      '        if (true) { ' + marker + ' return; }'),
+    ('public boolean areStickersLoaded(int type) {',
+     '        if (true) return true; ' + marker),
 ]
 if marker not in src:
     for sig, inject in targets:
@@ -318,7 +320,7 @@ if marker not in src:
         src = src.replace(sig, sig + '\n' + inject, 1)
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
-    [ "$(grep -c 'KAMIGRAM_NO_STICKERS' "$MDC")" = "3" ] || die "P11: ожидалось 3 точки блокировки"
+    [ "$(grep -c 'KAMIGRAM_NO_STICKERS' "$MDC")" = "4" ] || die "P11: ожидалось 4 точки блокировки"
     ok "P11 загрузка наборов стикеров/масок/премиум-эмодзи/подарков заблокирована (0 байт трафика)"
 else
     skip "P11 стикеры оставлены как в upstream (NO_STICKERS=0)"
