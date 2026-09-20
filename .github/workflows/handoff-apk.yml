@@ -1,9 +1,11 @@
-name: Handoff APK (положить APK в папку handoff/)
+name: Handoff APK (архив в папку handoff/)
 
 # =============================================================================
-#  Быстрый путь: берёт готовый APK из последней удачной сборки (Actions artifact)
-#  и коммитит его в папку handoff/ этого репозитория, чтобы файл можно было
-#  скачать обычной ссылкой прямо с GitHub, без похода в Actions.
+#  Быстрый путь: берёт готовый APK и diff из последней удачной сборки
+#  (Actions artifacts) и кладёт их в архив handoff/ этого репозитория, чтобы
+#  файл можно было скачать обычной ссылкой, без похода в Actions.
+#
+#  Правило архива: ничего не удаляется. Каждая сборка = отдельный файл.
 #
 #  Запускается автоматически при изменении этого файла, либо вручную
 #  (Actions → Handoff APK → Run workflow), можно указать конкретный run_id.
@@ -31,7 +33,7 @@ concurrency:
 
 jobs:
   handoff:
-    name: APK в handoff/
+    name: APK в архив handoff/
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -40,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Найти сборку и скачать APK
+      - name: Найти сборку и скачать артефакты
         run: |
           set -euo pipefail
           RUN_ID="${{ inputs.run_id }}"
@@ -49,51 +51,96 @@ jobs:
                        --jq '.workflow_runs[0].id')
           fi
           echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
-          echo "беру артефакт из запуска $RUN_ID"
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '"версия: " + (.display_title // "-")'
+          RUN_NUMBER=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.run_number')
+          echo "RUN_NUMBER=$RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "беру артефакты из запуска $RUN_ID (сборка #$RUN_NUMBER)"
 
           rm -rf dl && mkdir -p dl
-          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'tgmod-apk-*' --dir dl
-          find dl -type f | head -10
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'tgmod-apk-*' --dir dl || true
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'tgmod-diff-*' --dir dl || true
+          find dl -type f | head -20
 
-      - name: Разложить по handoff/
+      - name: Разложить в архив handoff/apk + handoff/sources
         run: |
           set -euo pipefail
-          mkdir -p handoff
-
           APK=$(find dl -name '*.apk' | head -1)
-          [ -n "$APK" ] || { echo "::error title=Handoff::в артефакте нет APK"; exit 1; }
+          [ -n "$APK" ] || { echo "::error title=Handoff::в артефактах нет APK"; exit 1; }
 
           BASE=$(basename "$APK")
-          cp "$APK" "handoff/$BASE"
+          # KamiGram-12.10.3-mod-arm64-v8a.apk -> 12.10.3-mod
+          VERSION=$(echo "$BASE" | sed -E 's/^KamiGram-//; s/-arm64-v8a\.apk$//; s/\.apk$//')
+          [ -n "$VERSION" ] || VERSION="12.10.3-mod"
+          NAME="KamiGram-$VERSION-r$RUN_NUMBER.apk"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+
+          mkdir -p handoff/apk handoff/sources
+          [ -f "handoff/apk/$NAME" ] || cp "$APK" "handoff/apk/$NAME"
+          cp "$APK" "handoff/apk/KamiGram-latest.apk"
           cp "$APK" "handoff/KamiGram-latest.apk"
-          find dl -name 'SHA256SUMS.txt' -exec cp {} handoff/ \; || true
-          find dl -name 'MOD_INFO.txt'    -exec cp {} handoff/ \; || true
 
-          # контрольная сумма для обеих копий
-          ( cd handoff && sha256sum "$BASE" KamiGram-latest.apk > SHA256SUMS.txt )
+          find dl -name 'MOD_INFO.txt' -exec cp {} "handoff/sources/MOD_INFO-$VERSION-r$RUN_NUMBER.txt" \; || true
+          DIFF=$(find dl -name '*.patch' -o -name '*.diff' | head -1)
+          if [ -n "$DIFF" ] && [ -s "$DIFF" ]; then
+            gzip -9 -c "$DIFF" > "handoff/sources/changes-$VERSION-r$RUN_NUMBER.patch.gz"
+            grep -E '^ .* \| ' "$DIFF" > "handoff/sources/changes-$VERSION-r$RUN_NUMBER.stat.txt" 2>/dev/null || true
+          fi
+          [ -f "handoff/sources/MOD_INFO-$VERSION-r$RUN_NUMBER.txt" ] || cp handoff/MOD_INFO.txt "handoff/sources/MOD_INFO-$VERSION-r$RUN_NUMBER.txt" 2>/dev/null || true
 
-          SIZE_MB=$(( $(wc -c < "handoff/$BASE") / 1048576 ))
-          SHA=$(cut -d' ' -f1 handoff/SHA256SUMS.txt | head -1)
-          echo "::notice title=Handoff::handoff/$BASE | ${SIZE_MB} МБ | sha256=$SHA"
-          ls -lh handoff/
+          ( cd handoff/apk && sha256sum *.apk | sort -k2 ) > handoff/SHA256SUMS.txt
+          SHA=$(sha256sum "handoff/apk/$NAME" | cut -c1-16)
+          SIZE=$(du -h "handoff/apk/$NAME" | cut -f1)
+          echo "::notice title=Handoff::$NAME | $SIZE | sha256=$SHA..."
 
-      - name: Закоммитить в репозиторий
+          {
+            echo '# KamiGram - архив сборок'
+            echo
+            echo 'Все версии APK и исходников сохраняются навсегда, ничего не удаляется.'
+            echo
+            echo '## Версии APK'
+            echo
+            echo '| файл | размер | sha256 |'
+            echo '|---|---|---|'
+            for f in handoff/apk/*.apk; do
+              BN=$(basename "$f")
+              [ "$BN" = "KamiGram-latest.apk" ] && continue
+              echo "| \`apk/$BN\` | $(du -h "$f" | cut -f1) | \`$(sha256sum "$f" | cut -c1-16)...\` |"
+            done
+            echo
+            echo '## Исходники версий'
+            echo
+            echo 'Каждая запись = MOD_INFO + changes-*.patch.gz (полный diff против Telegram).'
+            echo
+            echo '| файл | размер |'
+            echo '|---|---|'
+            for f in handoff/sources/*; do
+              [ -f "$f" ] || continue
+              echo "| \`sources/$(basename "$f")\` | $(du -h "$f" | cut -f1) |"
+            done
+            echo
+            echo "Обновлено: $(date -u '+%Y-%m-%d %H:%M') UTC"
+          } > handoff/INDEX.md
+          ls -lh handoff/apk | tail -6
+
+      - name: Закоммитить архив
         run: |
           set -uo pipefail
           git config user.name "arena-ai-coding-agent[bot]"
           git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
           git add -f handoff
           if git diff --cached --quiet; then
-            echo "::notice title=Handoff::изменений нет — файл уже актуален"
+            echo "::notice title=Handoff::изменений нет — архив уже актуален"
             exit 0
           fi
-          git commit -m "chore(handoff): APK в handoff/ (запуск $RUN_ID) [skip ci]"
+          git commit -m "chore(handoff): архив $VERSION (сборка #$RUN_NUMBER) [skip ci]"
 
           for i in 1 2 3; do
-            if git push origin "HEAD:${GITHUB_REF_NAME}"; then echo "запушено"; exit 0; fi
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "::notice title=Handoff::архив обновлён — handoff/apk/$NAME"
+              exit 0
+            fi
             echo "пуш не прошёл (попытка $i) — подтягиваю изменения и пробую снова"
             git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           done
-          echo "::error title=Handoff::не удалось запушить handoff/ за 3 попытки"
+          echo "::error title=Handoff::не удалось запушить архив за 3 попытки"
           exit 1
