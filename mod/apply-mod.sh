@@ -416,7 +416,7 @@ if marker not in src:
         sys.stderr.write('P12: не найден LiteMode.getValue\n')
         sys.exit(1)
     if max_economy == '1':
-        src = src.replace(sig, sig + '\n        if (true) return PRESET_POWER_SAVER; ' + marker, 1)
+        src = src.replace(sig, sig + '\n        if (true) return PRESET_POWER_SAVER; ' + marker + ' hard power saver */', 1)
     else:
         old_tail = '        return value;\n    }\n\n    private static int lastBatteryLevelCached = -1;'
         if old_tail not in src:

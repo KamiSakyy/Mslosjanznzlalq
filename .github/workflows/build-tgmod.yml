@@ -47,8 +47,8 @@ on:
         default: "0"
         type: string
       max_economy:
-        description: "MAX ECONOMY: power-saver, все анимации/автоплей выключены (1/0)"
-        default: "1"
+        description: "Жёсткий power-saver: максимальная экономия, но БЕЗ анимаций (1/0)"
+        default: "0"
         type: string
       no_stickers:
         description: "Полностью запретить загрузку стикеров и премиум-эмодзи (1/0)"
@@ -100,7 +100,7 @@ jobs:
       ABIS: ${{ inputs.abis || 'arm64-v8a' }}
       TG_REF: ${{ inputs.tg_ref || 'master' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
-      MAX_ECONOMY: ${{ inputs.max_economy || '1' }}
+      MAX_ECONOMY: ${{ inputs.max_economy || '0' }}
       NO_STICKERS: ${{ inputs.no_stickers || '1' }}
       AUTODOWNLOAD_OFF: ${{ inputs.autodownload_off || '1' }}
       SLIM_HEAVY: ${{ inputs.slim_heavy || '1' }}
@@ -419,7 +419,7 @@ jobs:
             echo "| package id | \`$APP_PACKAGE\` |"
             echo "| версия | \`${{ steps.apk.outputs.version || '—' }}\` |"
             echo "| ABI | \`$ABIS\` |"
-            echo "| MAX ECONOMY | \`$MAX_ECONOMY\` (power-saver, без анимаций и автоплея) |"
+            echo "| MAX ECONOMY | \`$MAX_ECONOMY\` (1 = жёсткая экономия без анимаций, 0 = анимации включены) |"
             echo "| стикеры/премиум-эмодзи | \`$NO_STICKERS\` (1 = не загружаются вообще) |"
             echo "| автоскачивание медиа | \`$AUTODOWNLOAD_OFF\` (1 = выключено по умолчанию) |"
             echo "| локали | \`$RES_CONFIGS\` |"
