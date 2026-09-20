@@ -51,6 +51,7 @@ NO_STICKERS=${NO_STICKERS:-1}             # стикеры и премиум-э�
 MAX_ECONOMY=${MAX_ECONOMY:-1}             # принудительный power-saver (все анимации/автоплей выкл)
 RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
 SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
+PATCH_GS=${PATCH_GS:-1}                   # правка google-services.json под свой applicationId
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
@@ -190,16 +191,68 @@ else
 fi
 
 # =============================================================================
-# P4. google-services.json: обязателен для сборочного плагина Google Play Services.
-#     Без правки package_name сборка падает: "No matching client found for package name".
+# P4. google-services.json: плагин Google Services применяется и к библиотечному
+#     модулю TMessagesProj, где package_name обязан совпадать с его namespace
+#     (org.telegram.messenger) — этот файл НЕ трогаем. Переписываем только файлы
+#     тех модулей-приложений, которые собираем: их applicationId = $APP_PACKAGE
+#     (со суффиксами .beta / .web для соответствующих build types).
 # =============================================================================
-gs_count=0
-while IFS= read -r gs; do
-    sed_i "s|\"package_name\": *\"[^\"]*\"|\"package_name\": \"$APP_PACKAGE\"|g" "$gs"
-    grep -q "\"package_name\": \"$APP_PACKAGE\"" "$gs" || die "P4: не удалось поправить $gs"
-    gs_count=$((gs_count+1))
-done < <(find "$TG_DIR" -maxdepth 2 -name google-services.json | sort)
-[ "$gs_count" -gt 0 ] && ok "P4 google-services.json переведён на $APP_PACKAGE (файлов: $gs_count)" || warn "P4 google-services.json не найден"
+if [ "$PATCH_GS" = "1" ]; then
+    patch_gs_json() { # $1 = файл, $2 = базовый applicationId
+        [ -f "$1" ] || return 1
+        python3 - "$1" "$2" <<'PY' || return 1
+import io, json, sys
+path, pkg = sys.argv[1], sys.argv[2]
+data = json.load(io.open(path, encoding='utf-8'))
+count = 0
+for client in data.get('client', []):
+    info = client.get('client_info', {}).get('android_client_info', {})
+    old = info.get('package_name', '')
+    suffix = ''
+    if old.endswith('.beta'):
+        suffix = '.beta'
+    elif old.endswith('.web'):
+        suffix = '.web'
+    info['package_name'] = pkg + suffix
+    count += 1
+io.open(path, 'w', encoding='utf-8').write(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
+print(count)
+PY
+    }
+
+    gs_main=$(patch_gs_json "$TG_DIR/TMessagesProj_App/google-services.json" "$APP_PACKAGE" || echo 0)
+
+    # standalone-модуль: applicationId всегда с суффиксом .web → оставляем один клиент с точным id
+    GS_STANDALONE="$TG_DIR/TMessagesProj_AppStandalone/google-services.json"
+    if [ -f "$GS_STANDALONE" ]; then
+        python3 - "$GS_STANDALONE" "$APP_PACKAGE.web" <<'PY' || warn "P4: standalone google-services.json не поправлен"
+import io, json, sys
+path, pkg = sys.argv[1], sys.argv[2]
+data = json.load(io.open(path, encoding='utf-8'))
+clients = data.get('client', [])
+if clients:
+    clients[0]['client_info']['android_client_info']['package_name'] = pkg
+    data['client'] = clients[:1]
+io.open(path, 'w', encoding='utf-8').write(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
+PY
+    fi
+
+    [ "${gs_main:-0}" -gt 0 ] || die "P4: не удалось поправить TMessagesProj_App/google-services.json"
+    has "$TG_DIR/TMessagesProj_App/google-services.json" "\"package_name\": \"$APP_PACKAGE\"" \
+        || die "P4: в TMessagesProj_App/google-services.json нет записи для $APP_PACKAGE"
+
+    # библиотечный модуль должен остаться с upstream-пакетом, иначе
+    # :TMessagesProj:processReleaseGoogleServices падает: "No matching client found"
+    has "$TG_DIR/TMessagesProj/google-services.json" '"package_name": "org.telegram.messenger"' \
+        || die "P4: библиотечный google-services.json изменён — сборка упадёт"
+    if grep -q "$APP_PACKAGE" "$TG_DIR/TMessagesProj/google-services.json"; then
+        die "P4: в библиотечном google-services.json не должно быть $APP_PACKAGE"
+    fi
+
+    ok "P4 google-services.json: app-модули → $APP_PACKAGE(.beta/.web), библиотека оставлена как org.telegram.messenger"
+else
+    skip "P4 google-services.json не тронут (PATCH_GS=0)"
+fi
 
 # =============================================================================
 # P5. ABI: собираем только нужные архитектуры (урезает сборку в разы)
