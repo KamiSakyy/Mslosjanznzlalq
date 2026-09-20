@@ -181,9 +181,15 @@ jobs:
       - name: Быстрая проверка кода (fail-fast, ~10 мин)
         working-directory: telegram-src
         run: |
-          set -o pipefail
+          set +e
           ./gradlew --no-daemon --stacktrace --console=plain \
-            :TMessagesProj_App:compileAfatReleaseJavaWithJavac 2>&1 | tee ../javac.log
+            :TMessagesProj:compileReleaseJavaWithJavac 2>&1 | tee ../javac.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != "0" ] && grep -qE "Task '.*' not found|Cannot locate tasks" ../javac.log; then
+            echo "::warning title=build::fail-fast задача не найдена — идём в полную сборку без неё"
+            exit 0
+          fi
+          exit "$code"
 
       - name: Сборка APK (assembleAfatRelease, arm64, экономия трафика)
         working-directory: telegram-src
@@ -202,16 +208,18 @@ jobs:
           for f in javac.log build.log; do
             [ -f "$f" ] && { echo "### последние строки $f"; tail -n 25 "$f"; }
           done
-          if [ -f build.log ]; then
-            echo "### Последние 60 строк сборки"
-            tail -n 60 build.log || true
-            echo "### Аннотации (Checks API)"
-            tail -n 12 build.log | tr -d '\r' | while IFS= read -r line; do
-              [ -n "$line" ] && echo "::error title=Gradle::${line:0:900}"
-            done
-          else
-            echo "::error title=Gradle::build.log не найден — сборка упала до запуска Gradle"
-          fi
+          found=0
+          for f in javac.log build.log; do
+            if [ -f "$f" ]; then
+              found=1
+              echo "### Аннотации из $f (Checks API)"
+              grep -nE "error:|error;|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" | tail -n 6 | tr -d '\r' | while IFS= read -r line; do
+                echo "::error title=Gradle ${f}::${line:0:900}"
+              done
+            fi
+          done
+          [ "$found" = "0" ] && echo "::error title=Gradle::ни javac.log, ни build.log не найдены — сборка упала до запуска Gradle"
+          exit 0
 
       - name: Загрузить лог сборки при падении
         if: failure()
