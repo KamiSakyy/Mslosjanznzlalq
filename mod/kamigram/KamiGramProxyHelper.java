@@ -3,6 +3,7 @@ package org.telegram.messenger.kamigram;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.net.Uri;
 import android.content.SharedPreferences;
 import android.widget.Toast;
 
@@ -68,7 +69,8 @@ public final class KamiGramProxyHelper {
             return false;
         }
         try {
-            final ProxySettings settings = ProxySettings.fromUri(link);
+            final Uri uri = Uri.parse(link);
+            final ProxySettings settings = ProxySettings.fromUri(uri);
             if (settings == null || !settings.isValid()) {
                 return false;
             }

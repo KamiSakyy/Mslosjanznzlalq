@@ -77,4 +77,15 @@ public final class KamiGramConfig {
     public static boolean proxyFallback() {
         return get(KEY_PROXY_FALLBACK);
     }
+
+    /** Guards the "ask for a plain SMS instead of Firebase" resend so it happens only once. */
+    private static boolean forceSmsResent;
+
+    public static boolean forceSmsConsumed() {
+        return forceSmsResent;
+    }
+
+    public static void markForceSmsResent() {
+        forceSmsResent = true;
+    }
 }
