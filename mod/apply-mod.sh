@@ -57,7 +57,7 @@ USE_CCACHE=${USE_CCACHE:-1}
 # экономия трафика / размер
 AUTODOWNLOAD_OFF=${AUTODOWNLOAD_OFF:-1}   # автоскачивание медиа выключено по умолчанию
 NO_STICKERS=${NO_STICKERS:-1}             # стикеры и премиум-эмодзи не загружаются вообще
-MAX_ECONOMY=${MAX_ECONOMY:-1}             # принудительный power-saver (все анимации/автоплей выкл)
+MAX_ECONOMY=${MAX_ECONOMY:-0}             # power-saver (0 = анимации и плавность остаются)
 RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
 SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
 PATCH_GS=${PATCH_GS:-1}                   # правка google-services.json под свой applicationId
@@ -399,28 +399,44 @@ else
 fi
 
 # =============================================================================
-# P12. MAX ECONOMY: принудительный power-saver — никаких анимаций, автоплея,
-#      частиц, блюра и кастомных обоев. Меньше трафика, меньше CPU, меньше RAM.
+# P12. FLAT & SMOOTH: плоский iOS-вид без «стекла» и размытия, но БЕЗ убийства
+#      анимаций и плавности. Гасим только FLAG_LIQUID_GLASS и FLAG_CHAT_BLUR,
+#      всё остальное (анимации, частицы) остаётся как в оригинале.
+#      MAX_ECONOMY=1 дополнительно включает старый жёсткий power-saver.
 # =============================================================================
 LM="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/LiteMode.java"
-if [ "$MAX_ECONOMY" = "1" ]; then
-    python3 - "$LM" <<'PY' || die "P12: не удалось включить power-saver"
+python3 - "$LM" "$MAX_ECONOMY" <<'PY' || die "P12: не удалось настроить LiteMode"
 import io, sys
-path = sys.argv[1]
+path, max_economy = sys.argv[1], sys.argv[2]
 src = io.open(path, encoding='utf-8').read()
-marker = '/* KAMIGRAM_MAX_ECONOMY */'
+marker = '/* KAMIGRAM_FLAT_SMOOTH'
 sig = 'public static int getValue(boolean ignorePowerSaving) {'
 if marker not in src:
     if sig not in src:
         sys.stderr.write('P12: не найден LiteMode.getValue\n')
         sys.exit(1)
-    src = src.replace(sig, sig + '\n        if (true) return PRESET_POWER_SAVER; ' + marker, 1)
+    if max_economy == '1':
+        src = src.replace(sig, sig + '\n        if (true) return PRESET_POWER_SAVER; ' + marker, 1)
+    else:
+        old_tail = '        return value;\n    }\n\n    private static int lastBatteryLevelCached = -1;'
+        if old_tail not in src:
+            sys.stderr.write('P12: не найдено возвращение value в getValue\n')
+            sys.exit(1)
+        new_tail = ('        ' + marker + ' iOS flat look + full UI smoothness */\n'
+                    '        // UI animations stay on, but the look is flat and traffic-free:\n'
+                    '        // liquid glass, blur, custom wallpaper and autoplay are off\n'
+                    '        return (value | PRESET_HIGH)\n'
+                    '            & ~FLAG_LIQUID_GLASS & ~FLAG_CHAT_BLUR & ~FLAG_CHAT_BACKGROUND\n'
+                    '            & ~FLAG_AUTOPLAY_VIDEOS & ~FLAG_AUTOPLAY_GIFS;\n'
+                    '    }\n\n    private static int lastBatteryLevelCached = -1;')
+        src = src.replace(old_tail, new_tail, 1)
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
-    has "$LM" "KAMIGRAM_MAX_ECONOMY" || die "P12: маркер не внедрён"
-    ok "P12 power-saver принудительно: animated emoji/стикеры, автоплей GIF/видео, частицы, blur, обои — off"
+has "$LM" "KAMIGRAM_FLAT_SMOOTH" || die "P12: маркер не внедрён"
+if [ "$MAX_ECONOMY" = "1" ]; then
+    ok "P12 power-saver форсирован: анимации/автоплей/частицы/blur — off"
 else
-    skip "P12 power-saver не форсируется (MAX_ECONOMY=0)"
+    ok "P12 плоский и плавный режим: «стекло» и размытие выключены, анимации и прокрутка работают как в оригинале Tele"
 fi
 
 # =============================================================================
@@ -949,7 +965,6 @@ if [ "$IOS_UI" = "1" ]; then
              "$JAVA_ROOT/org/telegram/ui/Components/kamigram" \
              "$RES_ROOT/drawable"
     cp -f "$KAMIGRAM_SRC/KamiGramConfig.java" "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramConfig.java"
-    cp -f "$KAMIGRAM_SRC/KamiGramIOSTabBarDrawable.java" "$JAVA_ROOT/org/telegram/ui/Components/kamigram/KamiGramIOSTabBarDrawable.java"
     for icon in kamigram_tab_chats kamigram_tab_contacts kamigram_tab_calls kamigram_tab_settings; do
         cp -f "$KAMIGRAM_SRC/res/drawable/$icon.xml" "$RES_ROOT/drawable/$icon.xml"
     done
@@ -1032,7 +1047,23 @@ if fixed_marker not in src:
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
 
-    # 4) MainTabsActivity: наши iOS-табы + плоский фон вместо «стекла»
+    # 4) MainTabsActivity: наши iOS-иконки + нижняя панель на всю ширину (как в iOS)
+    MTA="$JAVA_ROOT/org/telegram/ui/MainTabsActivity.java"
+    python3 - "$MTA" <<'PYW' || die "P20: не удалось сделать панель на всю ширину"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+marker = '/* KAMIGRAM_FULLWIDTH_TABS'
+if marker not in src:
+    old = '        tabsView.setMaxWidth(dp(328 + DialogsActivity.MAIN_TABS_MARGIN * 2));\n'
+    if old not in src:
+        sys.stderr.write('P20: не найден setMaxWidth таб-бара\n')
+        sys.exit(1)
+    new = ('        ' + marker + ' bottom bar spans the full width like on iOS */\n'
+           '        tabsView.setMaxWidth(Integer.MAX_VALUE);\n')
+    io.open(path, 'w', encoding='utf-8').write(src.replace(old, new, 1))
+PYW
+
     MTA="$JAVA_ROOT/org/telegram/ui/MainTabsActivity.java"
     python3 - "$MTA" <<'PY' || die "P20: не удалось переключить MainTabsActivity на iOS-табы"
 import io, sys
@@ -1040,16 +1071,6 @@ path = sys.argv[1]
 src = io.open(path, encoding='utf-8').read()
 marker = '/* KAMIGRAM_IOS_TABS */'
 changed = 0
-
-if 'import org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;' not in src:
-    old_import = 'import org.telegram.ui.Components.glass.GlassTabView;\n'
-    if old_import in src:
-        src = src.replace(old_import, old_import + 'import org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
-        changed += 1
-    else:
-        src = src.replace('import org.telegram.ui.Components.FolderDrawable;\n',
-                          'import org.telegram.ui.Components.FolderDrawable;\nimport org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
-        changed += 1
 
 repl = [
     ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CHATS, R.string.MainTabsChats)',
@@ -1066,15 +1087,8 @@ for old, new in repl:
         src = src.replace(old, new, 1)
         changed += 1
 
-flat_bg_old = '        tabsView.setBackground(tabsViewBackground);\n'
-flat_bg_new = (
-    '        /* KAMIGRAM_IOS_TABS_BG: flat iOS tab bar, no glass, no blur */\n'
-    '        tabsView.setBackground(new KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_windowBackgroundWhite), getThemedColor(Theme.key_divider)));\n'
-    '        tabsViewBackground = null;\n'
-)
-if 'KAMIGRAM_IOS_TABS_BG' not in src and flat_bg_old in src:
-    src = src.replace(flat_bg_old, flat_bg_new, 1)
-    changed += 1
+# фон таб-бара не трогаем: штатная отрисовка Telegram остаётся рабочей,
+# а плоский вид даёт P12 (стекло и размытие выключены в LiteMode)
 
 if changed == 0:
     sys.stderr.write('P20: структура MainTabsActivity не изменилась\n')
@@ -1083,7 +1097,7 @@ io.open(path, 'w', encoding='utf-8').write(src)
 PY
 
     [ "$(grep -c 'createKamiGramIOSTab' "$MTA")" = "4" ] || die "P20: ожидалось 4 iOS-таба"
-    ok "P20 КОД: собственный iOS-таб-бар KamiGram (4 своих иконки, плоский фон без «стекла» и без подложки-пилюли) + шеврон «назад» как в iOS (заменено webp-стрелок: $removed_back)"
+    ok "P20 КОД: свои iOS-иконки табов KamiGram (вектор, палитра iOS #0A84FF/#8E8E93, без подложки-пилюли) + шеврон «назад» как в iOS (заменено webp-стрелок: $removed_back)"
 else
     skip "P20 iOS-интерфейс не применяется (IOS_UI=0)"
 fi
@@ -1222,41 +1236,6 @@ PY
     ok "P22 УНИКАЛЬНАЯ ФУНКЦИЯ: защищённый контент без ограничений — пересылка, сохранение, копирование и скриншоты разрешены (KamiGramConfig.noRestrictions())"
 else
     skip "P22 снятие ограничений не применяется (NO_RESTRICTIONS=0)"
-fi
-
-# =============================================================================
-# P23. iOS-ШАПКА КОДОМ: плоская верхняя панель вместо «стекла» с размытием.
-# =============================================================================
-if [ "$IOS_UI" = "1" ]; then
-    AB="$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java"
-    python3 - "$AB" <<'PY' || die "P23: не удалось сделать плоскую шапку"
-import io, sys
-path = sys.argv[1]
-src = io.open(path, encoding='utf-8').read()
-marker = '/* KAMIGRAM_IOS_ACTIONBAR */'
-if 'KAMIGRAM_IOS_ACTIONBAR' not in src:
-    anchor = ('    public void setupGlass(BlurredBackgroundDrawableViewFactory factory,\n'
-              '                           BlurredBackgroundColorProvider colorProvider,\n'
-              '                           boolean isForum) {\n')
-    if anchor not in src:
-        sys.stderr.write('P23: не найден setupGlass\n')
-        sys.exit(1)
-    guard = (anchor +
-             '        /* KAMIGRAM_IOS_ACTIONBAR: flat iOS top bar, no glass, no blur */\n'
-             '        if (org.telegram.messenger.kamigram.KamiGramConfig.iosTabs()) {\n'
-             '            setBackground(null);\n'
-             '            setClipChildren(false);\n'
-             '            glassMode = true;\n'
-             '            glassModeIsForum = isForum;\n'
-             '            setBackground(new org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_actionBarDefault), getThemedColor(Theme.key_divider)));\n'
-             '            return;\n'
-             '        }\n')
-    src = src.replace(anchor, guard, 1)
-    io.open(path, 'w', encoding='utf-8').write(src)
-PY
-    ok "P23 iOS-шапка: плоский фон без «стекла» (ActionBar.setupGlass → плоский drawable)"
-else
-    skip "P23 плоская шапка не применяется (IOS_UI=0)"
 fi
 
 # =============================================================================

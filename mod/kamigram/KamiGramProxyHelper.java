@@ -40,7 +40,7 @@ public final class KamiGramProxyHelper {
     /** last link we already activated, so we do not restart the same proxy over and over */
     private static String lastActivatedLink;
 
-    private static final long PROXY_WATCH_DELAY = 25_000L;
+    private static final long PROXY_WATCH_DELAY = 45_000L;
 
     private KamiGramProxyHelper() {
     }
@@ -100,6 +100,19 @@ public final class KamiGramProxyHelper {
         }
     }
 
+    private static boolean sameAsCurrent(ProxySettings settings) {
+        try {
+            if (!proxyEnabled() || SharedConfig.currentProxy == null || SharedConfig.currentProxy.settings == null) {
+                return false;
+            }
+            final ProxySettings current = SharedConfig.currentProxy.settings;
+            return settings.getPort() == current.getPort()
+                && settings.getAddress() != null && settings.getAddress().equalsIgnoreCase(current.getAddress());
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     /** Reads the clipboard and activates a proxy link found there. */
     public static boolean activateFromClipboard(Context context) {
         if (context == null || !KamiGramConfig.autoProxyFromClipboard()) {
@@ -116,6 +129,13 @@ public final class KamiGramProxyHelper {
             }
             final String link = extractLink(clip.getItemAt(0).coerceToText(context));
             if (link == null || link.equals(lastActivatedLink)) {
+                return false;
+            }
+            final Uri uri = Uri.parse(link);
+            final ProxySettings parsed = ProxySettings.fromUri(uri);
+            if (parsed != null && parsed.isValid() && sameAsCurrent(parsed)) {
+                // такой прокси уже включён - не рвём соединение повторной активацией
+                lastActivatedLink = link;
                 return false;
             }
             return activateProxy(link, context);
@@ -163,7 +183,7 @@ public final class KamiGramProxyHelper {
                     || state == ConnectionsManager.ConnectionStateConnectingToProxy) {
                     return;
                 }
-                disableProxy(context, "proxy is not answering - switched off, trying direct/VPN");
+                disableProxy(context, "proxy did not answer in 45 s - switched off, direct connection is active");
             } catch (Throwable e) {
                 FileLog.e(e);
             }
