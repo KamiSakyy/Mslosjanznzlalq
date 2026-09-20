@@ -1,5 +1,6 @@
 package org.telegram.messenger.kamigram;
 
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -167,6 +168,66 @@ public final class KamiGramProxyHelper {
                 FileLog.e(e);
             }
         }, PROXY_WATCH_DELAY);
+    }
+
+    /**
+     * A stuck login is the worst case for a mod user: the button spins and nothing explains why.
+     * This shows exactly what the app sees - connection state, proxy address, server answer -
+     * and offers to drop the proxy and retry.
+     */
+    public static void showLoginProblem(Context context, String serverAnswer, String details) {
+        try {
+            if (context == null) {
+                return;
+            }
+            final int account = UserConfig.selectedAccount;
+            final int state = ConnectionsManager.getInstance(account).getConnectionState();
+            final String stateText;
+            switch (state) {
+                case ConnectionsManager.ConnectionStateConnected:
+                    stateText = "connected";
+                    break;
+                case ConnectionsManager.ConnectionStateUpdating:
+                    stateText = "connected (updating)";
+                    break;
+                case ConnectionsManager.ConnectionStateConnecting:
+                    stateText = "connecting to server";
+                    break;
+                case ConnectionsManager.ConnectionStateConnectingToProxy:
+                    stateText = "connecting to proxy";
+                    break;
+                case ConnectionsManager.ConnectionStateWaitingForNetwork:
+                    stateText = "waiting for network";
+                    break;
+                default:
+                    stateText = "unknown (" + state + ")";
+                    break;
+            }
+            final StringBuilder text = new StringBuilder();
+            text.append("KamiGram: why the code did not arrive\n\n");
+            text.append("Connection: ").append(stateText).append('\n');
+            if (proxyEnabled() && SharedConfig.currentProxy != null && SharedConfig.currentProxy.settings != null) {
+                text.append("Proxy: ").append(SharedConfig.currentProxy.settings.getAddress())
+                    .append(':').append(SharedConfig.currentProxy.settings.getPort()).append(" (on)\n");
+            } else {
+                text.append("Proxy: off\n");
+            }
+            if (serverAnswer != null && serverAnswer.length() > 0) {
+                text.append("Server: ").append(serverAnswer).append('\n');
+            }
+            if (details != null && details.length() > 0) {
+                text.append(details).append('\n');
+            }
+            final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle("KamiGram: login");
+            builder.setMessage(text.toString());
+            builder.setPositiveButton("Turn off proxy and retry", (dialog, which) ->
+                disableProxy(context, "proxy off - press the login button again"));
+            builder.setNegativeButton("Keep waiting", null);
+            builder.show();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
     }
 
     /** Called when the user taps the login button: fixes the proxy situation before we send the code. */

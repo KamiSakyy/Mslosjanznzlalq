@@ -1340,6 +1340,17 @@ if [ "$SMART_PROXY" = "1" ]; then
 import io, sys
 launch_path, login_path = sys.argv[1], sys.argv[2]
 
+def replace_once(path, old, new, marker):
+    src = io.open(path, encoding='utf-8').read()
+    if marker in src:
+        return False
+    if old not in src:
+        sys.stderr.write('P25: не найден фрагмент для диагностики: %r\n' % old[:70])
+        sys.exit(1)
+    io.open(path, 'w', encoding='utf-8').write(src.replace(old, new, 1))
+    return True
+
+
 def insert_after(path, anchor, block, marker, context_expr):
     src = io.open(path, encoding='utf-8').read()
     if marker in src:
@@ -1389,7 +1400,7 @@ if marker not in src and anchor in src:
              '                        }\n'
              '                        nextPressed = false;\n'
              '                        needHideProgress(true);\n'
-             '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.disableProxy(getParentActivity(), "no answer from server - proxy switched off, try again");\n'
+             '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError, "The code request got no answer within 20 seconds.");\n'
              '                    } catch (Throwable ignore) {\n'
              '                    }\n'
              '                }, 20000);\n'
@@ -1399,12 +1410,25 @@ if marker not in src and anchor in src:
     io.open(login_path, 'w', encoding='utf-8').write(src)
     done.append('LoginActivity.loginButton')
 
+# поле для текста ошибки сервера + запоминание ответа в обработчике sendCode
+field_anchor = '    private boolean forceDisableSafetyNet;\n'
+replace_once(login_path, field_anchor,
+             field_anchor + '    private String kamigramLastError; /* KAMIGRAM_LOGIN_DIAG_FIELD */\n',
+             'KAMIGRAM_LOGIN_DIAG_FIELD')
+error_anchor = ('            int reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {\n'
+                '                nextPressed = false;\n')
+replace_once(login_path, error_anchor,
+             error_anchor + '                kamigramLastError = error != null ? (error.text != null ? error.text : "network error") : null; /* KAMIGRAM_LOGIN_DIAG_ERROR */\n',
+             'KAMIGRAM_LOGIN_DIAG_ERROR')
+done.append('LoginActivity.diagnostics')
+
 if not done:
     sys.stderr.write('P25: ничего не внедрено\n')
     sys.exit(1)
 print('smart proxy hook: ' + ', '.join(done))
 PY
     [ "$(grep -c 'KAMIGRAM_SMART_PROXY' "$JAVA_ROOT/org/telegram/ui/LoginActivity.java")" = "1" ] || die "P25: хук в LoginActivity не один"
+    grep -q 'KAMIGRAM_LOGIN_DIAG_ERROR' "$JAVA_ROOT/org/telegram/ui/LoginActivity.java" || die "P25: диагностика входа не внедрена"
     ok "P25 УМНЫЙ ПРОКСИ: ссылка в буфере обмена включает прокси сама (при запуске, при входе и по кнопке «Войти»), а нерабочий прокси автоматически выключается — VPN и прямое соединение больше не блокируются"
 else
     skip "P25 умный прокси отключён (SMART_PROXY=0)"
