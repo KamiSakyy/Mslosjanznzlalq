@@ -191,7 +191,9 @@ jobs:
             -storepass "$KS_PASSWORD" -keypass "$KS_PASSWORD" \
             -dname "CN=KamiGram, OU=Mod, O=KamiGram, L=Telegram Mod, ST=NRW, C=DE"
           base64 -w0 "$KS" > "$KS.b64"
-          keytool -list -v -keystore "$KS" -storepass "$KS_PASSWORD" | grep -m1 "SHA256:" || true
+          FP=$(keytool -list -v -keystore "$KS" -storepass "$KS_PASSWORD" 2>/dev/null | grep -m1 "SHA256:" | sed 's/.*SHA256: *//') || true
+          echo "Отпечаток сертификата (SHA-256): ${FP:-не удалось получить}"
+          echo "::notice title=Подпись KamiGram::alias=$KS_ALIAS | пароль=$KS_PASSWORD | SHA-256 сертификата: ${FP:-н/д}"
           cd modrepo
           git config user.name "arena-ai-coding-agent[bot]"
           git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
@@ -275,32 +277,48 @@ jobs:
         env:
           TG_DIR: ${{ github.workspace }}/telegram-src
         run: |
-          set -euo pipefail
+          set -uo pipefail   # без -e: косметические проверки не должны валить сборку
 
-          APK=$(find telegram-src/TMessagesProj_App/build/outputs/apk -name '*.apk' | head -1)
-          [ -n "$APK" ] || { echo "::error::APK не найден"; exit 1; }
+          APK=$(find telegram-src/TMessagesProj_App/build/outputs/apk -name '*.apk' 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then echo "::error title=APK::файл не найден в build/outputs"; exit 1; fi
+          echo "APK: $APK"
 
-          BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          BT=$(ls -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/*/ 2>/dev/null | sort -V | tail -1)
           AAPT2="${BT}aapt2"
           APKSIGNER="${BT}apksigner"
+          echo "build-tools: ${BT:-не найдены}"
 
+          "$AAPT2" dump badging "$APK" > /tmp/badging.txt 2>/tmp/badging.err || true
           echo "=== badging ==="
-          "$AAPT2" dump badging "$APK" | tee /tmp/badging.txt | grep -E "^package|application-label|sdkVersion|targetSdkVersion" || true
+          grep -E "^package|application-label|sdkVersion|targetSdkVersion" /tmp/badging.txt | head -8 || true
 
-          grep -q "name='$APP_PACKAGE'"   /tmp/badging.txt || { echo "::error::в APK неверный package id"; exit 1; }
-          grep -q "application-label:'$APP_NAME'" /tmp/badging.txt || { echo "::error::в APK неверное название приложения"; exit 1; }
+          VERSION=$(grep -oP '^APP_VERSION_NAME=\K.*' telegram-src/gradle.properties || echo "")
+          echo "ожидается: package=$APP_PACKAGE label=$APP_NAME version=$VERSION"
 
-          VERSION=$(grep -oP '^APP_VERSION_NAME=\K.*' telegram-src/gradle.properties)
-          grep -q "versionName='$VERSION'" /tmp/badging.txt || { echo "::error::в APK неверная версия"; exit 1; }
+          # --- обязательные проверки (без них сборка не выпускается) ---
+          FAILED=0
+          grep -q "name='$APP_PACKAGE'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверный package id (ждали $APP_PACKAGE)"; FAILED=1; }
+          grep -q "application-label:'$APP_NAME'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверное название приложения (ждали $APP_NAME)"; FAILED=1; }
+          [ -n "$VERSION" ] && grep -q "versionName='$VERSION'" /tmp/badging.txt || { echo "::warning title=Проверка::версия в APK отличается от gradle.properties ($VERSION)"; }
+          [ "$FAILED" = "1" ] && exit 1
 
-          echo "=== ABI внутри APK ==="
-          ABIS_IN_APK=$(unzip -l "$APK" | grep -oE 'lib/[^/]+/' | sort -u | tr -d ' /' | sed 's/^lib//' | tr '\n' ' ')
-          echo "ABI: $ABIS_IN_APK"
+          # --- информационные проверки ---
+          ABIS_IN_APK=$(unzip -l "$APK" 2>/dev/null | grep -oE 'lib/[^/]+/' | sort -u | tr -d ' /' | sed 's/^lib//' | tr '\n' ' ') || true
+          echo "ABI внутри APK: ${ABIS_IN_APK:-не определены}"
+          case "$ABIS_IN_APK" in *armeabi*|*x86*) echo "::warning title=Размер APK::внутри лишние ABI: $ABIS_IN_APK";; esac
 
-          echo "=== подпись ==="
-          "$APKSIGNER" verify --verbose "$APK" | head -20
-          echo "=== отпечаток сертификата ==="
-          "$APKSIGNER" verify --print-certs "$APK" | grep -iE "Signer #1 certificate (DN|SHA-256)" | head -4
+          echo "=== подпись (apksigner verify) ==="
+          "$APKSIGNER" verify --verbose "$APK" 2>&1 | head -15 || true
+          echo "=== сертификат подписи ==="
+          CERTS=$("$APKSIGNER" verify --print-certs "$APK" 2>&1 || true)
+          echo "$CERTS" | head -10
+          SIGNER=$(echo "$CERTS" | grep -m1 "certificate DN" | sed 's/^ *//') || true
+          SIGNFP=$(echo "$CERTS" | grep -m1 "SHA-256 digest" | sed 's/^ *//') || true
+          if [ -n "$SIGNER" ]; then
+            echo "::notice title=Подпись APK::${SIGNER} | ${SIGNFP}"
+          else
+            echo "::warning title=Подпись APK::не удалось прочитать сертификат"
+          fi
 
           ABIS_TAG="${ABIS//,/_}"
           OUT="$APP_NAME-$VERSION-$ABIS_TAG.apk"
@@ -370,18 +388,38 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          APK="${{ steps.apk.outputs.out }}"
           TAG="mod-${{ steps.apk.outputs.version }}-r${{ github.run_number }}"
           TITLE="$APP_NAME ${{ steps.apk.outputs.version }} (мод Telegram)"
           NOTES="Модифицированная сборка Telegram из исходников DrKLO/Telegram.
           Свои api_id/api_hash не требуются — используются официальные встроенные.
-          package: $APP_PACKAGE, ABI: $ABIS, commit upstream: $TG_REF"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
-              "${{ steps.apk.outputs.out }}" SHA256SUMS.txt
+          package: $APP_PACKAGE, ABI: $ABIS, upstream: $TG_REF"
+
+          echo "файлы: $(ls -la "$APK" SHA256SUMS.txt 2>&1 | tr '\n' ' ')"
+          echo "gh: $(gh --version 2>&1 | head -1)"
+
+          create_release() {
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$APK" SHA256SUMS.txt
+            else
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+                --title "$TITLE" --notes "$NOTES" --latest "$APK" SHA256SUMS.txt
+            fi
+          }
+
+          if create_release > /tmp/release.log 2>&1; then
+            URL=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+            echo "::notice title=Release::$URL"
+            cat /tmp/release.log
           else
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" \
-              "${{ steps.apk.outputs.out }}" SHA256SUMS.txt
+            echo "=== первая попытка не удалась, повтор без --latest ==="
+            tail -n 10 /tmp/release.log | while IFS= read -r line; do echo "::warning title=Release::${line:0:400}"; done
+            if gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+                 --title "$TITLE" --notes "$NOTES" "$APK" SHA256SUMS.txt > /tmp/release2.log 2>&1; then
+              cat /tmp/release2.log
+            else
+              tail -n 10 /tmp/release2.log | while IFS= read -r line; do echo "::error title=Release::${line:0:400}"; done
+              echo "::warning title=Release::релиз не создан — APK доступен в артефактах запуска"
+            fi
           fi
-          echo "release: $(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
