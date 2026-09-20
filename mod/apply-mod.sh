@@ -33,6 +33,9 @@
 #     FLAT_UI              1 = убрать тяжёлый узор чата (плоский фон)      [1]
 #     AUTO_PROXY           1 = ссылка на прокси активирует его сразу       [1]
 #     DROP_APPINDEXING     1 = вырезать Google App Indexing (меньше APK)   [1]
+#     IOS_UI               1 = собственный iOS-интерфейс в коде (табы, шапка) [1]
+#     GHOST_MODE           1 = режим «невидимка» (нет «прочитано»/«печатает»/онлайна) [1]
+#     NO_RESTRICTIONS      1 = снять запреты защищённого контента       [1]
 #     KEYSTORE_B64         base64 от .jks, если нужна своя подпись       [пусто]
 #     KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD — для своей подписи   [пусто]
 # =============================================================================
@@ -60,6 +63,9 @@ IOS_THEME=${IOS_THEME:-1}                 # iOS-тёмная тема KamiGram (
 FLAT_UI=${FLAT_UI:-1}                     # плоский дизайн: убрать тяжёлый узор чата
 AUTO_PROXY=${AUTO_PROXY:-1}               # ссылка на прокси активирует его сразу
 DROP_APPINDEXING=${DROP_APPINDEXING:-1}   # вырезать Google App Indexing (меньше APK)
+IOS_UI=${IOS_UI:-1}                       # НАСТОЯЩИЙ КОД: собственный iOS-интерфейс KamiGram
+GHOST_MODE=${GHOST_MODE:-1}               # уникальная функция: режим «невидимка»
+NO_RESTRICTIONS=${NO_RESTRICTIONS:-1}     # уникальная функция: снять запреты защищённого контента
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
@@ -921,6 +927,335 @@ else
 fi
 
 # =============================================================================
+# P20. KamiGram iOS UI — НАСТОЯЩИЙ КОД (не тема):
+#      свой класс конфигурации мода, плоский нижний таб-бар в стиле iOS
+#      (собственные иконки, без «стекла»/размытия и без подложки-пилюли),
+#      шеврон «назад» как в iOS вместо стрелки.
+# =============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KAMIGRAM_SRC="$SCRIPT_DIR/kamigram"
+JAVA_ROOT="$TG_DIR/TMessagesProj/src/main/java"
+RES_ROOT="$TG_DIR/TMessagesProj/src/main/res"
+
+if [ "$IOS_UI" = "1" ]; then
+    [ -d "$KAMIGRAM_SRC" ] || die "P20: нет папки $KAMIGRAM_SRC с исходниками KamiGram"
+
+    # 1) собственный код мода
+    mkdir -p "$JAVA_ROOT/org/telegram/messenger/kamigram" \
+             "$JAVA_ROOT/org/telegram/ui/Components/kamigram" \
+             "$RES_ROOT/drawable"
+    cp -f "$KAMIGRAM_SRC/KamiGramConfig.java" "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramConfig.java"
+    cp -f "$KAMIGRAM_SRC/KamiGramIOSTabBarDrawable.java" "$JAVA_ROOT/org/telegram/ui/Components/kamigram/KamiGramIOSTabBarDrawable.java"
+    for icon in kamigram_tab_chats kamigram_tab_contacts kamigram_tab_calls kamigram_tab_settings; do
+        cp -f "$KAMIGRAM_SRC/res/drawable/$icon.xml" "$RES_ROOT/drawable/$icon.xml"
+    done
+
+    # 2) iOS-шеврон вместо стрелки «назад»: убираем webp во всех плотностях, кладём вектор
+    removed_back=0
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        rm -f "$f"; removed_back=$((removed_back+1))
+    done < <(find "$RES_ROOT" -name 'ic_ab_back.webp' 2>/dev/null)
+    cp -f "$KAMIGRAM_SRC/res/drawable/ic_ab_back.xml" "$RES_ROOT/drawable/ic_ab_back.xml"
+
+    # 3) фабрика iOS-табов внутри GlassTabView (там есть доступ к приватным полям таба)
+    GTV="$JAVA_ROOT/org/telegram/ui/Components/glass/GlassTabView.java"
+    python3 - "$GTV" <<'PY' || die "P20: не удалось добавить iOS-фабрику таба"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+
+factory_marker = '/* KAMIGRAM_IOS_TAB_FACTORY */'
+if factory_marker not in src:
+    anchor = '    public static GlassTabView createAvatar(Context context, Theme.ResourcesProvider resourcesProvider, int currentAccount, @StringRes int stringRes) {'
+    if anchor not in src:
+        sys.stderr.write('P20: не найден createAvatar в GlassTabView\n')
+        sys.exit(1)
+    factory = (
+        '    ' + factory_marker + '\n'
+        '    // KamiGram: iOS-style tab - flat, no glass and no selected pill,\n'
+        '    // with its own KamiGram vector icon (tinted like a regular tab).\n'
+        '    public static GlassTabView createKamiGramIOSTab(Context context, Theme.ResourcesProvider resourcesProvider, @DrawableRes int iconRes, @StringRes int stringRes) {\n'
+        '        GlassTabView tab = new GlassTabView(context);\n'
+        '        tab.resourcesProvider = resourcesProvider;\n'
+        '        tab.tabAnimation = null;\n'
+        '        tab.kamigramIOSTab = true;\n'
+        '        tab.textView.setText(LocaleController.getString(stringRes));\n'
+        '        tab.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10f);\n'
+        '        tab.imageView.setLayoutParams(LayoutHelper.createFrame(26, 26, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 3, 0, 0));\n'
+        '        tab.imageView.setImageResource(iconRes);\n'
+        '        tab.colorDefault = 0xff8e8e93;\n'
+        '        tab.colorSelected = 0xff0a84ff;\n'
+        '        tab.colorSelectedText = 0xff0a84ff;\n'
+        '        tab.setSkipDrawSelector(true);\n'
+        '        tab.updateColors();\n'
+        '        return tab;\n'
+        '    }\n\n'
+    )
+    src = src.replace(anchor, factory + anchor, 1)
+
+fixed_marker = '/* KAMIGRAM_IOS_TAB_FIXED */'
+if fixed_marker not in src:
+    field_old = '    private boolean skipDrawSelector;\n'
+    if field_old not in src:
+        sys.stderr.write('P20: не найдено поле skipDrawSelector\n')
+        sys.exit(1)
+    src = src.replace(field_old, field_old + '    private boolean kamigramIOSTab; ' + fixed_marker + '\n', 1)
+
+    setter_old = '    public void setSkipDrawSelector(boolean skipDrawSelector) {\n'
+    if setter_old not in src:
+        sys.stderr.write('P20: не найден setSkipDrawSelector\n')
+        sys.exit(1)
+    src = src.replace(setter_old, setter_old +
+                      '        if (kamigramIOSTab) {\n'
+                      '            skipDrawSelector = true;\n'
+                      '        }\n', 1)
+
+    colors_old = '    public void updateColorsLottie() {\n'
+    if colors_old not in src:
+        sys.stderr.write('P20: не найден updateColorsLottie\n')
+        sys.exit(1)
+    src = src.replace(colors_old, colors_old +
+                      '        if (kamigramIOSTab) {\n'
+                      '            colorDefault = 0xff8e8e93;\n'
+                      '            colorSelected = 0xff0a84ff;\n'
+                      '            colorSelectedText = 0xff0a84ff;\n'
+                      '            updateColors();\n'
+                      '            invalidate();\n'
+                      '            return;\n'
+                      '        }\n', 1)
+
+    io.open(path, 'w', encoding='utf-8').write(src)
+PY
+
+    # 4) MainTabsActivity: наши iOS-табы + плоский фон вместо «стекла»
+    MTA="$JAVA_ROOT/org/telegram/ui/MainTabsActivity.java"
+    python3 - "$MTA" <<'PY' || die "P20: не удалось переключить MainTabsActivity на iOS-табы"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+marker = '/* KAMIGRAM_IOS_TABS */'
+changed = 0
+
+if 'import org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;' not in src:
+    old_import = 'import org.telegram.ui.Components.glass.GlassTabView;\n'
+    if old_import in src:
+        src = src.replace(old_import, old_import + 'import org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
+        changed += 1
+    else:
+        src = src.replace('import org.telegram.ui.Components.FolderDrawable;\n',
+                          'import org.telegram.ui.Components.FolderDrawable;\nimport org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
+        changed += 1
+
+repl = [
+    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CHATS, R.string.MainTabsChats)',
+     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_chats, R.string.MainTabsChats)'),
+    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CONTACTS, R.string.MainTabsContacts)',
+     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_contacts, R.string.MainTabsContacts)'),
+    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.SETTINGS, R.string.Settings)',
+     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_settings, R.string.Settings)'),
+    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CALLS, R.string.MainTabsCalls)',
+     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_calls, R.string.MainTabsCalls)'),
+]
+for old, new in repl:
+    if old in src:
+        src = src.replace(old, new, 1)
+        changed += 1
+
+flat_bg_old = '        tabsView.setBackground(tabsViewBackground);\n'
+flat_bg_new = (
+    '        /* KAMIGRAM_IOS_TABS_BG: flat iOS tab bar, no glass, no blur */\n'
+    '        tabsView.setBackground(new KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_windowBackgroundWhite), getThemedColor(Theme.key_divider)));\n'
+    '        tabsViewBackground = null;\n'
+)
+if 'KAMIGRAM_IOS_TABS_BG' not in src and flat_bg_old in src:
+    src = src.replace(flat_bg_old, flat_bg_new, 1)
+    changed += 1
+
+if changed == 0:
+    sys.stderr.write('P20: структура MainTabsActivity не изменилась\n')
+    sys.exit(1)
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
+
+    [ "$(grep -c 'createKamiGramIOSTab' "$MTA")" = "4" ] || die "P20: ожидалось 4 iOS-таба"
+    ok "P20 КОД: собственный iOS-таб-бар KamiGram (4 своих иконки, плоский фон без «стекла» и без подложки-пилюли) + шеврон «назад» как в iOS (заменено webp-стрелок: $removed_back)"
+else
+    skip "P20 iOS-интерфейс не применяется (IOS_UI=0)"
+fi
+
+# =============================================================================
+# P21. GHOST MODE — уникальная функция KamiGram: собеседник не видит,
+#      что мы читаем сообщения, печатаем и находимся в сети.
+# =============================================================================
+if [ "$GHOST_MODE" = "1" ]; then
+    MC="$JAVA_ROOT/org/telegram/messenger/MessagesController.java"
+    CM="$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java"
+    python3 - "$MC" "$CM" <<'PY' || die "P21: не удалось включить ghost-режим"
+import io, sys
+mc_path, cm_path = sys.argv[1], sys.argv[2]
+marker = '/* KAMIGRAM_GHOST */'
+config = 'org.telegram.messenger.kamigram.KamiGramConfig'
+
+src = io.open(mc_path, encoding='utf-8').read()
+if 'KAMIGRAM_GHOST_READ' not in src:
+    old = '    private void completeReadTask(ReadTask task) {\n'
+    if old not in src:
+        sys.stderr.write('P21: не найден completeReadTask\n')
+        sys.exit(1)
+    src = src.replace(old, old +
+                      '        /* KAMIGRAM_GHOST_READ: no read receipts sent */\n'
+                      '        if (' + config + '.ghostMode()) {\n'
+                      '            return;\n'
+                      '        }\n', 1)
+
+    old_typing = '    public boolean sendTyping(long dialogId, long threadMsgId, int action, String emojicon, int classGuid) {\n'
+    if old_typing not in src:
+        sys.stderr.write('P21: не найден sendTyping\n')
+        sys.exit(1)
+    src = src.replace(old_typing, old_typing +
+                      '        /* KAMIGRAM_GHOST_TYPING: no typing indicator sent */\n'
+                      '        if (' + config + '.ghostMode()) {\n'
+                      '            return false;\n'
+                      '        }\n', 1)
+    io.open(mc_path, 'w', encoding='utf-8').write(src)
+
+src = io.open(cm_path, encoding='utf-8').read()
+if 'KAMIGRAM_GHOST_STATUS' not in src:
+    anchor = '    public int sendRequest(TLObject object, RequestDelegate completionBlock) {\n'
+    if anchor not in src:
+        sys.stderr.write('P21: не найден sendRequest(TLObject, RequestDelegate)\n')
+        sys.exit(1)
+    guard = (anchor +
+             '        /* KAMIGRAM_GHOST_STATUS: no online/offline sent */\n'
+             '        if (object instanceof org.telegram.tgnet.tl.TL_account.updateStatus && ' + config + '.ghostMode()) {\n'
+             '            return 0;\n'
+             '        }\n')
+    src = src.replace(anchor, guard, 1)
+    io.open(cm_path, 'w', encoding='utf-8').write(src)
+print('ghost-режим внедрён')
+PY
+    [ "$(grep -c 'KAMIGRAM_GHOST' "$MC")" -ge 2 ] || die "P21: ghost-маркеров в MessagesController меньше двух"
+    ok "P21 УНИКАЛЬНАЯ ФУНКЦИЯ: ghost-режим — не уходят «прочитано», «печатает» и статус «в сети» (KamiGramConfig.ghostMode())"
+else
+    skip "P21 ghost-режим не применяется (GHOST_MODE=0)"
+fi
+
+# =============================================================================
+# P22. БЕЗ ЗАПРЕТОВ — уникальная функция: защищённый контент можно
+#      пересылать, сохранять, копировать и снимать скриншоты.
+# =============================================================================
+if [ "$NO_RESTRICTIONS" = "1" ]; then
+    MC="$JAVA_ROOT/org/telegram/messenger/MessagesController.java"
+    MO="$JAVA_ROOT/org/telegram/messenger/MessageObject.java"
+    CA="$JAVA_ROOT/org/telegram/ui/ChatActivity.java"
+    python3 - "$MC" "$MO" "$CA" <<'PY' || die "P22: не удалось снять ограничения защищённого контента"
+import io, sys
+mc_path, mo_path, ca_path = sys.argv[1], sys.argv[2], sys.argv[3]
+marker = '/* KAMIGRAM_NO_RESTRICTIONS */'
+config = 'org.telegram.messenger.kamigram.KamiGramConfig'
+changed = []
+
+src = io.open(mc_path, encoding='utf-8').read()
+if marker not in src:
+    old = '    public boolean isPeerNoForwards(long dialogId) {\n'
+    if old not in src:
+        sys.stderr.write('P22: не найден isPeerNoForwards\n')
+        sys.exit(1)
+    src = src.replace(old, old +
+                      '        ' + marker + '\n'
+                      '        if (' + config + '.noRestrictions()) {\n'
+                      '            return false;\n'
+                      '        }\n', 1)
+    io.open(mc_path, 'w', encoding='utf-8').write(src)
+    changed.append('isPeerNoForwards')
+
+src = io.open(mo_path, encoding='utf-8').read()
+if marker not in src:
+    old = 'return !(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && !messageOwner.noforwards;'
+    if old not in src:
+        sys.stderr.write('P22: не найден canForwardMessage\n')
+        sys.exit(1)
+    new = ('return ' + config + '.noRestrictions() || (!(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && !messageOwner.noforwards);')
+    src = src.replace(old, marker + '\n        ' + new, 1)
+    io.open(mo_path, 'w', encoding='utf-8').write(src)
+    changed.append('canForwardMessage')
+
+src = io.open(ca_path, encoding='utf-8').read()
+if marker not in src:
+    pairs = [
+        ('        flagSecure = new FlagSecureReason(getParentActivity().getWindow(), () ->\n'
+         '            currentEncryptedChat != null ||\n'
+         '            isPeerNoForwards()\n'
+         '        );\n',
+         '        flagSecure = new FlagSecureReason(getParentActivity().getWindow(), () ->\n'
+         '            /* KAMIGRAM_NO_RESTRICTIONS_SCREENSHOT: no screenshot blocking */\n'
+         '            !' + config + '.noRestrictions() && (currentEncryptedChat != null || isPeerNoForwards())\n'
+         '        );\n'),
+        ('            final boolean noforwards = (\n',
+         '            final boolean noforwards = !' + config + '.noRestrictions() && (\n'),
+        ('            return chatActivity == null || !(\n',
+         '            return ' + config + '.noRestrictions() || chatActivity == null || !(\n'),
+        ('        if (getParentActivity() == null || getMessagesController().isPeerNoForwards(messageObject.getDialogId()) || (messageObject != null && messageObject.messageOwner != null && messageObject.messageOwner.noforwards)) {\n'
+         '            return;\n'
+         '        }\n',
+         '        ' + marker + '\n'
+         '        if (getParentActivity() == null || (!' + config + '.noRestrictions() && (getMessagesController().isPeerNoForwards(messageObject.getDialogId()) || (messageObject != null && messageObject.messageOwner != null && messageObject.messageOwner.noforwards)))) {\n'
+         '            return;\n'
+         '        }\n'),
+    ]
+    for old, new in pairs:
+        if old in src:
+            src = src.replace(old, new, 1)
+            changed.append('chat')
+    io.open(ca_path, 'w', encoding='utf-8').write(src)
+
+if not changed:
+    sys.stderr.write('P22: ни одна точка ограничений не найдена\n')
+    sys.exit(1)
+print('снято ограничений: ' + ', '.join(sorted(set(changed))))
+PY
+    ok "P22 УНИКАЛЬНАЯ ФУНКЦИЯ: защищённый контент без ограничений — пересылка, сохранение, копирование и скриншоты разрешены (KamiGramConfig.noRestrictions())"
+else
+    skip "P22 снятие ограничений не применяется (NO_RESTRICTIONS=0)"
+fi
+
+# =============================================================================
+# P23. iOS-ШАПКА КОДОМ: плоская верхняя панель вместо «стекла» с размытием.
+# =============================================================================
+if [ "$IOS_UI" = "1" ]; then
+    AB="$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java"
+    python3 - "$AB" <<'PY' || die "P23: не удалось сделать плоскую шапку"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+marker = '/* KAMIGRAM_IOS_ACTIONBAR */'
+if 'KAMIGRAM_IOS_ACTIONBAR' not in src:
+    anchor = ('    public void setupGlass(BlurredBackgroundDrawableViewFactory factory,\n'
+              '                           BlurredBackgroundColorProvider colorProvider,\n'
+              '                           boolean isForum) {\n')
+    if anchor not in src:
+        sys.stderr.write('P23: не найден setupGlass\n')
+        sys.exit(1)
+    guard = (anchor +
+             '        /* KAMIGRAM_IOS_ACTIONBAR: flat iOS top bar, no glass, no blur */\n'
+             '        if (org.telegram.messenger.kamigram.KamiGramConfig.iosTabs()) {\n'
+             '            setBackground(null);\n'
+             '            setClipChildren(false);\n'
+             '            glassMode = true;\n'
+             '            glassModeIsForum = isForum;\n'
+             '            setBackground(new org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_actionBarDefault), getThemedColor(Theme.key_divider)));\n'
+             '            return;\n'
+             '        }\n')
+    src = src.replace(anchor, guard, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+PY
+    ok "P23 iOS-шапка: плоский фон без «стекла» (ActionBar.setupGlass → плоский drawable)"
+else
+    skip "P23 плоская шапка не применяется (IOS_UI=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -939,6 +1274,9 @@ MOD_IOS_THEME=$IOS_THEME
 MOD_FLAT_UI=$FLAT_UI
 MOD_AUTO_PROXY=$AUTO_PROXY
 MOD_DROP_APPINDEXING=$DROP_APPINDEXING
+MOD_IOS_UI=$IOS_UI
+MOD_GHOST_MODE=$GHOST_MODE
+MOD_NO_RESTRICTIONS=$NO_RESTRICTIONS
 MOD_BUILD_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 UPSTREAM_REPO=https://github.com/DrKLO/Telegram
 UPSTREAM_COMMIT=$UPSTREAM_COMMIT

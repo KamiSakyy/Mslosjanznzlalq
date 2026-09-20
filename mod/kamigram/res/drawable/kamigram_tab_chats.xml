@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KamiGram: иконка таба «Чаты» в стиле iOS (контурный пузырь сообщения) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.15,3.5h11.7c1.74,0 3.15,1.41 3.15,3.15v7.4c0,1.74 -1.41,3.15 -3.15,3.15h-5.62l-4.6,3.42c-0.46,0.34 -1.11,0.01 -1.11,-0.56v-2.87h-0.37C4.41,17.19 3,15.78 3,14.04v-7.4C3,4.9 4.41,3.5 6.15,3.5zM6.15,5.2c-0.8,0 -1.45,0.65 -1.45,1.45v7.4c0,0.8 0.65,1.45 1.45,1.45h1.07c0.48,0 0.86,0.39 0.86,0.86v1.62l3.32,-2.47h5.36c0.8,0 1.45,-0.65 1.45,-1.45v-7.4c0,-0.8 -0.65,-1.45 -1.45,-1.45H6.15z" />
+</vector>

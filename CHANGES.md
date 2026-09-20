@@ -1,7 +1,7 @@
 # Что именно изменено в моде KamiGram
 
 Полный и честный список: что видно в приложении, что меняется только в APK, и что **не** трогалось.
-Всё описание сверено с фактическим кодом патчера `mod/apply-mod.sh` (патчи P0–P15).
+Всё описание сверено с фактическим кодом патчера `mod/apply-mod.sh` (патчи P0–P23).
 
 ---
 
@@ -20,6 +20,9 @@
 | 9 | **Preload видео, музыки и историй выключен** | `DownloadController.java`: в пресетах флаги `preloadVideo/preloadMusic/preloadStories` = `0` | Ничего не подгружается в фоне заранее |
 | 10 | **MAX ECONOMY: анимации/автоплей/частицы/blur/обои — off, принудительно** | `LiteMode.java` → `getValue()`: `if (true) return PRESET_POWER_SAVER;` | Автоплей GIF/видео/кружков, анимированные стикеры и эмодзи, частицы, размытие, кастомные обои — выключены. Тумблеры в «Энергосбережении» не включаются обратно |
 | 11 | **Проверка обновлений отключена** | `BuildVars.java` → `CHECK_UPDATES = false` | Мод не предлагает скачать и установить официальный Telegram поверх себя |
+| 11a | **iOS-тёмная тема KamiGram (P16)** | `res/raw` + `assets/bluebubbles.attheme`, `darkblue.attheme`, `night.attheme` — палитра переписана под iOS | Интерфейс как в Telegram на iPhone в чёрной теме: фон `#000000`, поверхности `#1C1C1E`, входящие сообщения `#262628`, исходящие `#2B5278`, разделители `#38383A`, акцент `#0A84FF`, свитчи `#30D158`. Градиенты и размытия выключены (`chat_BlurAlpha=0`), всё плоско и минималистично |
+| 11b | **Плоский фон чата (P17)** | `res/raw/default_pattern.svg` — узор 495 КБ заменён минимальным SVG | Фон чата — чистый чёрный без «обоев»-паттерна; меньше вес и меньше работы GPU при прокрутке |
+| 11c | **Ссылка на прокси активирует прокси сразу (P18)** | `AndroidUtilities.handleProxyIntent()` — в ветке `invoked == true` вызывается `SharedConfig.addProxy` + `currentProxy` + `saveProxyList()` + `proxy_enabled=true` + `ConnectionsManager.setProxySettings(true, …)` | Вставил `https://t.me/proxy?server=…&port=…&secret=…` → прокси включён, всплывает подтверждение. Никаких «добавить прокси → выбрать → нажать Connect» |
 
 ---
 
@@ -28,6 +31,7 @@
 | # | Что | Где | Эффект |
 |---|---|---|---|
 | 12 | **Только arm64-v8a** | `abiFilters` в 5 `build.gradle` | APK ~35 МБ вместо ~100+ МБ универсального; работает на всех современных телефонах |
+| 12a | **Google App Indexing вырезан (P19)** | `LaunchActivity.java` — удалены `AssistActionBuilder`, `FirebaseUserActions`, `Action`; из `TMessagesProj/build.gradle` убрана `firebase-appindexing:20.0.0` | Минус библиотека и целый код-путь: меньше APK, меньше стартовой работы при запуске |
 | 13 | **В APK только локали ru + en (+ zz)** | `androidResources.localeFilters` | Меньше размер; остальные языки приходят «облачными» строками, ничего не теряется |
 | 14 | **54 тяжёлые Lottie-анимации заменены заглушкой** (≈11 МБ исходников) | `TMessagesProj/src/main/res/raw/*.json` → `{"v":"5.7.4","fr":1,"ip":0,"op":1,…}` | Эффекты премиума/подарков/реакций проигрываются за 1 кадр — APK легче, CPU не греется |
 | 15 | **Нативная часть без debug-инфо** | `jni/CMakeLists.txt`: убраны `-g` из `CMAKE_C_FLAGS`/`CMAKE_CXX_FLAGS`; `debugSymbolLevel = 'SYMBOL_TABLE'` в 6 модулях | Объектные файлы и `.so` не раздуваются на десятки ГБ, сборка идёт ~10 минут вместо ~45 |
@@ -86,3 +90,21 @@
 * ещё сильнее ужать APK: заглушки **всех** Lottie (`SLIM_HEAVY=all`), убрать лишние шрифты/модели, вырезать неиспользуемые зависимости (Google Maps, reCAPTCHA, game-консоль);
 * отключить `multidex`, если решим дополнительно вычистить код;
 * добавить свой splash/иконку KamiGram.
+
+---
+
+## В. KamiGram: собственный код мода (не тема, а настоящие правки Java)
+
+Эти изменения сделаны **в исходном коде**, а не через `.attheme`: такие вещи нельзя скачать темой из канала.
+
+| # | Что | Где в коде мода | Как выглядит для тебя |
+|---|---|---|---|
+| 20 | **Свой iOS-таб-бар** | новый класс `org/telegram/ui/Components/kamigram/KamiGramIOSTabBarDrawable.java`; новая фабрика `GlassTabView.createKamiGramIOSTab()`; правка `MainTabsActivity`; 4 своих векторных иконки в `res/drawable/kamigram_tab_*.xml` | Нижняя панель больше не «стекло» с размытием: плоский фон с хайрлайном, без подложки-пилюли под выбранным табом, свои иконки (чаты/контакты/звонки/настройки), активный таб всегда iOS-синий `#0A84FF`, неактивные — серые `#8E8E93` — и это не сбивается при обновлении темы |
+| 21 | **Шеврон «назад» как в iOS** | `res/drawable/ic_ab_back.xml` вместо `ic_ab_back.webp` (все плотности) | Кнопка возврата во всём приложении — тонкий iOS-шеврон, а не стрелка Telegram |
+| 22 | **Плоская шапка (ActionBar) в коде** | `ActionBar.setupGlass()` → плоский drawable мода | Верхняя панель без «стекла» и размытия — ровный цвет, как в iOS |
+| 23 | **Режим «невидимка»** | `KamiGramConfig.ghostMode()`; `MessagesController.completeReadTask()`, `MessagesController.sendTyping()`, `ConnectionsManager.sendRequest()` | Прочитанные сообщения не помечаются прочитанными у собеседника, «печатает…» не показывается, статус «в сети» не отправляется. Для себя всё работает как обычно |
+| 24 | **Защищённый контент без запретов** | `KamiGramConfig.noRestrictions()`; `MessagesController.isPeerNoForwards()`, `MessageObject.canForwardMessage()`, `ChatActivity` (FLAG_SECURE, canCopy, canShowQuote, хинт выделения) | В чатах с запретом пересылки можно пересылать и сохранять, копировать текст и делать скриншоты |
+
+Всё это — новый файл настроек `org/telegram/messenger/kamigram/KamiGramConfig.java`: функции читают свои ключи
+(`kamigram_ghost`, `kamigram_no_restrictions`, `kamigram_ios_tabs`) из общих настроек, поэтому позже их можно
+включить/выключить переключателями в интерфейсе.

@@ -48,6 +48,13 @@ Telegram-FOSS: берём официальные открытые исходни
 | `slim_heavy` | `1` | Урезать тяжёлые Lottie-анимации: `1` (крупные) / `all` (все) / `0` |
 | `res_configs` | `ru,en` | Какие локали оставить в APK (`all` — все) |
 | `tg_ref` | `master` | Ветка/коммит DrKLO/Telegram, от которого собираем |
+| `ios_theme` | `1` | **iOS-тёмная тема**: фон `#000000`, поверхности `#1C1C1E`, акцент `#0A84FF`, без градиентов и «стекла» |
+| `flat_ui` | `1` | Плоский фон чата: тяжёлый узор `default_pattern.svg` (495 КБ) → минимальный SVG |
+| `auto_proxy` | `1` | **Ссылка `t.me/proxy?...` сразу включает прокси**, без ручных шагов |
+| `drop_appindexing` | `1` | Вырезать Google App Indexing (код + зависимость) — APK легче, старт быстрее |
+| `ios_ui` | `1` | **Собственный iOS-интерфейс в коде**: свой таб-бар KamiGram с плоским фоном и своими иконками, шеврон «назад» как в iOS, плоская шапка без «стекла» |
+| `ghost_mode` | `1` | **Режим «невидимка»**: собеседнику не уходят «прочитано», «печатает» и статус «в сети» |
+| `no_restrictions` | `1` | **Защищённый контент без запретов**: пересылка, сохранение, копирование и скриншоты разрешены |
 | `disable_billing` | `0` | `1` — выключить Google Play Billing (в сборке вне Play он всё равно мёртв) |
 | `create_release` | `true` | Публиковать APK в Releases |
 
@@ -75,7 +82,15 @@ Telegram-FOSS: берём официальные открытые исходни
 | P11 | `MediaDataController` — 4 точки блокировки | **Стикеры, маски, премиум-эмодзи, подарочные/TON-стикеры и generic-анимации не загружаются вообще** |
 | P12 | `LiteMode.getValue()` → `PRESET_POWER_SAVER` | MAX ECONOMY: анимированные эмодзи и стикеры, автоплей GIF/видео, частицы, blur, кастомные обои — off |
 | P13 | `androidResources.localeFilters` | В APK остаются только нужные языки (`ru,en` по умолчанию) → меньше APK |
-| P14 | Заглушки Lottie `res/raw/*.json` | 54 тяжёлые анимации (11 МБ исходников) проигрываются за 1 кадр — эффекты премиума и подарков невидимы, APK легче |
+| P16 | iOS-тема: `assets/*.attheme` (`bluebubbles`, `darkblue`, `night`) | **Дизайн как в Telegram на iPhone, чёрная тема**: чистый чёрный фон, поверхности `#1C1C1E`, входящие `#262628`, исходящие `#2B5278`, разделители `#38383A`, свитчи `#30D158`, акцент `#0A84FF`. Градиенты и размытия выключены (`chat_BlurAlpha=0`) |
+| P17 | `res/raw/default_pattern.svg` → минимальный SVG | Плоский чёрный фон чата вместо узора на 495 КБ: меньше APK, меньше работы GPU при прокрутке |
+| P18 | `AndroidUtilities.handleProxyIntent()` | **Вставка ссылки на прокси активирует его сразу**: `addProxy` + `currentProxy` + `saveProxyList` + `proxy_enabled=true` + `ConnectionsManager.setProxySettings(true, …)` + тост-подтверждение (поддерживаются `t.me/proxy`, `tg://proxy`, `socks`, `webproxy`) |
+| P20 | Новый код мода: `org/telegram/messenger/kamigram/KamiGramConfig.java`, `org/telegram/ui/Components/kamigram/KamiGramIOSTabBarDrawable.java`, `GlassTabView.createKamiGramIOSTab()`, `MainTabsActivity`, `res/drawable/ic_ab_back.xml` | **Настоящий iOS-интерфейс в коде, а не тема**: собственные 4 иконки табов (вектор, рисуются кодом мода), плоский таб-бар без «стекла»/размытия и без подложки-пилюли, табы всегда в палитре iOS (`#0A84FF` / `#8E8E93`), кнопка «назад» — iOS-шеврон вместо стрелки Telegram |
+| P21 | `MessagesController.completeReadTask()`, `sendTyping()`, `ConnectionsManager.sendRequest()` | **Ghost-режим** (`KamiGramConfig.ghostMode()`): серверу не уходят read-receipts, «печатает» и онлайн-статус |
+| P22 | `MessagesController.isPeerNoForwards()`, `MessageObject.canForwardMessage()`, `ChatActivity` (flagSecure, canCopy, canShowQuote, hint) | **Снятие ограничений** (`KamiGramConfig.noRestrictions()`): защищённый контент можно пересылать, сохранять, копировать, скриншотить |
+| P23 | `ActionBar.setupGlass()` | **Плоская шапка** без «стекла» и размытия — iOS-стиль в коде |
+| P19 | `LaunchActivity` + `build.gradle` | Google App Indexing (`AssistActionBuilder`, `FirebaseUserActions`, зависимость `firebase-appindexing`) вырезан |
+| P14 | Заглушки Lottie `res/raw/*.json` | Тяжёлые Lottie-анимации (режим `all`: 328 файлов, −15 МБ исходников) проигрываются за 1 кадр — эффекты премиума и подарков невидимы, APK легче. Заглушаются **только** настоящие Lottie (по маркеру `"v"` в первых байтах), служебные JSON (`mapstyle_night`, `qr_code_logo`) не трогаются |
 
 После прогона рядом с исходниками появляются:
 * `MOD_INFO.txt` — что за мод, из какого коммита, какие патчи применились;
@@ -96,6 +111,9 @@ Telegram-FOSS: берём официальные открытые исходни
 | Анимации интерфейса, частицы, blur, кастомные обои | `LiteMode.getValue() → PRESET_POWER_SAVER` | Меньше CPU, батареи и RAM; UI работает мгновенно |
 | Тяжёлые Lottie-эффекты (54 файла, 11 МБ) | заглушки в `res/raw` | Эффекты премиума/подарков проигрываются за 1 кадр, APK легче |
 | Лишние языки | `localeFilters` = `ru,en` | Меньше APK; остальные языки приходят «облачными» строками с сервера |
+| Google App Indexing | удалены код и зависимость `firebase-appindexing` | Минус библиотека и работа при холодном старте |
+| Тяжёлый узор чата (495 КБ) | плоский SVG | Быстрее отрисовка переписки, меньше APK — важно при слабом интернете и слабом железе |
+| Градиенты и размытия темы | `chat_BlurAlpha=0`, плоские цвета | Меньше нагрузки на GPU, мгновенная отрисовка |
 
 Проверить эффект: Настройки → Данные и хранилище — все галочки автоскачивания будут сняты;
 Настройки → Энергосбережение — все тумблеры выключены (это принудительно, мод не даст их включить обратно).
