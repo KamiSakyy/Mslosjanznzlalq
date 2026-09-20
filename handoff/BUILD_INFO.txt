@@ -1,12 +1,13 @@
-Built at Sat Sep 19 21:43:37 UTC 2026 commit 07e9ad28df4d59de581b34ec10ee892f01522c66 version 1.1.1
+Built at Sun Sep 20 08:32:50 UTC 2026 commit bda16aacb0f76fa98fce3cd6fab274930a055753 version 1.1.2
 === APK sizes (minified with R8) ===
--rw-r--r-- 1 runner runner 8.1M Sep 19 21:43 handoff/app-debug-min.apk
--rw-r--r-- 1 runner runner 6.1M Sep 19 21:43 handoff/app-debug.apk
--rw-r--r-- 1 runner runner 6.1M Sep 19 21:43 handoff/app-release.apk
--rw-r--r-- 1 runner runner  11M Sep 19 21:39 handoff/lumi-aether-debug.apk
--rw-r--r-- 1 runner runner 6.1M Sep 19 21:43 handoff/lumi-aether-release.apk
--rw-r--r-- 1 runner runner 6.1M Sep 19 21:39 handoff/lumi-aether-v1.1.0-release.apk
--rw-r--r-- 1 runner runner 6.1M Sep 19 21:43 handoff/lumi-aether-v1.1.1-release.apk
+-rw-r--r-- 1 runner runner 8.1M Sep 20 08:32 handoff/app-debug-min.apk
+-rw-r--r-- 1 runner runner 6.2M Sep 20 08:32 handoff/app-debug.apk
+-rw-r--r-- 1 runner runner 6.2M Sep 20 08:32 handoff/app-release.apk
+-rw-r--r-- 1 runner runner  11M Sep 20 08:29 handoff/lumi-aether-debug.apk
+-rw-r--r-- 1 runner runner 6.2M Sep 20 08:32 handoff/lumi-aether-release.apk
+-rw-r--r-- 1 runner runner 6.1M Sep 20 08:29 handoff/lumi-aether-v1.1.0-release.apk
+-rw-r--r-- 1 runner runner 6.1M Sep 20 08:29 handoff/lumi-aether-v1.1.1-release.apk
+-rw-r--r-- 1 runner runner 6.2M Sep 20 08:32 handoff/lumi-aether-v1.1.2-release.apk
 
 Providers: 33 models (19 original site + 6 OVH free anonymous + 4 Groq + 3 OpenRouter + 1 offline) — 32 online + offline fallback
 Fixes: offline auto-routing (lumi-offline), Kilo/LLM7 anon without Bearer for :free models (issue #6317), Groq/OR disabled by default if no key, prioritized anon providers
