@@ -1,0 +1,12 @@
+# локальные сборки мода
+telegram-src/
+telegram/
+*.apk
+*.aab
+*.jks
+*.keystore
+local.properties
+mod-out/
+.ccache/
+.gradle/
+build/

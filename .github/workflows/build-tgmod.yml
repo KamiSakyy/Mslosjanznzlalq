@@ -1,0 +1,254 @@
+name: Build TG Mod APK
+
+# =============================================================================
+#  Сборка мода Telegram (MslGram) из официальных исходников DrKLO/Telegram.
+#
+#  Ключевая идея (как у Nekogram/NekoX): НЕ нужны свои api_id / api_hash и
+#  вообще никакие секреты — в исходниках Telegram уже вшиты официальные
+#  APP_ID / APP_HASH, а подпись по умолчанию берётся из публичного
+#  upstream-keystore (android / androidkey / android).
+#
+#  Запуск: Actions → Build TG Mod APK → Run workflow.
+#  Сборка идёт ~40–70 минут (первый раз), дальше быстрее за счёт ccache/Gradle-кэша.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Название приложения (ярлык + UI)"
+        default: "MslGram"
+        type: string
+      app_package:
+        description: "applicationId (свой, чтобы ставилось рядом с Telegram)"
+        default: "com.kamisakyy.mgram"
+        type: string
+      version_suffix:
+        description: "Суффикс версии"
+        default: "-mod"
+        type: string
+      abis:
+        description: "Какие ABI собирать (arm64-v8a — быстрее всего)"
+        type: choice
+        default: "arm64-v8a"
+        options:
+          - "arm64-v8a"
+          - "arm64-v8a,armeabi-v7a"
+      tg_ref:
+        description: "Ветка/коммит DrKLO/Telegram"
+        default: "master"
+        type: string
+      disable_billing:
+        description: "Выключить Google Play Billing (1/0)"
+        default: "0"
+        type: string
+      create_release:
+        description: "Создать GitHub Release с APK"
+        default: true
+        type: boolean
+  push:
+    branches: [ main, 'arena/**' ]
+    paths:
+      - 'mod/**'
+      - '.github/workflows/build-tgmod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tgmod-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Сборка модифицированного APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    env:
+      APP_NAME: ${{ inputs.app_name || 'MslGram' }}
+      APP_PACKAGE: ${{ inputs.app_package || 'com.kamisakyy.mgram' }}
+      APP_VERSION_SUFFIX: ${{ inputs.version_suffix || '-mod' }}
+      ABIS: ${{ inputs.abis || 'arm64-v8a' }}
+      TG_REF: ${{ inputs.tg_ref || 'master' }}
+      DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
+      CREATE_RELEASE: ${{ inputs.create_release == false && 'false' || 'true' }}
+      # ccache для нативной части (C/C++), живёт между запусками
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
+      CCACHE_NOHASHDIR: true
+      CCACHE_BASEDIR: ${{ github.workspace }}
+
+    steps:
+      - name: Освободить место на диске
+        run: |
+          set -x
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost \
+                      /usr/local/lib/android/sdk/ndk/2[0-6]* \
+                      "${AGENT_TOOLSDIRECTORY:-/opt/hostedtoolcache}/CodeQL" 2>/dev/null || true
+          df -h /
+
+      - name: Забрать файлы мода (этот репозиторий)
+        uses: actions/checkout@v4
+        with:
+          path: modrepo
+
+      - name: Клонировать исходники Telegram (DrKLO/Telegram)
+        uses: actions/checkout@v4
+        with:
+          repository: DrKLO/Telegram
+          ref: ${{ inputs.tg_ref || 'master' }}
+          path: telegram-src
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK (platform 36, build-tools 36, NDK 27.2, cmake 3.22.1)
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKM" ] || { echo "::error::sdkmanager не найден в $SDK"; exit 1; }
+          yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+          "$SDKM" --install "platform-tools" "platforms;android-36" \
+                          "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Установить ccache
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ccache
+          ccache --version | head -1
+
+      - name: Кэш ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-${{ inputs.tg_ref || 'master' }}-${{ inputs.abis || 'arm64-v8a' }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ inputs.tg_ref || 'master' }}-${{ inputs.abis || 'arm64-v8a' }}-
+
+      - name: Кэш Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Применить мод (брендинг, package id, без API-ключей)
+        env:
+          TG_DIR: ${{ github.workspace }}/telegram-src
+        run: bash modrepo/mod/apply-mod.sh
+
+      - name: Сборка APK (assembleAfatRelease)
+        working-directory: telegram-src
+        run: |
+          ./gradlew --no-daemon --stacktrace --console=plain \
+            :TMessagesProj_App:assembleAfatRelease
+
+      - name: Проверка и упаковка APK
+        id: apk
+        env:
+          TG_DIR: ${{ github.workspace }}/telegram-src
+        run: |
+          set -euo pipefail
+
+          APK=$(find telegram-src/TMessagesProj_App/build/outputs/apk -name '*.apk' | head -1)
+          [ -n "$APK" ] || { echo "::error::APK не найден"; exit 1; }
+
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          AAPT2="${BT}aapt2"
+          APKSIGNER="${BT}apksigner"
+
+          echo "=== badging ==="
+          "$AAPT2" dump badging "$APK" | tee /tmp/badging.txt | grep -E "^package|application-label|sdkVersion|targetSdkVersion" || true
+
+          grep -q "name='$APP_PACKAGE'"   /tmp/badging.txt || { echo "::error::в APK неверный package id"; exit 1; }
+          grep -q "application-label:'$APP_NAME'" /tmp/badging.txt || { echo "::error::в APK неверное название приложения"; exit 1; }
+
+          VERSION=$(grep -oP '^APP_VERSION_NAME=\K.*' telegram-src/gradle.properties)
+          grep -q "versionName='$VERSION'" /tmp/badging.txt || { echo "::error::в APK неверная версия"; exit 1; }
+
+          echo "=== ABI внутри APK ==="
+          ABIS_IN_APK=$(unzip -l "$APK" | grep -oE 'lib/[^/]+/' | sort -u | tr -d ' /' | sed 's/^lib//' | tr '\n' ' ')
+          echo "ABI: $ABIS_IN_APK"
+
+          echo "=== подпись ==="
+          "$APKSIGNER" verify --verbose "$APK" | head -20
+
+          ABIS_TAG="${ABIS//,/_}"
+          OUT="$APP_NAME-$VERSION-$ABIS_TAG.apk"
+          cp "$APK" "$OUT"
+          sha256sum "$OUT" | tee SHA256SUMS.txt
+          ls -lh "$OUT"
+
+          {
+            echo "version=$VERSION"
+            echo "out=$OUT"
+            echo "size=$(du -h "$OUT" | cut -f1)"
+            echo "sha=$(cut -d' ' -f1 SHA256SUMS.txt)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Итоги в summary
+        if: always()
+        run: |
+          {
+            echo "## $APP_NAME — сборка мода Telegram"
+            echo
+            echo "| параметр | значение |"
+            echo "|---|---|"
+            echo "| package id | \`$APP_PACKAGE\` |"
+            echo "| версия | \`${{ steps.apk.outputs.version || '—' }}\` |"
+            echo "| ABI | \`$ABIS\` |"
+            echo "| APK | \`${{ steps.apk.outputs.out || '—' }}\` (${{ steps.apk.outputs.size || '—' }}) |"
+            echo "| SHA-256 | \`${{ steps.apk.outputs.sha || '—' }}\` |"
+            echo "| исходники | DrKLO/Telegram @ \`$TG_REF\` |"
+            echo
+            echo "API-ключи не использовались: сборка идёт на официальных встроенных APP_ID/APP_HASH."
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ -f telegram-src/MOD_INFO.txt ] && cat telegram-src/MOD_INFO.txt || true
+
+      - name: Загрузить APK как artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tgmod-apk-${{ steps.apk.outputs.version }}-${{ github.run_number }}
+          path: |
+            ${{ steps.apk.outputs.out }}
+            SHA256SUMS.txt
+            telegram-src/MOD_INFO.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Загрузить patch-дифф изменений
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tgmod-diff-${{ github.run_number }}
+          path: telegram-src/mod-changes.patch
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: GitHub Release
+        if: env.CREATE_RELEASE == 'true' && steps.apk.outputs.out != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="mod-${{ steps.apk.outputs.version }}-r${{ github.run_number }}"
+          TITLE="$APP_NAME ${{ steps.apk.outputs.version }} (мод Telegram)"
+          NOTES="Модифицированная сборка Telegram из исходников DrKLO/Telegram.
+          Свои api_id/api_hash не требуются — используются официальные встроенные.
+          package: $APP_PACKAGE, ABI: $ABIS, commit upstream: $TG_REF"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+              "${{ steps.apk.outputs.out }}" SHA256SUMS.txt
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" \
+              "${{ steps.apk.outputs.out }}" SHA256SUMS.txt
+          fi
+          echo "release: $(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
