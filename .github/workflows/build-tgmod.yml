@@ -62,6 +62,10 @@ on:
         description: "Локали в APK (ru,en | all) — меньше = меньше APK"
         default: "ru,en"
         type: string
+      build_lean:
+        description: "Быстрая/лёгкая сборка: без debug-инфо в native, heap 5 ГБ (1/0)"
+        default: "1"
+        type: string
       create_release:
         description: "Создать GitHub Release с APK"
         default: true
@@ -97,6 +101,7 @@ jobs:
       AUTODOWNLOAD_OFF: ${{ inputs.autodownload_off || '1' }}
       SLIM_HEAVY: ${{ inputs.slim_heavy || '1' }}
       RES_CONFIGS: ${{ inputs.res_configs || 'ru,en' }}
+      BUILD_LEAN: ${{ inputs.build_lean || '1' }}
       CREATE_RELEASE: ${{ inputs.create_release == false && 'false' || 'true' }}
       # ccache для нативной части (C/C++), живёт между запусками
       CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -109,10 +114,14 @@ jobs:
       - name: Освободить место на диске
         run: |
           set -x
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost \
-                      /usr/local/lib/android/sdk/ndk/2[0-6]* \
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/share/swift \
+                      /usr/local/.ghcup /opt/az /opt/microsoft /usr/local/share/chromium \
+                      /usr/lib/firefox /usr/lib/mono /usr/local/lib/android/sdk/emulator \
+                      /usr/local/lib/android/sdk/system-images \
                       "${AGENT_TOOLSDIRECTORY:-/opt/hostedtoolcache}/CodeQL" 2>/dev/null || true
           df -h /
+          free -h
+          nproc
 
       - name: Забрать файлы мода (этот репозиторий)
         uses: actions/checkout@v4
@@ -172,8 +181,36 @@ jobs:
       - name: Сборка APK (assembleAfatRelease, arm64, экономия трафика)
         working-directory: telegram-src
         run: |
+          set -o pipefail
+          free -h || true
           ./gradlew --no-daemon --stacktrace --console=plain \
-            :TMessagesProj_App:assembleAfatRelease
+            :TMessagesProj_App:assembleAfatRelease 2>&1 | tee ../build.log
+          df -h / || true
+
+      - name: Диагностика сборки (видно без доступа к логам)
+        if: failure()
+        run: |
+          echo "### Свободное место"; df -h / || true
+          echo "### Память"; free -h || true
+          if [ -f build.log ]; then
+            echo "### Последние 60 строк сборки"
+            tail -n 60 build.log || true
+            echo "### Аннотации (Checks API)"
+            tail -n 12 build.log | tr -d '\r' | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error title=Gradle::${line:0:900}"
+            done
+          else
+            echo "::error title=Gradle::build.log не найден — сборка упала до запуска Gradle"
+          fi
+
+      - name: Загрузить лог сборки при падении
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Проверка и упаковка APK
         id: apk

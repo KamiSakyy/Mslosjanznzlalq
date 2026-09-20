@@ -51,6 +51,7 @@ NO_STICKERS=${NO_STICKERS:-1}             # стикеры и премиум-э�
 MAX_ECONOMY=${MAX_ECONOMY:-1}             # принудительный power-saver (все анимации/автоплей выкл)
 RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
 SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
+BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
 KEY_ALIAS=${KEY_ALIAS:-}
@@ -392,6 +393,37 @@ else
 fi
 
 # =============================================================================
+# P15. СКОРОСТЬ СБОРКИ И РАЗМЕР APK: без debug-инфо в нативной части.
+#      Убираем -g из C/C++ флагов и снижаем уровень symbol-level, чтобы объектные
+#      файлы и .so не раздувались на десятки гигабайт (иначе CI падает по диску).
+# =============================================================================
+if [ "$BUILD_LEAN" = "1" ]; then
+    JNICMAKE="$TG_DIR/TMessagesProj/jni/CMakeLists.txt"
+    if [ -f "$JNICMAKE" ]; then
+        sed_i 's#set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID -g")#set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID")#' "$JNICMAKE"
+        sed_i 's#set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -g -Wno-error=implicit-function-declaration")#set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -Wno-error=implicit-function-declaration")#' "$JNICMAKE"
+        has "$JNICMAKE" 'set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID")' || die "P15: не удалось убрать -g из CMAKE_CXX_FLAGS"
+        ok "P15 нативная сборка без -g (объекты и .so легче, линковка быстрее)"
+    else
+        warn "P15: не нашёл jni/CMakeLists.txt — пропускаю"
+    fi
+
+    dsl=0
+    while IFS= read -r gf; do
+        sed_i "s#ndk.debugSymbolLevel = 'FULL'#ndk.debugSymbolLevel = 'SYMBOL_TABLE'#g" "$gf"
+        grep -q "debugSymbolLevel = 'SYMBOL_TABLE'" "$gf" && dsl=$((dsl+1))
+    done < <(find "$TG_DIR" -maxdepth 2 -name build.gradle | sort)
+    ok "P15 debugSymbolLevel = SYMBOL_TABLE в $dsl модулях (не пишем гигабайты символов)"
+
+    # Gradle: 8 ГБ heap может не хватить вместе с нативной сборкой на 16 ГБ раннере
+    sed_i 's#^org.gradle.jvmargs=.*$#org.gradle.jvmargs=-Xmx5g -XX:MaxMetaspaceSize=1g#' "$GP"
+    has "$GP" "org.gradle.jvmargs=-Xmx5g" || die "P15: не удалось ограничить heap Gradle"
+    ok "P15 Gradle heap ограничен 5 ГБ (защита от OOM на CI)"
+else
+    skip "P15 build-lean отключён (BUILD_LEAN=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -405,6 +437,7 @@ MOD_NO_STICKERS=$NO_STICKERS
 MOD_AUTODOWNLOAD_OFF=$AUTODOWNLOAD_OFF
 MOD_RES_CONFIGS=$RES_CONFIGS
 MOD_SLIM_HEAVY=$SLIM_HEAVY
+MOD_BUILD_LEAN=$BUILD_LEAN
 MOD_BUILD_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 UPSTREAM_REPO=https://github.com/DrKLO/Telegram
 UPSTREAM_COMMIT=$UPSTREAM_COMMIT
