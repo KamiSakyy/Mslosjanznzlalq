@@ -80,7 +80,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: tgmod-fast-${{ github.ref }}
+  group: tgmod-kami-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -172,10 +172,22 @@ jobs:
       - name: Кэш Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Применить мод (брендинг, package id, без API-ключей)
+      - name: Применить мод (брендинг, package id, свой ключ подписи)
         env:
           TG_DIR: ${{ github.workspace }}/telegram-src
-        run: bash modrepo/mod/apply-mod.sh
+        run: |
+          set -euo pipefail
+          B64=modrepo/mod/keys/kamigram.jks.b64
+          if [ -f "$B64" ]; then
+            export KEYSTORE_B64="$(tr -d '\n\r' < "$B64")"
+            export KEYSTORE_PASSWORD='kamigram2026'
+            export KEY_ALIAS='kamigram'
+            export KEY_PASSWORD='kamigram2026'
+            echo "::notice title=Подпись::собственный ключ KamiGram (alias=kamigram)"
+          else
+            echo "::warning title=Подпись::свой ключ не найден — подпись публичным upstream-ключом"
+          fi
+          bash modrepo/mod/apply-mod.sh
 
       - name: Быстрая проверка кода (fail-fast, ~10 мин)
         working-directory: telegram-src
@@ -260,6 +272,8 @@ jobs:
 
           echo "=== подпись ==="
           "$APKSIGNER" verify --verbose "$APK" | head -20
+          echo "=== отпечаток сертификата ==="
+          "$APKSIGNER" verify --print-certs "$APK" | grep -iE "Signer #1 certificate (DN|SHA-256)" | head -4
 
           ABIS_TAG="${ABIS//,/_}"
           OUT="$APP_NAME-$VERSION-$ABIS_TAG.apk"

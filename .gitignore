@@ -4,6 +4,8 @@ telegram/
 *.apk
 *.aab
 *.jks
+!mod/keys/kamigram.jks
+!mod/keys/kamigram.jks.b64
 *.keystore
 local.properties
 mod-out/
