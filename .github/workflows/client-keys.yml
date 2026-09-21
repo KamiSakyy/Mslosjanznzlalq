@@ -1,0 +1,102 @@
+name: "Ключи других клиентов: Nekogram / exteraGram -> проверка на сервере (без сборки APK)"
+
+# =============================================================================
+#  Разовый анализ, без сборки Android:
+#   1) качает APK Nekogram и exteraGram;
+#   2) декомпилирует их (jadx) и вытаскивает api_id/api_hash;
+#   3) проверяет каждую пару на живом сервере Telegram (скрипт tools/check_keys.py);
+#   4) пишет результат в notes/client-keys.txt и коммитит.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/client-keys.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: "Забрать файлы мода"
+        uses: actions/checkout@v4
+
+      - name: "Python 3.12"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: "Поставить jadx"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jadx || true
+          jadx --version || echo "jadx из apt недоступен"
+
+      - name: "Скачать APK Nekogram и exteraGram"
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/other notes
+          curl -sSL --retry 5 --retry-all-errors --max-time 900 -o /tmp/other/nekogram.apk \
+            "https://github.com/Nekogram/Nekogram/releases/download/v12.10.3/Nekogram-12.10.3-7089-arm64-v8a.apk"
+          curl -sSL --retry 5 --retry-all-errors --max-time 900 -o /tmp/other/extera.apk \
+            "https://github.com/exteraSquad/exteraGram/releases/download/v9.6.6/exteraGram-arm64-v8a-27052023.apk" || true
+          ls -la /tmp/other
+
+      - name: "Вытащить api_id/api_hash (jadx)"
+        run: |
+          set -euo pipefail
+          {
+            echo "== Nekogram =="
+            python3 tools/extract_keys.py /tmp/other/nekogram.apk /tmp/other/nekogram.json || true
+            echo
+            echo "== exteraGram =="
+            python3 tools/extract_keys.py /tmp/other/extera.apk /tmp/other/extera.json || true
+          } > notes/client-keys.txt 2>&1 || true
+          tail -60 notes/client-keys.txt
+
+      - name: "Собрать найденные пары и проверить на живом сервере"
+        run: |
+          set -euo pipefail
+          pip install --quiet telethon
+          python3 - <<'PY' > /tmp/other/found.json
+import glob, json
+pairs = []
+for path in glob.glob('/tmp/other/*.json'):
+    try:
+        data = json.load(open(path, encoding='utf-8'))
+    except Exception:
+        continue
+    for entry in data.get('pairs', []):
+        cls, app_id, app_hash = entry[0], entry[1], entry[2]
+        if app_id and app_hash:
+            pairs.append([data.get('apk', '') + ' ' + str(cls), app_id, app_hash])
+print(json.dumps({'pairs': pairs}, ensure_ascii=False))
+PY
+          cat /tmp/other/found.json | head -20
+          echo >> notes/client-keys.txt
+          echo "== найденные в APK пары ==" >> notes/client-keys.txt
+          cat /tmp/other/found.json >> notes/client-keys.txt
+          echo >> notes/client-keys.txt
+          python3 tools/check_keys.py /tmp/other/found.json >> notes/client-keys.txt 2>&1 || true
+          tail -30 notes/client-keys.txt
+
+      - name: "Проверить встроенный список ключей"
+        run: |
+          set -euo pipefail
+          echo >> notes/client-keys.txt
+          python3 tools/check_keys.py >> notes/client-keys.txt 2>&1 || true
+          tail -20 notes/client-keys.txt
+
+      - name: "Закоммитить результат в ветку"
+        run: |
+          set -euo pipefail
+          git config user.name "arena-agent"
+          git config user.email "297053741+arena-agent@users.noreply.github.com"
+          git add notes/client-keys.txt
+          git commit -m "chore(keys): ключи Nekogram/exteraGram + проверка на живом сервере [skip ci]" || echo "нечего коммитить"
+          git push
