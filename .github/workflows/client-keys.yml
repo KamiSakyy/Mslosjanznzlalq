@@ -63,26 +63,16 @@ jobs:
         run: |
           set -euo pipefail
           pip install --quiet telethon
-          python3 - <<'PY' > /tmp/other/found.json
-import glob, json
-pairs = []
-for path in glob.glob('/tmp/other/*.json'):
-    try:
-        data = json.load(open(path, encoding='utf-8'))
-    except Exception:
-        continue
-    for entry in data.get('pairs', []):
-        cls, app_id, app_hash = entry[0], entry[1], entry[2]
-        if app_id and app_hash:
-            pairs.append([data.get('apk', '') + ' ' + str(cls), app_id, app_hash])
-print(json.dumps({'pairs': pairs}, ensure_ascii=False))
-PY
+          python3 tools/collect_pairs.py /tmp/other/nekogram.json /tmp/other/extera.json > /tmp/other/found.json || true
           cat /tmp/other/found.json | head -20
-          echo >> notes/client-keys.txt
-          echo "== найденные в APK пары ==" >> notes/client-keys.txt
-          cat /tmp/other/found.json >> notes/client-keys.txt
-          echo >> notes/client-keys.txt
-          python3 tools/check_keys.py /tmp/other/found.json >> notes/client-keys.txt 2>&1 || true
+          {
+            echo
+            echo "== найденные в APK пары =="
+            cat /tmp/other/found.json
+            echo
+            echo "== проверка найденных пар =="
+            python3 tools/check_keys.py /tmp/other/found.json || true
+          } >> notes/client-keys.txt
           tail -30 notes/client-keys.txt
 
       - name: "Проверить встроенный список ключей"
