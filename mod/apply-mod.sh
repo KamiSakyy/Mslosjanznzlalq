@@ -1539,9 +1539,9 @@ if mark not in src:
     block = ('                /* ' + mark + ': сервер отказал по ключу - берём следующий официальный ключ и повторяем */\n'
              '                if (error != null && error.text != null && error.text.contains("API_ID")\n'
              '                    && org.telegram.messenger.kamigram.KamiGramAuthKeys.switchNext(getParentActivity(), error.text)) {\n'
-             '                    nextPressed = false;\n'
-             '                    needHideProgress(false);\n'
-             '                    AndroidUtilities.runOnUIThread(() -> onNextPressed(null), 800);\n'
+             '                    /* сервер уже видел старый ключ: меняем ключ и перезапускаем приложение,\n'
+             '                       чтобы соединение поднялось с новым ключом с нуля */\n'
+             '                    org.telegram.messenger.kamigram.KamiGramAuthKeys.restartForNewKey(getParentActivity());\n'
              '                    return;\n'
              '                }\n')
     src = src[:line_end] + block + src[line_end:]
@@ -1557,11 +1557,33 @@ if 'KamiGramAuthKeys.describe()' not in src:
         sys.exit(1)
     line_start = src.rfind('\n', 0, idx) + 1
     src = (src[:line_start]
-           + '            text.append("Telegram key: ").append(KamiGramAuthKeys.describe()).append(\'\\n\');\n'
+           + '            text.append("Telegram key: ").append(KamiGramAuthKeys.describe())\\\n'
+             + '                .append(" / in connection: ").append(KamiGramAuthKeys.connectionKey()).append(\'\\n\');\n'
            + src[line_start:])
     io.open(helper_path, 'w', encoding='utf-8').write(src)
 print('auth keys patched')
 PY
+    CM_PATH="$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java"
+    python3 - "$CM_PATH" <<'PY2' || die "P26: не удалось отметить ключ соединения"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_CONNECTION_KEY'
+anchor = '        init(SharedConfig.buildVersion(), TLRPC.LAYER, BuildVars.APP_ID, '
+if mark not in src:
+    idx = src.find(anchor)
+    if idx < 0:
+        sys.stderr.write('P26: не найден вызов init в ConnectionsManager\n')
+        sys.exit(1)
+    line_start = src.rfind('\n', 0, idx) + 1
+    src = (src[:line_start]
+           + '        org.telegram.messenger.kamigram.KamiGramAuthKeys.ensureLoaded(); /* ключ до init */\n'
+           + '        org.telegram.messenger.kamigram.KamiGramAuthKeys.noteConnectionKey(BuildVars.APP_ID); /* ' + mark + ' */\n'
+           + src[line_start:])
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('connection key noted')
+PY2
+    has "$CM_PATH" "KAMIGRAM_CONNECTION_KEY" || die "P26: ключ соединения не отмечен"
     has "$AK_PATH" 'KamiGramAuthKeys' || die "P26: файл ключей не скопирован"
     has "$LA_LOGIN" "KAMIGRAM_AUTH_KEYS" || die "P26: автоподмена ключа не внедрена в LoginActivity"
     ok "P26 ОФИЦИАЛЬНЫЕ КЛЮЧИ TELEGRAM: мод несёт ключи официальных клиентов (Desktop/Android/X/Web/iOS) и сам переключается на следующий, если сервер отклонил текущий (API_ID_PUBLISHED_FLOOD), затем повторяет запрос кода"

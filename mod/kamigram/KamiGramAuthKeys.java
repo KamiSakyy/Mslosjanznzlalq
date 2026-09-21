@@ -1,9 +1,13 @@
 package org.telegram.messenger.kamigram;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.os.Build;
+import android.os.Process;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -34,31 +38,29 @@ public final class KamiGramAuthKeys {
 
     /** Ключи, которые сервер Telegram принимает (проверено запросом к серверу). */
     private static final int[] IDS = {
-        2040,     // Telegram Desktop - проверен, принимается
-        94575,    // TDLib / Nicegram
-        17349,    // Telegram Desktop (example)
-        6,        // Telegram Android (Play)
+        6,        // TG for Android (Play) - Android-ключ, сервер принимает
         5,        // Public static final
-        21724,    // Telegram X
+        2040,     // Telegram Desktop
+        17349,    // Telegram Desktop (example)
+        94575,    // TDLib / Nicegram
         8,        // Telegram iOS beta
-        1025907,  // Telegram Web K
         2496,     // Telegram Web
+        1025907,  // Telegram Web K
         10840,    // Telegram Swift
         16623,    // Plus Messenger
         2834,     // Telegram macOS beta
-        9,        // Public beta
+        9,        // Telegram public beta
         2899      // Telegram CLI
     };
     private static final String[] HASHES = {
-        "b18441a1ff607e10a989891a5462e627",
-        "a3406de8d171bb422bb6ddf3bbd800e2",
-        "344583e45741c457fe1862106095a5eb",
         "eb06d4abfb49dc3eeb1aeb98ae0f581e",
         "1c5c96d5edd401b1ed40db3fb5633e2d",
-        "3e0cb5efcd52300aec5994fdfc5bdc16",
+        "b18441a1ff607e10a989891a5462e627",
+        "344583e45741c457fe1862106095a5eb",
+        "a3406de8d171bb422bb6ddf3bbd800e2",
         "7245de8e747a0d6fbe11f7cc14fcc0bb",
-        "452b0359b988148995f22ff0f4229750",
         "8da85b0d5bfe62527e5b244c209159c3",
+        "452b0359b988148995f22ff0f4229750",
         "33c45224029d59cb3ad0c16134215aeb",
         "8c9dbfe58437d1739540f5d53c72ae4b",
         "68875f756c9b437a8b916ca3de215815",
@@ -66,16 +68,21 @@ public final class KamiGramAuthKeys {
         "36722c72256a24c1225de00eb6a1ca74"
     };
     private static final String[] NAMES = {
-        "Telegram Desktop", "TDLib (Nicegram)", "Telegram Desktop example", "Telegram Android (Play)",
-        "Public static final", "Telegram X", "Telegram iOS beta", "Telegram Web K",
-        "Telegram Web", "Telegram Swift", "Plus Messenger", "Telegram macOS beta",
-        "Telegram public beta", "Telegram CLI"
+        "Telegram Android (Play)", "Public static final", "Telegram Desktop",
+        "Telegram Desktop example", "TDLib (Nicegram)", "Telegram iOS beta",
+        "Telegram Web", "Telegram Web K", "Telegram Swift", "Plus Messenger",
+        "Telegram macOS beta", "Telegram public beta", "Telegram CLI"
     };
-
     /** Новый ключ настройки: старый индекс мог указывать на заблокированный api_id = 4. */
-    private static final String KEY_INDEX = "kamigram_api_key_index_v2";
+    private static final String KEY_INDEX = "kamigram_api_key_index_v3";
 
     private static int index;
+
+    /** Загружен ли ключ (в onCreate контекст ещё не готов, поэтому грузим ещё раз перед init). */
+    private static volatile boolean loaded;
+
+    /** Ключ, с которым реально инициализировано соединение (его видит сервер). */
+    private static volatile int connectionKey;
 
     private KamiGramAuthKeys() {
     }
@@ -88,14 +95,32 @@ public final class KamiGramAuthKeys {
     public static void load() {
         try {
             final SharedPreferences preferences = preferences();
-            index = preferences != null ? preferences.getInt(KEY_INDEX, 0) : 0;
+            if (preferences == null) {
+                // контекст ещё не готов (onCreate): ключ подставим перед init соединения
+                apply();
+                return;
+            }
+            index = preferences.getInt(KEY_INDEX, 0);
             if (index < 0 || index >= IDS.length) {
                 index = 0;
             }
             apply();
+            loaded = true;
         } catch (Throwable e) {
             FileLog.e(e);
         }
+    }
+
+    /**
+     * Гарантирует, что BuildVars уже содержит нужный ключ ДО init соединения.
+     * Вызывается из ConnectionsManager: в onCreate приложения контекст ещё не готов,
+     * из-за чего ключ не подставлялся и в сеть уходил прежний (заблокированный) api_id.
+     */
+    public static void ensureLoaded() {
+        if (!loaded) {
+            load();
+        }
+        apply();
     }
 
     public static void apply() {
@@ -136,6 +161,46 @@ public final class KamiGramAuthKeys {
         } catch (Throwable e) {
             FileLog.e(e);
             return false;
+        }
+    }
+
+    /** Вызывается из ConnectionsManager: с каким ключом соединение ушло в сеть. */
+    public static void noteConnectionKey(int apiId) {
+        connectionKey = apiId;
+    }
+
+    /** Ключ, который реально видит сервер в соединении. */
+    public static int connectionKey() {
+        return connectionKey;
+    }
+
+    /**
+     * Менять api_id «на живом» соединении нельзя: сервер уже видел старый ключ и
+     * продолжает отвечать по нему. Поэтому после смены ключа приложение
+     * перезапускается — соединение поднимается с новым ключом с нуля.
+     */
+    public static void restartForNewKey(final Context context) {
+        try {
+            final Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (intent == null) {
+                return;
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            final PendingIntent pendingIntent = PendingIntent.getActivity(context, 4242, intent,
+                PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            final AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager != null) {
+                alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 900, pendingIntent);
+            }
+            AndroidUtilities.runOnUIThread(() -> {
+                try {
+                    Process.killProcess(Process.myPid());
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            }, 500);
+        } catch (Throwable e) {
+            FileLog.e(e);
         }
     }
 
