@@ -1563,7 +1563,7 @@ if 'KamiGramAuthKeys.describe()' not in src:
 print('auth keys patched')
 PY
     has "$AK_PATH" 'KamiGramAuthKeys' || die "P26: файл ключей не скопирован"
-    has "$LA_LOGIN" "$mark" || die "P26: автоподмена ключа не внедрена в LoginActivity"
+    has "$LA_LOGIN" "KAMIGRAM_AUTH_KEYS" || die "P26: автоподмена ключа не внедрена в LoginActivity"
     ok "P26 ОФИЦИАЛЬНЫЕ КЛЮЧИ TELEGRAM: мод несёт ключи официальных клиентов (Desktop/Android/X/Web/iOS) и сам переключается на следующий, если сервер отклонил текущий (API_ID_PUBLISHED_FLOOD), затем повторяет запрос кода"
 else
     skip "P26 автоподмена официальных ключей отключена (FIX_LOGIN=0)"
