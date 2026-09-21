@@ -1,4 +1,4 @@
-name: MDGram keys (разовый разбор APK, без сборки)
+name: "MDGram keys (разовый разбор APK, без сборки)"
 
 # =============================================================================
 #  Разово: скачивает APK MDGram из релиза и вытаскивает строки-кандидаты
@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Забрать файлы мода
+      - name: "Забрать файлы мода"
         uses: actions/checkout@v4
 
-      - name: Скачать APK MDGram (arm64)
+      - name: "Скачать APK MDGram (arm64)"
         run: |
           set -euo pipefail
           url="https://github.com/jair1c/MDGram/releases/download/V5/MDGram-arm64.apk"
@@ -35,7 +35,7 @@ jobs:
           ls -la /tmp/mdgram.apk
           file /tmp/mdgram.apk
 
-      - name: Разобрать dex: кандидаты api_hash и api_id
+      - name: "Разобрать dex — кандидаты api_hash и api_id"
         run: |
           set -euo pipefail
           mkdir -p /tmp/md
@@ -65,7 +65,7 @@ jobs:
           wc -l notes/mdgram-keys.txt
           head -60 notes/mdgram-keys.txt
 
-      - name: Закоммитить результат в ветку
+      - name: "Закоммитить результат в ветку"
         run: |
           set -euo pipefail
           git config user.name "arena-agent"
