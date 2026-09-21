@@ -1557,8 +1557,8 @@ if 'KamiGramAuthKeys.describe()' not in src:
         sys.exit(1)
     line_start = src.rfind('\n', 0, idx) + 1
     src = (src[:line_start]
-           + '            text.append("Telegram key: ").append(KamiGramAuthKeys.describe())\\\n'
-             + '                .append(" / in connection: ").append(KamiGramAuthKeys.connectionKey()).append(\'\\n\');\n'
+           + '            text.append("Telegram key: ").append(KamiGramAuthKeys.describe()).append(" / in connection: ").append(KamiGramAuthKeys.connectionKey()).append(\'\\n\');\n'
+
            + src[line_start:])
     io.open(helper_path, 'w', encoding='utf-8').write(src)
 print('auth keys patched')
