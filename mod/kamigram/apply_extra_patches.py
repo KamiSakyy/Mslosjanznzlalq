@@ -176,7 +176,19 @@ def build_filter(path, names):
     insert = ('    // ' + mark + ': запросы, которые НЕ уходят на сервер.\n'
               '    private static final String[] KAMIGRAM_BLOCK = {\n'
               '        ' + entries + '\n'
-              '    };\n\n')
+              '    };\n\n'
+              '    /** Список блокировки: сравниваем простое и полное имя запроса. */\n'
+              '    private static boolean kamigramBlocked(String[] names) {\n'
+              '        if (names == null) {\n'
+              '            return false;\n'
+              '        }\n'
+              '        for (int a = 0; a < KAMIGRAM_BLOCK.length; a++) {\n'
+              '            if (KAMIGRAM_BLOCK[a].equals(names[0]) || KAMIGRAM_BLOCK[a].equals(names[1])) {\n'
+              '                return true;\n'
+              '            }\n'
+              '        }\n'
+              '        return false;\n'
+              '    }\n\n')
     anchor = '    private KamiGramNetFilter() {\n    }\n'
     if anchor not in src:
         FAILED.append('KamiGramNetFilter: не найдено место для списка блокировки')
@@ -187,13 +199,10 @@ def build_filter(path, names):
         FAILED.append('KamiGramNetFilter: не найдено чтение имени запроса')
         return src
     rule = (rule_anchor +
-            '            if (names != null && (matches(KAMIGRAM_BLOCK, names[0]) || matches(KAMIGRAM_BLOCK, names[1]))) {\n'
+            '            if (kamigramBlocked(names)) {\n'
             '                return true;\n'
             '            }\n')
     src = src.replace(rule_anchor, rule, 1)
-    self_actions = ''
-    if self_actions:
-        src = src.replace(insert, self_actions + insert, 1)
     io.open(path, 'w', encoding='utf-8').write(src)
     return src
 
