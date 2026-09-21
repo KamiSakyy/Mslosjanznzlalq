@@ -93,7 +93,6 @@ BLOCK_STICKERS = [
     ('TL_messages_searchCustomEmoji', 'поиск премиум-эмодзи не уходит на сервер'),
     ('TL_messages_searchEmojiStickerSets', 'поиск наборов эмодзи не уходит на сервер'),
     ('TL_messages_getEmojiGameInfo', 'игра эмодзи не запрашивается'),
-    ('TL_messages_getDefaultTagReactions', 'реакции по умолчанию не запрашиваются'),
     ('TL_messages_getRecentReactions', 'недавние реакции не запрашиваются'),
 ]
 
@@ -102,32 +101,21 @@ BLOCK_PRIVACY = [
     ('TL_contacts_getTopPeers', '«часто используемые» не запрашиваются'),
     ('TL_contacts_toggleTopPeers', '«часто используемые» не отправляются на сервер'),
     ('TL_contacts_resetTopPeerRating', 'рейтинг частых контактов не отправляется'),
-    ('TL_messages_getOutboxReadDate', 'запрос «когда прочитали» не уходит (призрак)'),
-    ('TL_messages_getMessageReadParticipants', 'список прочитавших не запрашивается (призрак)'),
-    ('TL_messages_getOnlines', 'счётчик «в сети» не запрашивается'),
-    ('TL_messages_getMessageReactionsList', 'списки реакций не запрашиваются'),
-    ('TL_messages_getMessagesReactions', 'реакции сообщений не запрашиваются'),
-    ('TL_messages_getPaidReactionPrivacy', 'платные реакции не запрашиваются'),
 ]
 
 BLOCK_TRAFFIC = [
     ('TL_messages_getSavedGifs', 'сохранённые GIF не запрашиваются'),
     ('TL_messages_getSavedReactionTags', 'теги реакций не запрашиваются'),
-    ('TL_messages_getSavedDialogsByID', 'сохранённые диалоги не запрашиваются'),
     ('TL_messages_getPinnedSavedDialogs', 'закреплённое в избранном не запрашивается'),
-    ('TL_messages_getSavedHistory', 'история избранного не запрашивается'),
-    ('TL_messages_readSavedHistory', 'пометки чтения избранного не отправляются'),
     ('TL_messages_getWebPage', 'превью ссылок не подгружается'),
     ('TL_messages_getExtendedMedia', 'расширенное медиа превью не подгружается'),
     ('TL_messages_getAttachMenuBot', 'бот-меню не запрашивается'),
     ('TL_messages_getAttachMenuBots', 'список бот-меню не запрашивается'),
-    ('TL_messages_getQuickReplyMessages', 'быстрые ответы не запрашиваются'),
     ('TL_messages_getSuggestedDialogFilters', 'предлагаемые папки не запрашиваются'),
     ('TL_channels_getAdminLog', 'журнал админа не запрашивается'),
     ('TL_channels_getAdminedPublicChannels', 'публичные каналы профиля не запрашиваются'),
     ('TL_channels_readMessageContents', 'пометки прочтения в каналах не отправляются (призрак)'),
     ('TL_stories_getAllReadPeerStories', 'прочитанные истории не запрашиваются'),
-    ('TL_stories_getChatsToSend', 'список чатов для историй не запрашивается'),
     ('TL_stories_getAlbumStories', 'альбомы историй не запрашиваются'),
     ('TL_stories_getPeerMaxIDs', 'счётчики историй не запрашиваются'),
 ]
@@ -142,10 +130,8 @@ BLOCK_EXTRA = [
     ('TL_messages_getCommonChats', 'общие чаты в профиле не запрашиваются'),
     ('TL_messages_getDefaultHistoryTTL', 'автоудаление по умолчанию не запрашивается'),
     ('TL_messages_getDialogUnreadMarks', 'метки непрочитанного не запрашиваются'),
-    ('TL_messages_getSavedDialogs', 'список избранного не перезапрашивается'),
     ('TL_messages_getUnreadPollVotes', 'непрочитанные опросы не запрашиваются'),
     ('TL_messages_getUnreadReactions', 'непрочитанные реакции не запрашиваются'),
-    ('TL_messages_getQuickReplies', 'быстрые ответы не запрашиваются'),
     ('TL_messages_getInlineBotResults', 'инлайн-боты при вводе не запрашиваются'),
     ('TL_communities_getJoinedCommunities', 'сообщества не запрашиваются'),
     ('TL_chatlists_getLeaveChatlistSuggestions', 'подсказки папок не запрашиваются'),
@@ -157,7 +143,6 @@ BLOCK_EXTRA = [
     ('TL_messages_getAttachMenuBots', 'меню ботов-вложений не запрашивается'),
     ('TL_messages_getAvailableReactions', 'список реакций берётся из кэша'),
     ('TL_channels_getChannelRecommendations', 'рекомендации каналов не запрашиваются'),
-    ('TL_contacts_getStatuses', 'статусы контактов не перезапрашиваются'),
 ]
 
 KEEP = {
