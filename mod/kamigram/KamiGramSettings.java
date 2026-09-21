@@ -43,6 +43,9 @@ public final class KamiGramSettings {
         add(layout, context, "iOS-дизайн KamiGram: табы, шапка, скругления", KamiGramConfig.KEY_IOS_DESIGN, onChanged);
         add(layout, context, "iOS-скругление облаков сообщений", KamiGramConfig.KEY_IOS_BUBBLES, onChanged);
         add(layout, context, "Убрать блоки Telegram Premium / Stars / TON", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged);
+        add(layout, context, "Убрать рекламу, спонсорские и рекомендации каналов", KamiGramConfig.KEY_NO_ADS, onChanged);
+        add(layout, context, "Не грузить «часто используемые» контакты", KamiGramConfig.KEY_NO_TOP_PEERS, onChanged);
+        add(layout, context, "Не искать GIF при вводе текста", KamiGramConfig.KEY_NO_GIF_SEARCH, onChanged);
         add(layout, context, "Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged);
         add(layout, context, "Показывать ID чатов и пользователей", KamiGramConfig.KEY_SHOW_IDS, onChanged);
         add(layout, context, "Прокси из буфера обмена включается сам", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged);

@@ -1935,6 +1935,82 @@ else
 fi
 
 # =============================================================================
+# P30. iOS-ДИЗАЙН КОДОМ 3.0: время на медиа — iOS-пилюля, заголовки жирнее и
+#      крупнее, карточки настроек как в iOS. Всё через один переключатель
+#      iOS-дизайна, поэтому включается и выключается на ходу.
+# =============================================================================
+if [ "$IOS_DESIGN" = "1" ]; then
+    CMC_PATH="$JAVA_ROOT/org/telegram/ui/Cells/ChatMessageCell.java"
+    python3 - "$CMC_PATH" <<'PY' || die "P30: не удалось сделать iOS-пилюли времени"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_PILL_TIME'
+pill = ('org.telegram.messenger.kamigram.KamiGramConfig.iosDesign() ? rect.height() / 2f : dp(4)')
+count = 0
+for old in ('canvas.drawRoundRect(rect, dp(4), dp(4), timeBackgroundPaint);',
+            'canvas.drawRoundRect(rect, dp(4), dp(4), getThemedPaint(Theme.key_paint_chatTimeBackground));'):
+    while old in src:
+        new = old.replace('dp(4), dp(4)', pill + ', ' + pill)
+        src = src.replace(old, new, 1)
+        count += 1
+if count == 0 and mark not in src:
+    sys.stderr.write('P30: не найдены пилюли времени на медиа\n')
+    sys.exit(1)
+if mark not in src:
+    src = src.replace('import org.telegram.messenger.AndroidUtilities;',
+                      'import org.telegram.messenger.AndroidUtilities;\n/* ' + mark + ': время на фото/видео - iOS-пилюля вместо скруглённого прямоугольника */', 1)
+io.open(path, 'w', encoding='utf-8').write(src)
+print('ios time pills: %d' % count)
+PY
+    has "$CMC_PATH" "KAMIGRAM_IOS_PILL_TIME" || die "P30: iOS-пилюли времени не применились"
+
+    AB_PATH="$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java"
+    python3 - "$AB_PATH" <<'PY' || die "P30: не удалось сделать iOS-заголовки"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_TITLE'
+anchor = ('        titleTextView[i].setEmojiColor(titleTextView[i].getTextColor());\n'
+          '        titleTextView[i].setTypeface(AndroidUtilities.bold());\n')
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P30: не найден заголовок в ActionBar\n')
+        sys.exit(1)
+    add = (anchor +
+           '        if (org.telegram.messenger.kamigram.KamiGramConfig.iosDesign()) { /* ' + mark + ': iOS-заголовок */\n'
+           '            titleTextView[i].setTextSize(AndroidUtilities.isTablet() ? 20 : 18);\n'
+           '        }\n')
+    src = src.replace(anchor, add, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ios titles applied')
+PY
+    has "$AB_PATH" "KAMIGRAM_IOS_TITLE" || die "P30: iOS-заголовки не применились"
+
+    SA_PATH="$JAVA_ROOT/org/telegram/ui/SettingsActivity.java"
+    python3 - "$SA_PATH" <<'PY' || die "P30: не удалось сделать iOS-карточки настроек"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_CARD'
+old = '                final float r = dp(10);\n'
+if mark not in src:
+    if old not in src:
+        sys.stderr.write('P30: не найден радиус карточки настроек\n')
+        sys.exit(1)
+    new = ('                /* ' + mark + ': карточки настроек как в iOS */\n'
+           '                final float r = dp(org.telegram.messenger.kamigram.KamiGramConfig.iosDesign() ? 14 : 10);\n')
+    src = src.replace(old, new, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ios cards applied')
+PY
+    has "$SA_PATH" "KAMIGRAM_IOS_CARD" || die "P30: iOS-карточки не применились"
+    ok "P30 iOS-ДИЗАЙН 3.0: время на фото/видео — iOS-пилюля, заголовки жирные и крупнее, карточки настроек с iOS-скруглением 14"
+else
+    skip "P30 iOS-дизайн 3.0 отключён (IOS_DESIGN=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO

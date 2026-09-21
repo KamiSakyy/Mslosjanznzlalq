@@ -367,3 +367,18 @@ api_id из своих секретов, а не с публичным ключ�
 | Полоса историй убрана с главного экрана | `DialogsActivity` |
 | Плоская шапка без «стекла», свой шеврон «назад» | `ActionBar.setupGlass`, `ic_ab_back` (P20/P23) |
 | Рекламные блоки Premium/Stars/TON/Business/подарков/«возможностей» скрыты | `SettingsActivity.fillItems` (P28) |
+
+## С. ЕЩЁ БОЛЬШЕ ТРАФИКА В МИНУС И iOS-ДИЗАЙН 3.0 (v12, сборка r34)
+
+| # | Что | Где в коде |
+|---|---|---|
+| 1 | Не грузятся «часто используемые» контакты и топ-пиры (`contacts.getTopPeers`, `toggleTopPeers`, `getContactIDs`) | `KamiGramNetFilter` (список `TOP_PEERS`) |
+| 2 | Реклама и рекомендации не запрашиваются: спонсорские сообщения (`messages.getSponsoredMessages`, `channels.getSponsoredMessages`), рекомендованные каналы (`channels.getChannelRecommendations`), предлагаемые папки (`messages.getSuggestedDialogFilters`), промо (`help.getPromoData`) | список `ADS` |
+| 3 | Поиск GIF, стикеров и инлайн-ботов при вводе текста не уходит на сервер (`messages.searchGifs`, `messages.searchStickers`, `messages.getInlineBotResults`) | список `GIF_SEARCH` |
+| 4 | Недавние реакции не грузятся (`messages.getRecentReactions`) | список `TRASH` |
+| 5 | Время на фото/видео — **iOS-пилюля** (полностью скруглённая) вместо прямоугольника | `ChatMessageCell` (P30) |
+| 6 | Заголовки шапки — жирные и крупнее (iOS 17pt+) | `ActionBar.createTitleTextView` |
+| 7 | Карточки в настройках — iOS-скругление 14 вместо 10 | `SettingsActivity.SettingCell.Background` |
+| 8 | Переключатели всего этого — в экране «KamiGram: функции мода» (11 строк) | `KamiGramSettings` |
+
+Итого в моде: **~42 изменения** (разделы А–С в этом файле), из них 11 — в этой сборке.

@@ -47,6 +47,13 @@ public final class KamiGramConfig {
     /** Убрать рекламные блоки Telegram Premium / Stars / TON / подарков. */
     public static final String KEY_NO_PREMIUM_UI = "kamigram_no_premium_ui";
 
+    /** Реклама и рекомендации: спонсорские сообщения, рекомендованные каналы, папки. */
+    public static final String KEY_NO_ADS = "kamigram_no_ads";
+    /** Не грузить «часто используемые» контакты и топ-пиры. */
+    public static final String KEY_NO_TOP_PEERS = "kamigram_no_top_peers";
+    /** Не искать GIF/стикеры при вводе текста (поиск не уходит на сервер). */
+    public static final String KEY_NO_GIF_SEARCH = "kamigram_no_gif_search";
+
     // ---------------------------------------------------------------- дизайн
     /** iOS-дизайн KamiGram: плоские табы, плоская шапка, свои иконки. */
     public static final String KEY_IOS_DESIGN = "kamigram_ios_design";
@@ -146,6 +153,21 @@ public final class KamiGramConfig {
     /** Премиум-эмодзи показываются обычным эмодзи (файлы не скачиваются). */
     public static boolean noAnimatedEmoji() {
         return get(KEY_NO_ANIMATED_EMOJI);
+    }
+
+    /** Реклама и рекомендации не запрашиваются вообще. */
+    public static boolean noAds() {
+        return get(KEY_NO_ADS);
+    }
+
+    /** «Часто используемые» и топ-пиры не грузятся. */
+    public static boolean noTopPeers() {
+        return get(KEY_NO_TOP_PEERS);
+    }
+
+    /** Поиск GIF/стикеров при вводе не уходит на сервер. */
+    public static boolean noGifSearch() {
+        return get(KEY_NO_GIF_SEARCH);
     }
 
     /** Без рекламных блоков Premium / Stars / TON. */

@@ -51,7 +51,40 @@ public final class KamiGramNetFilter {
         "TL_premium_getMyBoosts",
         "TL_payments_getStarsStatus",
         "TL_payments_getStarsTransactions",
-        "TL_payments_getStarsSubscriptions"
+        "TL_payments_getStarsSubscriptions",
+        "TL_messages_getSponsoredMessages",
+        "TL_channels_getSponsoredMessages",
+        "TL_channels_getChannelRecommendations",
+        "TL_messages_getSuggestedDialogFilters",
+        "TL_messages_getRecentReactions",
+        "TL_messages_searchGifs",
+        "TL_messages_searchStickers",
+        "TL_messages_getInlineBotResults"
+    };
+
+    /** Реклама, спонсорские сообщения и рекомендации - моду не нужны. */
+    private static final String[] ADS = {
+        "TL_messages_getSponsoredMessages",
+        "TL_channels_getSponsoredMessages",
+        "TL_channels_getChannelRecommendations",
+        "TL_messages_getSuggestedDialogFilters",
+        "TL_help_getPromoData",
+        "TL_help_getPremiumPromo"
+    };
+
+    /** «Часто используемые» контакты и топ-пиры: лишний трафик и лишние данные о нас. */
+    private static final String[] TOP_PEERS = {
+        "TL_contacts_getTopPeers",
+        "TL_contacts_toggleTopPeers",
+        "TL_contacts_getLocated",
+        "TL_contacts_getContactIDs"
+    };
+
+    /** Поиск GIF/стикеров/инлайн-ботов при вводе текста. */
+    private static final String[] GIF_SEARCH = {
+        "TL_messages_searchGifs",
+        "TL_messages_searchStickers",
+        "TL_messages_getInlineBotResults"
     };
 
     /** Исходящие действия пользователя по историям - их не блокируем даже при запрете историй. */
@@ -87,7 +120,13 @@ public final class KamiGramNetFilter {
             if (KamiGramConfig.noStories() && isStoryRequest(name)) {
                 return true;
             }
-            if (name.equals("TL_help_getPremiumPromo") || name.equals("TL_messages_getEmojiGameInfo")) {
+            if (KamiGramConfig.noAds() && matches(ADS, name)) {
+                return true;
+            }
+            if (KamiGramConfig.noTopPeers() && matches(TOP_PEERS, name)) {
+                return true;
+            }
+            if (KamiGramConfig.noGifSearch() && matches(GIF_SEARCH, name)) {
                 return true;
             }
             if (matches(TRASH, name)) {
