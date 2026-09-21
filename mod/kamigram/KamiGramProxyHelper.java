@@ -324,7 +324,7 @@ public final class KamiGramProxyHelper {
             builder.setMessage(report);
             builder.setPositiveButton("Retry login", (dialog, which) -> {
                 if (onRetry != null) {
-                    context.postDelayed(onRetry, 300);
+                    AndroidUtilities.runOnUIThread(onRetry, 300);
                 }
             });
             if (proxyEnabled()) {
