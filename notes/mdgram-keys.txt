@@ -1,76 +1,87 @@
-MDGram APK: e7dc2746fb53f75f0bd85b06b16670233c9ab3931ce018c7a41dc2771e1331c9
-размер: 54254500
+dex-файлов: 7
+classes.dex: 8.6 МБ
+classes2.dex: 0.0 МБ
+classes3.dex: 0.6 МБ
+classes4.dex: 7.5 МБ
+classes5.dex: 10.4 МБ
+classes6.dex: 9.5 МБ
+classes7.dex: 9.9 МБ
 
-== известные ключи (проверка, что строки вообще видны) ==
-014b35b6184100b085b0d0572f9b5103 -> 1
-b18441a1ff607e10a989891a5462e627 -> 0
-eb06d4abfb49dc3eeb1aeb98ae0f581e -> 0
-1c5c96d5edd401b1ed40db3fb5633e2d -> 0
-3e0cb5efcd52300aec5994fdfc5bdc16 -> 0
-a3406de8d171bb422bb6ddf3bbd800e2 -> 0
+== известные api_hash в этом APK ==
+НАЙДЕН  014b35b6184100b085b0d0572f9b5103  (Telegram Android / MDGram (публичный))
 
-== все hex-32 строки из dex (кандидаты api_hash), первые 400 ==
+== все 32-символьные hex-строки (кандидаты api_hash) ==
+0000000A1CB4000A1CB4068080800102  
+014b35b6184100b085b0d0572f9b5103  Telegram Android / MDGram (публичный)
+038080801B000100048080800D6C1100  
+051953eb9618e1c9a1f929a21a0b6854  
+0a60b1ce1d7e819d7a431d7c90ea0e5f  
+0eea2da725b99b315f3b8b489918ef10  
+11579208921035624876269744694940  
+11839296a789a3bc0045c8a5fb42c7d1  
+181d9c6efe8141120314088f5013875a  
+18554318339765539424505774633321  
+18554318339765605212255964066145  
+2bce33576b315ececbb6406837bf51f5  
+3031300d060960864801650304020105  
+3051300d060960864801650304020305  
+3617de4a96262c6f5d9e98bf9292dc29  
+39402006196394479212279040100143  
+3e3adec17512775099da2f590b066732  
+42457217714968703290472660882589  
+429c648139053fb521f828af606b4d3d  
+45549772963113914808580371219879  
+4fe342e2fe1a7f9b8ee7eb4a7c0f9e16  
+5502f25dbf55296c3a545e3872760ab7  
+5ac635d8aa3a93e7b3ebbd55769886bc  
+61380507973927046544666794690527  
+61380507973927046544666794829340  
+62c97ee72995ef42640c550b9013fad0  
+651d06b0cc53b0f63bce3c3e27d2604b  
+68647976601306097149819007990813  
+6b17d1f2e12c4247f8bce6e563a440f2  
+6e1d3b628ba79b9859f741e082542a38  
+71975329639963713633211138647686  
+75735299969552241357603424222590  
+75735300861434152903141955336313  
+761353c7086a272c24088be94769fd16  
+77037d812deb33a0f4a13945d898c296  
+93217269435300143305409394463459  
+96276593991132635693989563081522  
+9e156193951ec7e937b1652c0bd3bb1b  
+A16a09e667f3bcc908b2fb1366ea957d  
+aa87ca22be8b05378eb1c71ef320ad74  
+b3312fa7e23ee7e4988e056be3f82d19  
+baa14b5e77efe75928fe1dc127a2ffa8  
+bd998f54449579b446817afbd17273e6  
+c656398d8a2ed19d2a85c8edd3ec2aef  
+c6858e06b70404e9cd9e3ecb662395b4  
+de3348b3c1856a429bf97e7e31c2e5bd  
+f073573df883d2c34f1ef451fd46b503  
+f8f41dbd289a147ce9da3113b5f0b8c0  
+всего кандидатов: 48
 
-== вхождения 'mdgram' и рядом ==
-	MDGram V5
-#Lorg/telegram/ui/MDGramUpdateSheet;
-$Muestra tu nombre en vez de "MDGram"
-%Lorg/telegram/messenger/MDGramConfig;
-%Lorg/telegram/ui/AboutMDGramActivity;
-%Lorg/telegram/ui/MDGramUpdateSheet$1;
-&Lorg/telegram/messenger/MDGramUpdater;
-&Reinicia MDGram para aplicar la fuente
-(Lorg/telegram/ui/MDGramSettingsActivity;
-(https://mdgram-web.vercel.app/api/latest
-)Lorg/telegram/messenger/MDGramTranslator;
-*Lorg/telegram/ui/MDGramSettingsActivity$1;
--Lorg/telegram/ui/Components/MDGramSideDrawer;
--Reinicia MDGram para aplicarlo en todos lados
-.Lorg/telegram/messenger/MDGramResidentService;
-.Lorg/telegram/messenger/MDGramTranslator$1Tag;
-/Lorg/telegram/messenger/MDGramUpdater$Callback;
-/Lorg/telegram/ui/Components/MDGramSideDrawer$1;
-0Lorg/telegram/messenger/MDGramTranslator$Result;
-1Lorg/telegram/messenger/MDGramUpdater$UpdateInfo;
-3lambda$addRow$0$org-telegram-ui-AboutMDGramActivity
-6lambda$fillItems$1$org-telegram-ui-AboutMDGramActivity
-6lambda$fillItems$2$org-telegram-ui-AboutMDGramActivity
-7Lorg/telegram/messenger/MDGramUpdater$DownloadListener;
-8Lorg/telegram/messenger/MDGramTranslator$ResultEntities;
-8Lorg/telegram/ui/MDGramUpdateSheet$GradientProgressView;
-8lambda$new$0$org-telegram-ui-Components-MDGramSideDrawer
-:lambda$createView$0$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$1$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$2$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$3$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$4$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$5$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$6$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$7$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$8$org-telegram-ui-MDGramSettingsActivity
-:lambda$createView$9$org-telegram-ui-MDGramSettingsActivity
-;lambda$createView$10$org-telegram-ui-MDGramSettingsActivity
-<lambda$addItem$8$org-telegram-ui-Components-MDGramSideDrawer
-=Lorg/telegram/ui/MDGramUpdateSheet$$ExternalSyntheticLambda0;
-=Lorg/telegram/ui/MDGramUpdateSheet$$ExternalSyntheticLambda1;
-=Lorg/telegram/ui/MDGramUpdateSheet$$ExternalSyntheticLambda2;
->Ingresa al sitio oficial de MDGram para mantenerte actualizado
-?Lorg/telegram/ui/AboutMDGramActivity$$ExternalSyntheticLambda0;
-?Lorg/telegram/ui/AboutMDGramActivity$$ExternalSyntheticLambda1;
-?Lorg/telegram/ui/AboutMDGramActivity$$ExternalSyntheticLambda2;
-@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda0;
-@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda1;
-@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda2;
-@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda3;
-@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda4;
-@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda5;
-Acerca de MDGram
-Ajustes de MDGram
-Alambda$buildContent$2$org-telegram-ui-Components-MDGramSideDrawer
-Alambda$buildContent$3$org-telegram-ui-Components-MDGramSideDrawer
-Alambda$buildContent$4$org-telegram-ui-Components-MDGramSideDrawer
-Alambda$buildContent$5$org-telegram-ui-Components-MDGramSideDrawer
-Alambda$buildContent$6$org-telegram-ui-Components-MDGramSideDrawer
-Alambda$buildContent$7$org-telegram-ui-Components-MDGramSideDrawer
+== имена, связанные с api_id/версией ==
+APP_ID                 -> есть
+APP_HASH               -> есть
+BUILD_VERSION_STRING   -> есть
+api_id                 -> есть
+api_hash               -> есть
+lang_pack              -> есть
 
-== версия/пакет ==
+== ПРОВЕРКА КЛЮЧЕЙ НА ЖИВОМ СЕРВЕРЕ TELEGRAM ==
+4        MDGram / Telegram Android (публичный)  ApiIdPublishedFloodError: This API id was published somewhere, you can't use it now (caused by SendCodeRequest)
+2040     Telegram Desktop (Win beta)            FloodWaitError: A wait of 31702 seconds is required (caused by SendCodeRequest)
+6        TG for Android (Play)                  ForbiddenError: RPCError 403: RECAPTCHA_CHECK_signup__6LdcRsEqAAAAAHUaNCc1GUe47g5jKlOzbJJiyIZt (caused by 
+5        Public Static Final                    FloodWaitError: A wait of 31698 seconds is required (caused by SendCodeRequest)
+21724    Telegram X (Android)                   ForbiddenError: RPCError 403: RECAPTCHA_CHECK_signup__6LeyH8EqAAAAAG6LDceICH4hDOiG3TK_19lPAQRb (caused by 
+94575    Nicegram / TDLib                       FloodWaitError: A wait of 31693 seconds is required (caused by SendCodeRequest)
+16623    Plus Messenger                         FloodWaitError: A wait of 31691 seconds is required (caused by SendCodeRequest)
+17349    Telegram Desktop (example)             FloodWaitError: A wait of 31689 seconds is required (caused by SendCodeRequest)
+2834     Telegram macOS beta                    FloodWaitError: A wait of 31687 seconds is required (caused by SendCodeRequest)
+9        Public unknown beta                    FloodWaitError: A wait of 31685 seconds is required (caused by SendCodeRequest)
+2496     Telegram Web                           FloodWaitError: A wait of 31683 seconds is required (caused by SendCodeRequest)
+1025907  Telegram Web K                         FloodWaitError: A wait of 31680 seconds is required (caused by SendCodeRequest)
+8        Telegram iOS beta                      ForbiddenError: RPCError 403: RECAPTCHA_CHECK_signup__6LfsY8EqAAAAAJ4jvMOeSyq6zRPYxnVR4HQDPIhm (caused by 
+10840    Telegram Swift                         ForbiddenError: RPCError 403: RECAPTCHA_CHECK_signup__6Le4GpIrAAAAAAOCR2f-ejE4R31BU9Kd2CV5fCAh (caused by 
+2899     Telegram CLI                           FloodWaitError: A wait of 31673 seconds is required (caused by SendCodeRequest)
