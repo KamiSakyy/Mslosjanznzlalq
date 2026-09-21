@@ -1,0 +1,20 @@
+=== mdgram-9.9.3 ===
+sha256: 12f8ce54c69d16ef0b153b3ef7fb18acb4699bb4c01874d26161228f49775561
+
+-- apktool: распаковка smali
+apktool: ошибка
+/home/runner/work/_temp/499dc373-d4af-44eb-a157-d6199b845cf9.sh: line 14: apktool: command not found
+
+-- BuildVars / BuildConfig в smali
+
+-- поиск API_ID / API_HASH по всем smali
+
+-- все hex-32 строки в smali (кандидаты api_hash)
+
+-- все hex-32 строки во всех dex
+   classes.dex: 0
+   classes2.dex: 0
+   classes3.dex: 0
+   classes4.dex: 0
+
+== ПРОВЕРКА КЛЮЧЕЙ НА ЖИВОМ СЕРВЕРЕ TELEGRAM (у каждой пары свой недействительный номер) ==
