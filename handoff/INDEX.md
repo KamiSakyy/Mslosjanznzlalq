@@ -19,6 +19,7 @@
 | `apk/KamiGram-12.10.3-mod-r31.apk` | 35M | `2ec5649018474456...` |
 | `apk/KamiGram-12.10.3-mod-r32.apk` | 35M | `6fd061a21a5e8a1a...` |
 | `apk/KamiGram-12.10.3-mod-r33.apk` | 35M | `ffc855d5c801661b...` |
+| `apk/KamiGram-12.10.3-mod-r34.apk` | 35M | `4ab861cba6283d70...` |
 | `apk/KamiGram-12.10.3-mod-r8.apk` | 35M | `a787e5ce648b222b...` |
 
 ## Исходники версий
@@ -41,6 +42,7 @@
 | `sources/MOD_INFO-12.10.3-mod-r31.txt` | 8.0K |
 | `sources/MOD_INFO-12.10.3-mod-r32.txt` | 8.0K |
 | `sources/MOD_INFO-12.10.3-mod-r33.txt` | 8.0K |
+| `sources/MOD_INFO-12.10.3-mod-r34.txt` | 8.0K |
 | `sources/MOD_INFO-12.10.3-mod-r8.txt` | 4.0K |
 | `sources/changes-12.10.3-mod-r14.patch.gz` | 1.4M |
 | `sources/changes-12.10.3-mod-r14.stat.txt` | 0 |
@@ -68,5 +70,7 @@
 | `sources/changes-12.10.3-mod-r32.stat.txt` | 0 |
 | `sources/changes-12.10.3-mod-r33.patch.gz` | 1.5M |
 | `sources/changes-12.10.3-mod-r33.stat.txt` | 0 |
+| `sources/changes-12.10.3-mod-r34.patch.gz` | 1.5M |
+| `sources/changes-12.10.3-mod-r34.stat.txt` | 0 |
 
-Обновлено: 2026-09-21 15:45 UTC
+Обновлено: 2026-09-21 16:12 UTC
