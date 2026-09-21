@@ -1698,7 +1698,7 @@ fi
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     AK_DIR="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$AK_DIR"
-    for f in KamiGramConfig KamiGramNetFilter KamiGramSettings; do
+    for f in KamiGramConfig KamiGramNetFilter KamiGramSettings KamiGramTheme; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P27: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$AK_DIR/$f.java"
     done
@@ -2040,6 +2040,26 @@ if mark not in src:
 print('stories stealth installed')
 PY
     has "$LA_PATH" "KAMIGRAM_STORIES_STEALTH" || die "P31: призрак для историй не встал"
+    python3 - "$LA_PATH" <<'PY' || die "P33: не удалось применить iOS-цвета кодом"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_COLORS'
+anchor = '        /* KAMIGRAM_STORIES_STEALTH: призрак для историй - просмотры не записываются */'
+if mark not in src:
+    idx = src.find(anchor)
+    if idx < 0:
+        sys.stderr.write('P33: не найдена точка запуска мода')
+        sys.exit(1)
+    line_end = src.find('\n', idx) + 1
+    src = (src[:line_end]
+           + '        /* ' + mark + ': iOS-цвета KamiGram задаются кодом при каждом запуске */\n'
+           + '        org.telegram.messenger.kamigram.KamiGramTheme.apply();\n'
+           + src[line_end:])
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ios colors hooked')
+PY
+    has "$LA_PATH" "KAMIGRAM_IOS_COLORS" || die "P33: iOS-цвета не подключились"
     ok "P31 ПРИЗРАК ДЛЯ ИСТОРИЙ: при запуске мод включает серверную невидимку историй (просмотры не записываются), превью ссылок и веб-страницы не подгружаются"
 else
     skip "P31 призрак для историй отключён (ZERO_TRAFFIC=0)"
@@ -2093,6 +2113,20 @@ PY
     ok "P32 iOS-ДИЗАЙН 4.0: разделители списка чатов с iOS-отступом, служебные сообщения и пилюли времени — полностью скруглённые (стадион)"
 else
     skip "P32 iOS-дизайн 4.0 отключён (IOS_DESIGN=0)"
+fi
+
+# =============================================================================
+# P50. БОЛЬШОЙ ПАКЕТ УЛУЧШЕНИЙ: отсечки трафика, экономия батареи, чистка
+#      интерфейса, iOS-цвета и мелочи дизайна. Каждое улучшение проверяется по
+#      маркеру, отчёт пишется в MOD_FEATURES.txt, при неполном пакете — ошибка.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    python3 "$KAMIGRAM_SRC/apply_extra_patches.py" || die "P50: пакет улучшений применился не полностью"
+    [ -f "$TG_DIR/MOD_FEATURES.txt" ] || die "P50: нет отчёта MOD_FEATURES.txt"
+    FEATURES_COUNT=$(grep -c . "$TG_DIR/MOD_FEATURES.txt" || true)
+    ok "P50 ПАКЕТ УЛУЧШЕНИЙ: применено пунктов — $FEATURES_COUNT (список: MOD_FEATURES.txt)"
+else
+    skip "P50 пакет улучшений отключён (ZERO_TRAFFIC=0)"
 fi
 
 # =============================================================================

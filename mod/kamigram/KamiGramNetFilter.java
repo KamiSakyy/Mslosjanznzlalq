@@ -11,11 +11,13 @@ import org.telegram.tgnet.tl.TL_stories;
  * Всё, что жрёт интернет впустую, отсекается ДО выхода в сеть - в одном месте:
  *   - стикеры, наборы эмодзи и премиум-эмодзи (запросы и сами файлы .tgs/.webm);
  *   - истории: списки, просмотры и медиа;
- *   - рекламные блоки Telegram Premium;
+ *   - реклама: спонсорские сообщения, промо, Telegram Premium, Stars, бусты;
+ *   - рекомендации, «часто используемые», превью ссылок, телефонная книга;
  *   - в режиме «призрак» - подтверждения прочтения, «печатает» и статус «в сети».
  *
- * Каждый пункт включается своим переключателем в настройках мода (KamiGramConfig),
- * по умолчанию все включены.
+ * ВАЖНО про имена: в исходниках Telegram часть запросов объявлена как
+ * `TL_messages_getWebPage`, а часть - просто `getWebPage` внутри класса `TL_messages`.
+ * Поэтому имя собирается из класса-владельца и простого имени, и проверяются оба варианта.
  */
 public final class KamiGramNetFilter {
 
@@ -32,36 +34,6 @@ public final class KamiGramNetFilter {
         "TL_stories_incrementStoryViews"
     };
 
-    /**
-     * Чисто «телеграмовский» трафик, который моду не нужен: реклама Premium/Stars,
-     * бусты, цветовые палитры, наборы GIF и музыки. Ничего полезного в этих
-     * запросах нет - только мегабайты и лишние данные о пользователе.
-     */
-    private static final String[] TRASH = {
-        "TL_help_getPremiumPromo",
-        "TL_help_getPromoData",
-        "TL_help_getPeerColors",
-        "TL_help_getPeerProfileColors",
-        "TL_messages_getEmojiGameInfo",
-        "TL_messages_getSavedGifs",
-        "TL_messages_getSavedMusic",
-        "TL_messages_getSavedReactionTags",
-        "TL_premium_getBoostsStatus",
-        "TL_premium_getBoostsList",
-        "TL_premium_getMyBoosts",
-        "TL_payments_getStarsStatus",
-        "TL_payments_getStarsTransactions",
-        "TL_payments_getStarsSubscriptions",
-        "TL_messages_getSponsoredMessages",
-        "TL_channels_getSponsoredMessages",
-        "TL_channels_getChannelRecommendations",
-        "TL_messages_getSuggestedDialogFilters",
-        "TL_messages_getRecentReactions",
-        "TL_messages_searchGifs",
-        "TL_messages_searchStickers",
-        "TL_messages_getInlineBotResults"
-    };
-
     /** Реклама, спонсорские сообщения и рекомендации - моду не нужны. */
     private static final String[] ADS = {
         "TL_messages_getSponsoredMessages",
@@ -69,18 +41,19 @@ public final class KamiGramNetFilter {
         "TL_channels_getChannelRecommendations",
         "TL_messages_getSuggestedDialogFilters",
         "TL_help_getPromoData",
-        "TL_help_getPremiumPromo"
+        "TL_help_getPremiumPromo",
+        "TL_contacts_getSponsoredPeers"
     };
 
     /** «Часто используемые» контакты и топ-пиры: лишний трафик и лишние данные о нас. */
     private static final String[] TOP_PEERS = {
         "TL_contacts_getTopPeers",
         "TL_contacts_toggleTopPeers",
-        "TL_contacts_getLocated",
-        "TL_contacts_getContactIDs"
+        "TL_contacts_resetTopPeerRating",
+        "TL_contacts_search"
     };
 
-    /** Поиск GIF/стикеров/инлайн-ботов при вводе текста. */
+    /** Поиск GIF, стикеров и инлайн-ботов при вводе текста. */
     private static final String[] GIF_SEARCH = {
         "TL_messages_searchGifs",
         "TL_messages_searchStickers",
@@ -93,6 +66,23 @@ public final class KamiGramNetFilter {
         "TL_messages_getWebPagePreview",
         "TL_messages_getExtendedMedia",
         "TL_messages_getFactCheck"
+    };
+
+    /**
+     * Чисто «телеграмовский» трафик, который моду не нужен: реклама Premium/Stars,
+     * бусты, наборы GIF и музыки. Ничего полезного в этих запросах нет.
+     */
+    private static final String[] TRASH = {
+        "TL_help_getPremiumPromo",
+        "TL_help_getPromoData",
+        "TL_messages_getEmojiGameInfo",
+        "TL_messages_getSavedGifs",
+        "TL_messages_getSavedReactionTags",
+        "TL_premium_getBoostsStatus",
+        "TL_premium_getBoostsList",
+        "TL_premium_getMyBoosts",
+        "TL_payments_getStarsStatus",
+        "TL_payments_getStarsTransactions"
     };
 
     /** Исходящие действия пользователя по историям - их не блокируем даже при запрете историй. */
@@ -115,34 +105,34 @@ public final class KamiGramNetFilter {
             return false;
         }
         try {
-            final String name = object.getClass().getSimpleName();
-            if (name == null || name.length() == 0) {
+            final String[] names = requestNames(object);
+            if (names == null) {
                 return false;
             }
-            if (KamiGramConfig.ghostMode() && matches(GHOST, name)) {
+            final String simple = names[0];
+            final String full = names[1];
+            if (KamiGramConfig.ghostMode() && (hit(GHOST, simple) || hit(GHOST, full))) {
                 return true;
             }
-            if (KamiGramConfig.noStickers() && isStickerRequest(name)) {
+            if (KamiGramConfig.noStickers() && isStickerRequest(full, simple)) {
                 return true;
             }
-            if (KamiGramConfig.noStories() && isStoryRequest(name)) {
+            if (KamiGramConfig.noStories() && isStoryRequest(full, simple)) {
                 return true;
             }
-            if (KamiGramConfig.noAds() && matches(ADS, name)) {
+            if (KamiGramConfig.noAds() && (hit(ADS, simple) || hit(ADS, full))) {
                 return true;
             }
-            if (KamiGramConfig.noTopPeers() && matches(TOP_PEERS, name)) {
+            if (KamiGramConfig.noTopPeers() && (hit(TOP_PEERS, simple) || hit(TOP_PEERS, full))) {
                 return true;
             }
-            if (KamiGramConfig.noGifSearch() && matches(GIF_SEARCH, name)) {
+            if (KamiGramConfig.noGifSearch() && (hit(GIF_SEARCH, simple) || hit(GIF_SEARCH, full))) {
                 return true;
             }
-            if (KamiGramConfig.noLinkPreview() && matches(LINK_PREVIEW, name)) {
+            if (KamiGramConfig.noLinkPreview() && (hit(LINK_PREVIEW, simple) || hit(LINK_PREVIEW, full))) {
                 return true;
             }
-            if (matches(TRASH, name)) {
-                return true;
-            }
+            return hit(TRASH, simple) || hit(TRASH, full);
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -167,7 +157,23 @@ public final class KamiGramNetFilter {
         return false;
     }
 
-    private static boolean matches(String[] list, String name) {
+    /** [простое имя, имя с пространством: TL_messages_getWebPage]. */
+    private static String[] requestNames(TLObject object) {
+        final Class<?> cls = object.getClass();
+        final String simple = cls.getSimpleName();
+        if (simple == null || simple.length() == 0) {
+            return null;
+        }
+        if (simple.indexOf('_') > 0) {
+            // уже с пространством имён: TL_messages_getWebPage
+            return new String[] {simple, simple};
+        }
+        final Class<?> enclosing = cls.getEnclosingClass();
+        final String full = enclosing == null ? simple : enclosing.getSimpleName() + "_" + simple;
+        return new String[] {simple, full};
+    }
+
+    private static boolean hit(String[] list, String name) {
         for (int a = 0; a < list.length; a++) {
             if (list[a].equals(name)) {
                 return true;
@@ -177,26 +183,24 @@ public final class KamiGramNetFilter {
     }
 
     /** Запросы про стикеры, наборы эмодзи и премиум-эмодзи. */
-    private static boolean isStickerRequest(String name) {
-        if (name.startsWith("TL_messages_")) {
-            final String rest = name.substring("TL_messages_".length());
-            if (rest.contains("EmojiKeywords")) {
-                // подсказки клавиатуры эмодзи оставляем: они крошечные и нужны для поиска
-                return false;
-            }
-            if (rest.contains("Sticker") || rest.contains("Emoji")) {
-                return true;
-            }
+    private static boolean isStickerRequest(String full, String simple) {
+        if (!full.startsWith("TL_messages_") && !simple.startsWith("TL_messages_")) {
+            return false;
         }
-        return false;
+        final String rest = full.startsWith("TL_messages_") ? full.substring("TL_messages_".length()) : simple;
+        if (rest.contains("EmojiKeywords")) {
+            // подсказки клавиатуры эмодзи оставляем: они крошечные и нужны для поиска
+            return false;
+        }
+        return rest.contains("Sticker") || rest.contains("Emoji");
     }
 
     /** Запросы про истории (все, кроме исходящих действий самого пользователя). */
-    private static boolean isStoryRequest(String name) {
-        if (!name.startsWith("TL_stories_")) {
+    private static boolean isStoryRequest(String full, String simple) {
+        if (!full.startsWith("TL_stories_") && !simple.startsWith("TL_stories_")) {
             return false;
         }
-        return !matches(STORY_ACTIONS, name);
+        return !(hit(STORY_ACTIONS, full) || hit(STORY_ACTIONS, simple));
     }
 
     /** Документ - стикер или премиум-эмодзи. */
