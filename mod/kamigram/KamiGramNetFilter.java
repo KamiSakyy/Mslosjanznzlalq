@@ -73,6 +73,19 @@ public final class KamiGramNetFilter {
      * бусты, наборы GIF и музыки. Ничего полезного в этих запросах нет.
      */
     private static final String[] TRASH = {
+        // премиум-украшения, эффекты сообщений, эмодзи-статусы и «доступные реакции»
+        // для эффектов: всё это тяжёлые файлы, а мод их всё равно не показывает
+        "TL_messages_getAvailableEffects",
+        "TL_messages_getEmojiStickers",
+        "TL_messages_getEmojiStatuses",
+        "TL_messages_getFeaturedEmojiStickers",
+        "TL_messages_getEmojiGroups",
+        "TL_messages_getStickerSet",
+        "TL_messages_getAttachedStickers",
+        "TL_messages_searchEmojiStickers",
+        "TL_messages_getQuickReplies",
+        "TL_account_getRecentEmojiStatuses",
+        "TL_contacts_getLocated",
         "TL_help_getPremiumPromo",
         "TL_help_getPromoData",
         "TL_messages_getEmojiGameInfo",
@@ -151,6 +164,9 @@ public final class KamiGramNetFilter {
             if (KamiGramConfig.noStickers() && isStickerDocument(document)) {
                 return denyFile(document);
             }
+            if (KamiGramConfig.noGifs() && isGifDocument(document)) {
+                return denyFile(document);
+            }
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -226,6 +242,38 @@ public final class KamiGramNetFilter {
     }
 
     /** Документ - стикер или премиум-эмодзи. */
+    /**
+     * GIF и анимации (.mp4/.webm с флагом animated): в запросе пользователя они
+     * не должны грузиться, как стикеры. Автопроигрывание при этом выключено
+     * отдельно (P70), поэтому картинка вообще не оживает без нажатия.
+     */
+    private static boolean isGifDocument(TLRPC.Document document) {
+        if (document == null) {
+            return false;
+        }
+        final String mime = document.mime_type;
+        if (mime == null) {
+            return false;
+        }
+        final boolean video = mime.startsWith("video/");
+        if (!video) {
+            return false;
+        }
+        if (document.attributes != null) {
+            for (int a = 0; a < document.attributes.size(); a++) {
+                final TLRPC.DocumentAttribute attribute = document.attributes.get(a);
+                if (attribute instanceof TLRPC.TL_documentAttributeAnimated) {
+                    return true;
+                }
+                if (attribute instanceof TLRPC.TL_documentAttributeVideo
+                    && ((TLRPC.TL_documentAttributeVideo) attribute).round_message) {
+                    return false; // кружки пользователь смотрит сам — их не трогаем
+                }
+            }
+        }
+        return "video/mp4".equals(mime) || "video/webm".equals(mime);
+    }
+
     private static boolean isStickerDocument(TLRPC.Document document) {
         if (document == null) {
             return false;
