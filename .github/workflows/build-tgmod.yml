@@ -428,7 +428,7 @@ jobs:
             echo "| SHA-256 | \`${{ steps.apk.outputs.sha || '—' }}\` |"
             echo "| исходники | DrKLO/Telegram @ \`$TG_REF\` |"
             echo
-            echo "API-ключи не использовались: сборка идёт на официальных встроенных APP_ID/APP_HASH."
+            echo "Ключ Telegram: в сборку вшит рабочий api_id (сервер отклоняет только примерный api_id = 4 с ошибкой API_ID_PUBLISHED_FLOOD)."
           } >> "$GITHUB_STEP_SUMMARY"
           [ -f telegram-src/MOD_INFO.txt ] && cat telegram-src/MOD_INFO.txt || true
 

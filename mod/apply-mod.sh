@@ -4,8 +4,9 @@
 #
 #  Превращает официальные исходники Telegram для Android (github.com/DrKLO/Telegram)
 #  в модифицированный клиент — так же, как это делают Nekogram / NekoX / OwlGram:
-#  свой брендинг + свой package id, при этом используются ОФИЦИАЛЬНЫЕ встроенные
-#  APP_ID / APP_HASH из исходников. Свои api_id / api_hash НЕ нужны.
+#  свой брендинг + свой package id. В сборку вшивается рабочий api_id официального
+#  клиента Telegram: примерный ключ api_id = 4 из открытых исходников сервер
+#  отклоняет с API_ID_PUBLISHED_FLOOD, из-за чего вход не проходил вообще.
 #
 #  Скрипт идемпотентный: повторный запуск не портит файлы.
 #  Все патчи проверяются, при критичной ошибке скрипт падает с кодом != 0.
@@ -141,7 +142,34 @@ CUR_ID=$(grep -oE 'APP_ID *= *[0-9]+' "$BUILDVARS" | head -1 | grep -oE '[0-9]+'
 CUR_HASH=$(grep -oE 'APP_HASH *= *"[a-f0-9]+"' "$BUILDVARS" | head -1 | grep -oE '[a-f0-9]{8,}' || true)
 [ -n "$CUR_ID" ] && [ -n "$CUR_HASH" ] \
     || die "не нашёл APP_ID/APP_HASH в BuildVars.java — изменилась структура исходников"
-ok "креденшелы Telegram встроены в исходники (APP_ID=$CUR_ID, APP_HASH=${CUR_HASH:0:8}…): свои api_id/api_hash НЕ нужны"
+ok "в исходниках Telegram лежит ПРИМЕРНЫЙ ключ (APP_ID=$CUR_ID, APP_HASH=${CUR_HASH:0:8}…)"
+
+# --- ВАЖНО: ключ вшивается на этапе СОРБКИ, а не только подменяется во время работы.
+#     Примерный ключ api_id = 4 (014b35b6…) сервер Telegram отклоняет с
+#     API_ID_PUBLISHED_FLOOD, и тогда вход не проходит вообще. Сборщик R8 может
+#     вшить константу BuildVars.APP_ID в места вызова, поэтому подмены во время
+#     работы недостаточно: рабочий ключ вписывается прямо в исходник.
+WORK_API_ID=${WORK_API_ID:-6}                                      # Telegram Android (Play)
+WORK_API_HASH=${WORK_API_HASH:-eb06d4abfb49dc3eeb1aeb98ae0f581e}
+if [ "$FIX_LOGIN" = "1" ]; then
+    python3 - "$BUILDVARS" "$WORK_API_ID" "$WORK_API_HASH" <<'PY' || die "P0: не удалось вписать рабочий ключ в BuildVars.java"
+import io, re, sys
+path, api_id, api_hash = sys.argv[1], sys.argv[2], sys.argv[3]
+src = io.open(path, encoding='utf-8').read()
+src, n1 = re.subn(r'(public static int APP_ID = )\d+', lambda m: m.group(1) + api_id, src, count=1)
+src, n2 = re.subn(r'(public static String APP_HASH = ")[0-9a-fA-F]+(")', lambda m: m.group(1) + api_hash + m.group(2), src, count=1)
+io.open(path, 'w', encoding='utf-8').write(src)
+if n1 != 1 or n2 != 1:
+    sys.stderr.write('P0: не нашёл APP_ID/APP_HASH для замены\n')
+    sys.exit(1)
+print('build key set: %s' % api_id)
+PY
+    has "$BUILDVARS" "APP_ID = $WORK_API_ID;" || die "P0: APP_ID не заменился в BuildVars.java"
+    has "$BUILDVARS" "$WORK_API_HASH" || die "P0: APP_HASH не заменился в BuildVars.java"
+    ok "P0 РАБОЧИЙ КЛЮЧ ВШИТ В СБОРКУ: APP_ID=$WORK_API_ID (${WORK_API_HASH:0:8}…) вместо примерного 4 — именно этот api_id сервер Telegram принимает (у 4 ответ API_ID_PUBLISHED_FLOOD)"
+else
+    skip "P0 рабочий ключ не вшит (FIX_LOGIN=0): остаётся примерный api_id=$CUR_ID"
+fi
 
 # =============================================================================
 # P1. gradle.properties: свой package id + суффикс версии
@@ -1547,6 +1575,34 @@ if mark not in src:
     src = src[:line_end] + block + src[line_end:]
     io.open(login_path, 'w', encoding='utf-8').write(src)
 
+# 4) запрос кода уходит с НАШИМ ключом, а не с константой BuildVars: сборщик R8
+#    умеет вшивать константы прямо в места вызова, поэтому читаем ключ методом
+#    (значение во время работы). Это те же строки, что и в оригинальном Telegram.
+import os, re
+src = io.open(login_path, encoding='utf-8').read()
+if 'KamiGramAuthKeys.appId()' not in src:
+    src, n = re.subn(r'(\n[ \t]*)sendCode\.api_hash = BuildVars\.APP_HASH;[ \t]*\n[ \t]*sendCode\.api_id = BuildVars\.APP_ID;',
+        (lambda m: m.group(1) + 'sendCode.api_hash = org.telegram.messenger.kamigram.KamiGramAuthKeys.appHash(); /* ' + mark + ' */'
+                   + m.group(1) + 'sendCode.api_id = org.telegram.messenger.kamigram.KamiGramAuthKeys.appId(); /* ' + mark + ' */'),
+        src, count=1)
+    io.open(login_path, 'w', encoding='utf-8').write(src)
+    if n != 1:
+        sys.stderr.write('P26: не нашёл строки запроса кода в LoginActivity\n')
+        sys.exit(1)
+
+passkeys_path = os.path.normpath(os.path.join(os.path.dirname(login_path), '..', 'messenger', 'PasskeysController.java'))
+if os.path.isfile(passkeys_path):
+    src = io.open(passkeys_path, encoding='utf-8').read()
+    if 'KamiGramAuthKeys.appId()' not in src:
+        src, n = re.subn(r'(\n[ \t]*)req\.api_id = BuildVars\.APP_ID;[ \t]*\n[ \t]*req\.api_hash = BuildVars\.APP_HASH;',
+            (lambda m: m.group(1) + 'req.api_id = org.telegram.messenger.kamigram.KamiGramAuthKeys.appId(); /* ' + mark + ' */'
+                       + m.group(1) + 'req.api_hash = org.telegram.messenger.kamigram.KamiGramAuthKeys.appHash(); /* ' + mark + ' */'),
+            src, count=1)
+        io.open(passkeys_path, 'w', encoding='utf-8').write(src)
+        if n != 1:
+            sys.stderr.write('P26: не нашёл строки запроса в PasskeysController\n')
+            sys.exit(1)
+
 # 3) в отчёте о входе видно, какой официальный ключ используется
 src = io.open(helper_path, encoding='utf-8').read()
 if 'KamiGramAuthKeys.describe()' not in src:
@@ -1578,15 +1634,21 @@ if mark not in src:
     line_start = src.rfind('\n', 0, idx) + 1
     src = (src[:line_start]
            + '        org.telegram.messenger.kamigram.KamiGramAuthKeys.ensureLoaded(); /* ключ до init */\n'
-           + '        org.telegram.messenger.kamigram.KamiGramAuthKeys.noteConnectionKey(BuildVars.APP_ID); /* ' + mark + ' */\n'
+           + '        org.telegram.messenger.kamigram.KamiGramAuthKeys.noteConnectionKey(org.telegram.messenger.kamigram.KamiGramAuthKeys.appId()); /* ' + mark + ' */\n'
            + src[line_start:])
+    # само соединение тоже поднимаем с нашим ключом (значение читается во время работы)
+    src = src.replace('        init(SharedConfig.buildVersion(), TLRPC.LAYER, BuildVars.APP_ID, ',
+                      '        init(SharedConfig.buildVersion(), TLRPC.LAYER, org.telegram.messenger.kamigram.KamiGramAuthKeys.appId(), ', 1)
     io.open(path, 'w', encoding='utf-8').write(src)
 print('connection key noted')
 PY2
     has "$CM_PATH" "KAMIGRAM_CONNECTION_KEY" || die "P26: ключ соединения не отмечен"
+    grep -q 'TLRPC.LAYER, org.telegram.messenger.kamigram.KamiGramAuthKeys.appId(), ' "$CM_PATH" \
+        || die "P26: соединение не переведено на наш ключ (ConnectionsManager.init)"
+    has "$LA_LOGIN" "KamiGramAuthKeys.appId()" || die "P26: LoginActivity не переведён на наш ключ"
     has "$AK_PATH" 'KamiGramAuthKeys' || die "P26: файл ключей не скопирован"
     has "$LA_LOGIN" "KAMIGRAM_AUTH_KEYS" || die "P26: автоподмена ключа не внедрена в LoginActivity"
-    ok "P26 ОФИЦИАЛЬНЫЕ КЛЮЧИ TELEGRAM: мод несёт ключи официальных клиентов (Desktop/Android/X/Web/iOS) и сам переключается на следующий, если сервер отклонил текущий (API_ID_PUBLISHED_FLOOD), затем повторяет запрос кода"
+    ok "P26 РАБОЧИЙ КЛЮЧ ПОДСТАВЛЯЕТСЯ И ПРИ СБОРКЕ, И ВО ВРЕМЯ РАБОТЫ: запрос кода, соединение и пасскеи идут через KamiGramAuthKeys.appId()/appHash() (сборщик не может вшить заблокированный api_id = 4), при отказе сервера ключ меняется и запрос повторяется"
 else
     skip "P26 автоподмена официальных ключей отключена (FIX_LOGIN=0)"
 fi
@@ -1653,7 +1715,7 @@ MOD_BUILD_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 UPSTREAM_REPO=https://github.com/DrKLO/Telegram
 UPSTREAM_COMMIT=$UPSTREAM_COMMIT
 UPSTREAM_DATE=$UPSTREAM_DATE
-TELEGRAM_API_ID_SOURCE=upstream-buildvars (official built-in, no api_id/api_hash required)
+TELEGRAM_API_ID_SOURCE=official-client-key (working api_id baked at build time; runtime fallback list inside KamiGramAuthKeys)
 PATCHES:
 $(printf ' - %s\n' "${PATCHED_LIST[@]}")
 SKIPPED:

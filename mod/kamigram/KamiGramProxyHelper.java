@@ -335,7 +335,7 @@ public final class KamiGramProxyHelper {
         try {
             final int account = UserConfig.selectedAccount;
             text.append("Build: ").append(BuildVars.BUILD_VERSION_STRING)
-                .append(", api_id ").append(BuildVars.APP_ID).append('\n');
+                .append(", api_id ").append(KamiGramAuthKeys.appId()).append('\n');
             if (context != null) {
                 text.append("Package: ").append(context.getPackageName()).append('\n');
                 text.append("Cert SHA-256: ").append(signatureHash(context)).append("...\n");

@@ -8,7 +8,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.os.Build;
 import android.os.Process;
-import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -22,17 +21,22 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
 import java.io.File;
+import java.util.Locale;
 import java.util.TimeZone;
 
 /**
  * KamiGram: рабочие ключи Telegram с автоподменой.
  *
- * Проверено на живом сервере Telegram: api_id = 4 (ключ, который лежит в открытом
- * репозитории Telegram и в моде MDGram) сервер отклоняет с API_ID_PUBLISHED_FLOOD,
- * поэтому вход не проходит. Остальные официальные ключи сервер принимает.
+ * Почему это нужно: в открытых исходниках Telegram лежит ПРИМЕРНЫЙ api_id = 4
+ * (api_hash 014b35b6…). Telegram прямо предупреждает, что этот ключ опубликован и
+ * для обычных пользователей он даёт ошибку API_ID_PUBLISHED_FLOOD — вход не проходит.
+ * Проверено на живом сервере: api_id = 4 сервер отклоняет, остальные официальные
+ * ключи клиентов Telegram сервер принимает.
  *
- * KamiGram начинает с проверенного ключа и, если сервер всё равно откажет по ключу,
- * сам переключается на следующий и повторяет запрос кода.
+ * Здесь ключ хранится в СВОИХ полях (currentId / currentHash), а не только в
+ * BuildVars: сборщик (R8) может вшить константу BuildVars.APP_ID прямо в места
+ * вызова, и тогда подмена поля во время работы не сработала бы. Методы appId() и
+ * appHash() всегда читают актуальное значение во время работы.
  */
 public final class KamiGramAuthKeys {
 
@@ -74,7 +78,10 @@ public final class KamiGramAuthKeys {
         "Telegram macOS beta", "Telegram public beta", "Telegram CLI"
     };
     /** Новый ключ настройки: старый индекс мог указывать на заблокированный api_id = 4. */
-    private static final String KEY_INDEX = "kamigram_api_key_index_v3";
+    private static final String KEY_INDEX = "kamigram_api_key_index_v4";
+    /** Свой ключ (если пользователь вписал api_id/api_hash от my.telegram.org). */
+    private static final String OWN_ID = "kamigram_own_api_id";
+    private static final String OWN_HASH = "kamigram_own_api_hash";
 
     private static int index;
 
@@ -84,6 +91,13 @@ public final class KamiGramAuthKeys {
     /** Ключ, с которым реально инициализировано соединение (его видит сервер). */
     private static volatile int connectionKey;
 
+    /** Актуальные значения для сети: читаются во время работы, а не вшиты сборщиком. */
+    private static volatile int currentId = IDS[0];
+    private static volatile String currentHash = HASHES[0];
+
+    /** Используется свой ключ вместо списка официальных. */
+    private static volatile boolean ownKey;
+
     private KamiGramAuthKeys() {
     }
 
@@ -91,7 +105,36 @@ public final class KamiGramAuthKeys {
         return MessagesController.getGlobalMainSettings();
     }
 
-    /** Читает выбранный ключ и подставляет его в BuildVars до старта сетевого слоя. */
+    /** Ключ, который уйдёт на сервер (api_id). */
+    public static int appId() {
+        return currentId;
+    }
+
+    /** Ключ, который уйдёт на сервер (api_hash). */
+    public static String appHash() {
+        return currentHash;
+    }
+
+    /** Свой ключ задан? */
+    public static boolean hasOwnKey() {
+        return ownKey;
+    }
+
+    private static boolean looksLikeHash(String hash) {
+        if (hash == null || hash.length() != 32) {
+            return false;
+        }
+        for (int a = 0; a < hash.length(); a++) {
+            final char c = hash.charAt(a);
+            final boolean hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!hex) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Читает выбранный ключ и подставляет его в сеть до старта соединения. */
     public static void load() {
         try {
             final SharedPreferences preferences = preferences();
@@ -100,9 +143,16 @@ public final class KamiGramAuthKeys {
                 apply();
                 return;
             }
-            index = preferences.getInt(KEY_INDEX, 0);
-            if (index < 0 || index >= IDS.length) {
-                index = 0;
+            final int ownId = preferences.getInt(OWN_ID, 0);
+            final String ownHash = preferences.getString(OWN_HASH, "");
+            if (ownId > 0 && looksLikeHash(ownHash)) {
+                ownKey = true;
+            } else {
+                ownKey = false;
+                index = preferences.getInt(KEY_INDEX, 0);
+                if (index < 0 || index >= IDS.length) {
+                    index = 0;
+                }
             }
             apply();
             loaded = true;
@@ -112,7 +162,7 @@ public final class KamiGramAuthKeys {
     }
 
     /**
-     * Гарантирует, что BuildVars уже содержит нужный ключ ДО init соединения.
+     * Гарантирует, что в сеть уже уходит нужный ключ ДО init соединения.
      * Вызывается из ConnectionsManager: в onCreate приложения контекст ещё не готов,
      * из-за чего ключ не подставлялся и в сеть уходил прежний (заблокированный) api_id.
      */
@@ -123,13 +173,37 @@ public final class KamiGramAuthKeys {
         apply();
     }
 
+    /** Подставляет актуальный ключ и в свои поля, и в BuildVars (совместимость). */
     public static void apply() {
-        BuildVars.APP_ID = IDS[index];
-        BuildVars.APP_HASH = HASHES[index];
+        try {
+            final SharedPreferences preferences = preferences();
+            if (preferences != null) {
+                final int ownId = preferences.getInt(OWN_ID, 0);
+                final String ownHash = preferences.getString(OWN_HASH, "");
+                ownKey = ownId > 0 && looksLikeHash(ownHash);
+                if (ownKey) {
+                    currentId = ownId;
+                    currentHash = ownHash.toLowerCase(Locale.US);
+                }
+            }
+            if (!ownKey) {
+                currentId = IDS[index];
+                currentHash = HASHES[index];
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+            currentId = IDS[index];
+            currentHash = HASHES[index];
+        }
+        BuildVars.APP_ID = currentId;
+        BuildVars.APP_HASH = currentHash;
     }
 
     /** Для отчёта о входе. */
     public static String describe() {
+        if (ownKey) {
+            return currentId + " (свой ключ)";
+        }
         return IDS[index] + " (" + NAMES[index] + ")";
     }
 
@@ -143,20 +217,26 @@ public final class KamiGramAuthKeys {
      */
     public static boolean switchNext(Context context, String reason) {
         try {
-            if (!hasNext()) {
-                return false;
-            }
-            index++;
-            final SharedPreferences preferences = preferences();
-            if (preferences != null) {
-                preferences.edit().putInt(KEY_INDEX, index).commit();
+            if (ownKey) {
+                // свой ключ сервер не принял — возвращаемся к проверенным официальным
+                final SharedPreferences preferences = preferences();
+                if (preferences != null) {
+                    preferences.edit().putInt(OWN_ID, 0).putString(OWN_HASH, "").commit();
+                }
+                ownKey = false;
+                index = 0;
+            } else {
+                if (!hasNext()) {
+                    return false;
+                }
+                index++;
+                final SharedPreferences preferences = preferences();
+                if (preferences != null) {
+                    preferences.edit().putInt(KEY_INDEX, index).commit();
+                }
             }
             apply();
             reconnect();
-            if (context != null) {
-                Toast.makeText(context, "KamiGram: " + reason + " - switched to the Telegram key "
-                    + describe(), Toast.LENGTH_LONG).show();
-            }
             return true;
         } catch (Throwable e) {
             FileLog.e(e);
@@ -231,7 +311,7 @@ public final class KamiGramAuthKeys {
             final int timezoneOffset = (TimeZone.getDefault().getRawOffset() + TimeZone.getDefault().getDSTSavings()) / 1000;
             final UserConfig userConfig = UserConfig.getInstance(account);
             final boolean userPremium = userConfig.getCurrentUser() != null && userConfig.getCurrentUser().premium;
-            connectionsManager.init(SharedConfig.buildVersion(), TLRPC.LAYER, BuildVars.APP_ID,
+            connectionsManager.init(SharedConfig.buildVersion(), TLRPC.LAYER, appId(),
                 deviceModel, systemVersion, appVersion, langCode, systemLangCode, config.toString(),
                 FileLog.getNetworkLogPath(), pushString, AndroidUtilities.getCertificateSHA256Fingerprint(),
                 timezoneOffset, userConfig.getClientUserId(), userPremium, true);
