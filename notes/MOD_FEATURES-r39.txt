@@ -1,0 +1,215 @@
+  1. [Отсечка трафика] TL_messages_getSponsoredMessages — реклама в каналах не запрашивается — KamiGramNetFilter
+  2. [Отсечка трафика] TL_channels_getChannelRecommendations — рекомендованные каналы не запрашиваются — KamiGramNetFilter
+  3. [Отсечка трафика] TL_contacts_getSponsoredPeers — спонсорские «похожие» контакты не запрашиваются — KamiGramNetFilter
+  4. [Отсечка трафика] TL_help_getPremiumPromo — реклама Telegram Premium не запрашивается — KamiGramNetFilter
+  5. [Отсечка трафика] TL_help_getPromoData — промо-блок не запрашивается — KamiGramNetFilter
+  6. [Отсечка трафика] TL_premium_getBoostsStatus — бусты канала не запрашиваются — KamiGramNetFilter
+  7. [Отсечка трафика] TL_premium_getBoostsList — список бустов не запрашивается — KamiGramNetFilter
+  8. [Отсечка трафика] TL_premium_getMyBoosts — мои бусты не запрашиваются — KamiGramNetFilter
+  9. [Отсечка трафика] TL_payments_getStarsStatus — блок Telegram Stars не запрашивается — KamiGramNetFilter
+ 10. [Отсечка трафика] TL_payments_getStarsTransactions — история Stars не запрашивается — KamiGramNetFilter
+ 11. [Отсечка трафика] TL_payments_getStarsTopupOptions — покупка Stars не запрашивается — KamiGramNetFilter
+ 12. [Отсечка трафика] TL_payments_getStarsGiftOptions — подарки Stars не запрашиваются — KamiGramNetFilter
+ 13. [Отсечка трафика] TL_payments_getStarsGiveawayOptions — розыгрыши Stars не запрашиваются — KamiGramNetFilter
+ 14. [Отсечка трафика] TL_payments_getStarsRevenueStats — доход Stars не запрашивается — KamiGramNetFilter
+ 15. [Отсечка трафика] TL_payments_getStarsRevenueWithdrawalUrl — вывод Stars не запрашивается — KamiGramNetFilter
+ 16. [Отсечка трафика] TL_payments_getStarsRevenueAdsAccountUrl — рекламный кабинет Stars не запрашивается — KamiGramNetFilter
+ 17. [Отсечка трафика] TL_payments_getGiveawayInfo — розыгрыши не запрашиваются — KamiGramNetFilter
+ 18. [Отсечка трафика] TL_payments_getPremiumGiftCodeOptions — подарочные коды Premium не запрашиваются — KamiGramNetFilter
+ 19. [Отсечка трафика] TL_payments_getSavedInfo — платёжные данные не запрашиваются — KamiGramNetFilter
+ 20. [Отсечка трафика] TL_messages_getAllStickers — наборы стикеров не запрашиваются — KamiGramNetFilter
+ 21. [Отсечка трафика] TL_messages_getArchivedStickers — архив стикеров не запрашивается — KamiGramNetFilter
+ 22. [Отсечка трафика] TL_messages_getAttachedStickers — стикеры вложений не запрашиваются — KamiGramNetFilter
+ 23. [Отсечка трафика] TL_messages_getFavedStickers — избранные стикеры не запрашиваются — KamiGramNetFilter
+ 24. [Отсечка трафика] TL_messages_getFeaturedStickers — популярные стикеры не запрашиваются — KamiGramNetFilter
+ 25. [Отсечка трафика] TL_messages_getMaskStickers — маски не запрашиваются — KamiGramNetFilter
+ 26. [Отсечка трафика] TL_messages_getMyStickers — мои наборы не запрашиваются — KamiGramNetFilter
+ 27. [Отсечка трафика] TL_messages_getOldFeaturedStickers — старые популярные стикеры не запрашиваются — KamiGramNetFilter
+ 28. [Отсечка трафика] TL_messages_getRecentStickers — недавние стикеры не запрашиваются — KamiGramNetFilter
+ 29. [Отсечка трафика] TL_messages_getStickerSet — набор стикеров не запрашивается — KamiGramNetFilter
+ 30. [Отсечка трафика] TL_messages_getStickers — стикеры не запрашиваются — KamiGramNetFilter
+ 31. [Отсечка трафика] TL_messages_searchStickerSets — поиск наборов стикеров не уходит на сервер — KamiGramNetFilter
+ 32. [Отсечка трафика] TL_messages_searchStickers — поиск стикеров не уходит на сервер — KamiGramNetFilter
+ 33. [Отсечка трафика] TL_messages_readFeaturedStickers — пометки о популярных стикерах не отправляются — KamiGramNetFilter
+ 34. [Отсечка трафика] TL_messages_saveRecentSticker — недавние стикеры не сохраняются на сервере — KamiGramNetFilter
+ 35. [Отсечка трафика] TL_messages_faveSticker — избранные стикеры не отправляются на сервер — KamiGramNetFilter
+ 36. [Отсечка трафика] TL_messages_getEmojiStickers — наборы эмодзи не запрашиваются — KamiGramNetFilter
+ 37. [Отсечка трафика] TL_messages_getFeaturedEmojiStickers — популярные эмодзи не запрашиваются — KamiGramNetFilter
+ 38. [Отсечка трафика] TL_messages_getEmojiStickerGroups — группы эмодзи-стикеров не запрашиваются — KamiGramNetFilter
+ 39. [Отсечка трафика] TL_messages_getEmojiStatusGroups — эмодзи-статусы не запрашиваются — KamiGramNetFilter
+ 40. [Отсечка трафика] TL_messages_getEmojiProfilePhotoGroups — эмодзи для аватарок не запрашиваются — KamiGramNetFilter
+ 41. [Отсечка трафика] TL_messages_getEmojiGroups — группы эмодзи не запрашиваются — KamiGramNetFilter
+ 42. [Отсечка трафика] TL_messages_getEmojiURL — ссылки на эмодзи не запрашиваются — KamiGramNetFilter
+ 43. [Отсечка трафика] TL_messages_getCustomEmojiDocuments — файлы премиум-эмодзи не запрашиваются — KamiGramNetFilter
+ 44. [Отсечка трафика] TL_messages_searchCustomEmoji — поиск премиум-эмодзи не уходит на сервер — KamiGramNetFilter
+ 45. [Отсечка трафика] TL_messages_searchEmojiStickerSets — поиск наборов эмодзи не уходит на сервер — KamiGramNetFilter
+ 46. [Отсечка трафика] TL_messages_getEmojiGameInfo — игра эмодзи не запрашивается — KamiGramNetFilter
+ 47. [Отсечка трафика] TL_messages_getRecentReactions — недавние реакции не запрашиваются — KamiGramNetFilter
+ 48. [Отсечка трафика] TL_contacts_importContacts — телефонная книга НЕ заливается на сервер Telegram — KamiGramNetFilter
+ 49. [Отсечка трафика] TL_contacts_getTopPeers — «часто используемые» не запрашиваются — KamiGramNetFilter
+ 50. [Отсечка трафика] TL_contacts_toggleTopPeers — «часто используемые» не отправляются на сервер — KamiGramNetFilter
+ 51. [Отсечка трафика] TL_contacts_resetTopPeerRating — рейтинг частых контактов не отправляется — KamiGramNetFilter
+ 52. [Отсечка трафика] TL_messages_getSavedGifs — сохранённые GIF не запрашиваются — KamiGramNetFilter
+ 53. [Отсечка трафика] TL_messages_getSavedReactionTags — теги реакций не запрашиваются — KamiGramNetFilter
+ 54. [Отсечка трафика] TL_messages_getPinnedSavedDialogs — закреплённое в избранном не запрашивается — KamiGramNetFilter
+ 55. [Отсечка трафика] TL_messages_getWebPage — превью ссылок не подгружается — KamiGramNetFilter
+ 56. [Отсечка трафика] TL_messages_getExtendedMedia — расширенное медиа превью не подгружается — KamiGramNetFilter
+ 57. [Отсечка трафика] TL_messages_getAttachMenuBot — бот-меню не запрашивается — KamiGramNetFilter
+ 58. [Отсечка трафика] TL_messages_getAttachMenuBots — список бот-меню не запрашивается — KamiGramNetFilter
+ 59. [Отсечка трафика] TL_messages_getSuggestedDialogFilters — предлагаемые папки не запрашиваются — KamiGramNetFilter
+ 60. [Отсечка трафика] TL_channels_getAdminLog — журнал админа не запрашивается — KamiGramNetFilter
+ 61. [Отсечка трафика] TL_channels_getAdminedPublicChannels — публичные каналы профиля не запрашиваются — KamiGramNetFilter
+ 62. [Отсечка трафика] TL_channels_readMessageContents — пометки прочтения в каналах не отправляются (призрак) — KamiGramNetFilter
+ 63. [Отсечка трафика] TL_stories_getAllReadPeerStories — прочитанные истории не запрашиваются — KamiGramNetFilter
+ 64. [Отсечка трафика] TL_stories_getAlbumStories — альбомы историй не запрашиваются — KamiGramNetFilter
+ 65. [Отсечка трафика] TL_stories_getPeerMaxIDs — счётчики историй не запрашиваются — KamiGramNetFilter
+ 66. [Отсечка трафика] TL_help_getDeepLinkInfo — информация о диплинках не запрашивается — KamiGramNetFilter
+ 67. [Отсечка трафика] TL_help_getInviteText — текст приглашения не запрашивается — KamiGramNetFilter
+ 68. [Отсечка трафика] TL_help_getPassportConfig — Telegram Passport не запрашивается — KamiGramNetFilter
+ 69. [Отсечка трафика] TL_help_getSupport — экран поддержки не запрашивается — KamiGramNetFilter
+ 70. [Отсечка трафика] TL_help_getSupportName — имя поддержки не запрашивается — KamiGramNetFilter
+ 71. [Отсечка трафика] TL_messages_getCommonChats — общие чаты в профиле не запрашиваются — KamiGramNetFilter
+ 72. [Отсечка трафика] TL_messages_getDefaultHistoryTTL — автоудаление по умолчанию не запрашивается — KamiGramNetFilter
+ 73. [Отсечка трафика] TL_messages_getDialogUnreadMarks — метки непрочитанного не запрашиваются — KamiGramNetFilter
+ 74. [Отсечка трафика] TL_messages_getUnreadPollVotes — непрочитанные опросы не запрашиваются — KamiGramNetFilter
+ 75. [Отсечка трафика] TL_messages_getUnreadReactions — непрочитанные реакции не запрашиваются — KamiGramNetFilter
+ 76. [Отсечка трафика] TL_messages_getInlineBotResults — инлайн-боты при вводе не запрашиваются — KamiGramNetFilter
+ 77. [Отсечка трафика] TL_communities_getJoinedCommunities — сообщества не запрашиваются — KamiGramNetFilter
+ 78. [Отсечка трафика] TL_chatlists_getLeaveChatlistSuggestions — подсказки папок не запрашиваются — KamiGramNetFilter
+ 79. [Отсечка трафика] TL_help_getTimezonesList — список часовых поясов не запрашивается — KamiGramNetFilter
+ 80. [Отсечка трафика] TL_messages_getEmojiKeywordsLanguages — языки эмодзи-подсказок не запрашиваются — KamiGramNetFilter
+ 81. [Отсечка трафика] TL_messages_getEmojiKeywordsDifference — обновления эмодзи-подсказок не запрашиваются — KamiGramNetFilter
+ 82. [Отсечка трафика] TL_messages_getSearchCounters — счётчики поиска не запрашиваются — KamiGramNetFilter
+ 83. [Отсечка трафика] TL_help_hidePromoData — скрытие промо-диалога не отправляется (его просто нет) — KamiGramNetFilter
+ 84. [Отсечка трафика] TL_messages_getAttachMenuBots — меню ботов-вложений не запрашивается — KamiGramNetFilter
+ 85. [Отсечка трафика] TL_channels_getChannelRecommendations — рекомендации каналов не запрашиваются — KamiGramNetFilter
+ 86. [Экономия] медиа не стримится автоматически (только по нажатию) — SharedConfig
+ 87. [Экономия] стриминговое медиа не кэшируется целиком — SharedConfig
+ 88. [Экономия] кэш медиа хранится неделю вместо месяца — SharedConfig
+ 89. [Экономия] подсказки анимированных эмодзи выключены — SharedConfig
+ 90. [Экономия] порядок стикеров не отправляется на сервер — SharedConfig
+ 91. [Экономия] размытие в просмотрщике фото выключено (меньше GPU) — SharedConfig
+ 92. [Экономия] новый blur-движок выключен (меньше GPU) — SharedConfig
+ 93. [Экономия] без «стекла» в историях — SharedConfig
+ 94. [Экономия] быстрые обои отключены (меньше памяти и GPU) — SharedConfig
+ 95. [Экономия] съёмка через системную камеру (меньше памяти) — SharedConfig
+ 96. [Экономия] быстрый шаринг не грузит аватарки и превью — SharedConfig
+ 97. [Экономия] музыка не ставится на паузу из-за медиа (без лишних переключений) — SharedConfig
+ 98. [Экономия] следующее медиа не открывается по тапу (меньше случайного трафика) — SharedConfig
+ 99. [Экономия] поднесение к уху не запускает запись (меньше случайных действий) — SharedConfig
+100. [Экономия] музыка на паузе во время записи (без лишних переключений аудио) — SharedConfig
+101. [Экономия] блокировка по отпечатку — только по желанию пользователя (как было) — SharedConfig
+102. [Экономия] тень под шапкой убрана (плоский iOS-вид, меньше отрисовки) — SharedConfig
+103. [Экономия] тени секций выключены (плоский iOS-вид) — SharedConfig
+104. [Чистка UI] строка «Задать вопрос» (AI-реклама) скрыта — SettingsActivity
+105. [iOS-дизайн] бейджи непрочитанного — iOS-«стадион» (4 мест) — DialogCell
+106. [iOS-дизайн] скругление облаков сообщений 20 (как в iOS 17+) — SharedConfig
+107. [iOS-дизайн] цифра счётчика непрочитанного крупнее (13dp) — Theme
+108. [реклама] спонсор прокси не запрашивается (help.getPromoData не уходит) — MessagesController
+109. [реклама] строка «спонсор прокси» в списке чатов убрана — MessagesController
+110. [iOS-дизайн] кнопка отправки круглая (как в iOS) — ChatActivityEnterView
+111. [iOS-цвета] chats_unreadCounter = 0xFFFF3B30 — счётчик непрочитанного — iOS-красный — KamiGramTheme
+112. [iOS-цвета] chats_unreadCounterMuted = 0xFF8E8E93 — счётчик в беззвучных — iOS-серый — KamiGramTheme
+113. [iOS-цвета] chats_unreadCounterText = 0xFFFFFFFF — текст счётчика — белый — KamiGramTheme
+114. [iOS-цвета] chats_onlineCircle = 0xFF30D158 — кружок «в сети» — iOS-зелёный — KamiGramTheme
+115. [iOS-цвета] chats_name = 0xFF000000 — имя чата — чистый чёрный — KamiGramTheme
+116. [iOS-цвета] chats_message = 0xFF8E8E93 — текст сообщения — iOS-серый — KamiGramTheme
+117. [iOS-цвета] chats_date = 0xFF8E8E93 — дата — iOS-серый — KamiGramTheme
+118. [iOS-цвета] chats_nameMessage = 0xFF8E8E93 — префикс сообщения — iOS-серый — KamiGramTheme
+119. [iOS-цвета] chats_pinnedIcon = 0xFF8E8E93 — иконка закрепа — iOS-серый — KamiGramTheme
+120. [iOS-цвета] chats_muteIcon = 0xFF8E8E93 — иконка беззвучного — iOS-серый — KamiGramTheme
+121. [iOS-цвета] chats_secretIcon = 0xFF30D158 — иконка секретного чата — iOS-зелёный — KamiGramTheme
+122. [iOS-цвета] divider = 0xFF38383A — разделители — iOS-серые — KamiGramTheme
+123. [iOS-цвета] chat_serviceBackground = 0xFF262628 — служебные сообщения — iOS-поверхность — KamiGramTheme
+124. [iOS-цвета] chat_selectedBackground = 0xFF1C1C1E — выбор чата — iOS-поверхность — KamiGramTheme
+125. [iOS-цвета] chat_messagePanelBackground = 0xFF1C1C1E — поле ввода — iOS-поверхность — KamiGramTheme
+126. [iOS-цвета] switchTrackChecked = 0xFF30D158 — включённые переключатели — iOS-зелёные — KamiGramTheme
+127. [iOS-цвета] checkbox = 0xFF0A84FF — галочки выбора — iOS-синий — KamiGramTheme
+128. [iOS-цвета] fastScrollActive = 0xFF0A84FF — быстрая прокрутка — iOS-синий — KamiGramTheme
+129. [iOS-цвета] progressCircle = 0xFF0A84FF — круговой прогресс — iOS-синий — KamiGramTheme
+130. [iOS-цвета] chat_inBubble = 0xFF262628 — входящие сообщения — iOS-поверхность — KamiGramTheme
+131. [iOS-цвета] chat_outBubble = 0xFF0A84FF — исходящие сообщения — iOS-синий — KamiGramTheme
+132. [iOS-цвета] chat_wallpaper = 0xFF000000 — фон чата — чистый чёрный — KamiGramTheme
+133. [iOS-цвета] chat_messageLinkIn = 0xFF0A84FF — ссылки во входящих — iOS-синий — KamiGramTheme
+134. [iOS-цвета] chat_messageLinkOut = 0xFFFFFFFF — ссылки в исходящих — белые — KamiGramTheme
+135. [iOS-цвета] chat_serviceBackgroundSelected = 0xFF2C2C2E — выбранное служебное — iOS — KamiGramTheme
+136. [iOS-цвета] chat_replyPanelName = 0xFF0A84FF — имя в ответе — iOS-синий — KamiGramTheme
+137. [iOS-цвета] profile_actionIcon = 0xFF0A84FF — иконки действий профиля — iOS-синий — KamiGramTheme
+138. [iOS-цвета] player_background = 0xFF1C1C1E — плеер — iOS-поверхность — KamiGramTheme
+139. [iOS-цвета] chat_status = 0xFF8E8E93 — статус в чате — iOS-серый — KamiGramTheme
+140. [iOS-цвета] chat_topPanelBackground = 0xFF1C1C1E — верхняя панель чата — iOS-поверхность — KamiGramTheme
+141. [iOS-цвета] avatar_backgroundActionBarBlue = 0xFF0A84FF — аватар в шапке — iOS-синий — KamiGramTheme
+142. [iOS-цвета] chat_inBubbleSelected = 0xFF2C2C2E — выделение входящего — iOS — KamiGramTheme
+143. [iOS-цвета] chat_outBubbleSelected = 0xFF0A84FF — выделение исходящего — iOS-синий — KamiGramTheme
+144. [iOS-цвета] chat_inLoader = 0xFF0A84FF — кружок загрузки входящих — iOS-синий — KamiGramTheme
+145. [iOS-цвета] chat_outLoader = 0xFF0A84FF — кружок загрузки исходящих — iOS-синий — KamiGramTheme
+146. [iOS-цвета] chat_attachIcon = 0xFF0A84FF — иконка вложения — iOS-синий — KamiGramTheme
+147. [iOS-цвета] chat_messagePanelIcons = 0xFF0A84FF — иконки поля ввода — iOS-синий — KamiGramTheme
+148. [iOS-цвета] chat_messagePanelSend = 0xFF0A84FF — кнопка отправки — iOS-синий — KamiGramTheme
+149. [iOS-цвета] chat_recordedVoiceProgress = 0xFF0A84FF — прогресс голосового — iOS-синий — KamiGramTheme
+150. [iOS-цвета] chat_recordedVoiceBackground = 0xFF0A84FF — фон записи голосового — iOS-синий — KamiGramTheme
+151. [iOS-цвета] chat_fieldOverlayText = 0xFF8E8E93 — подсказка в поле ввода — iOS-серый — KamiGramTheme
+152. [iOS-цвета] actionBarDefaultIcon = 0xFF0A84FF — иконки в шапке — iOS-синий — KamiGramTheme
+153. [iOS-цвета] chats_actionBackground = 0xFF0A84FF — акцент списка чатов — iOS-синий — KamiGramTheme
+154. [iOS-цвета] windowBackgroundGray = 0xFF1C1C1E — фон экранов — iOS-поверхность — KamiGramTheme
+155. [iOS-цвета] windowBackgroundWhite = 0xFF000000 — фон карточек — чистый чёрный — KamiGramTheme
+
+=== уже работает в сборках r31-r35 (56 пунктов) ===
+  1. брендинг KamiGram в 10 языковых файлах
+  2. имя мода во всём UI (LocaleController)
+  3. свой пакет com.kami.gram (ставится рядом с Telegram)
+  4. версия 12.10.3-mod в «О приложении»
+  5. стикеры не загружаются (4 метода MediaDataController)
+  6. премиум-эмодзи не загружаются в сообщениях
+  7. подарочные/TON-стикеры и generic-анимации не грузятся
+  8. автоскачивание медиа выключено по умолчанию
+  9. preload видео/музыки/историй выключен
+ 10. power-saver (LiteMode) включён принудительно
+ 11. проверка обновлений Telegram выключена
+ 12. iOS-тёмная тема (attheme: чёрный фон, iOS-акценты)
+ 13. плоский фон чата (узор 495 КБ заменён на минимальный)
+ 14. ссылка на прокси активирует прокси сразу
+ 15. только arm64-v8a (APK 35 МБ вместо 100+)
+ 16. Google App Indexing вырезан из APK
+ 17. в APK только локали ru/en (+zz)
+ 18. 54 тяжёлые Lottie-анимации заглушены (-11 МБ)
+ 19. нативная сборка без debug-инфо (быстрее в 4 раза)
+ 20. debugSymbolLevel=SYMBOL_TABLE во всех модулях
+ 21. Gradle heap 5 ГБ (нет OOM на CI)
+ 22. ccache для C/C++ (повторные сборки в разы быстрее)
+ 23. подпись оригинальным ключом Telegram (android/androidkey)
+ 24. SAFETYNET_KEY пуст -> обычный код вместо Firebase-аттестации
+ 25. умный прокси: авто-включение из буфера, авто-выключение мёртвого
+ 26. рабочий api_id вшит в сборку (6 вместо примерного 4)
+ 27. ключ читается во время работы (appId/appHash) — R8 не вшивает 4
+ 28. смена ключа с перезапуском при отказе сервера
+ 29. экран «KamiGram: функции мода» в настройках
+ 30. переключатель призрака (не видно чтение/печатает/онлайн)
+ 31. переключатель «не грузить стикеры и наборы эмодзи»
+ 32. переключатель «не грузить истории и их медиа»
+ 33. переключатель «премиум-эмодзи обычным эмодзи»
+ 34. переключатель iOS-дизайна (табы, шапка, скругления)
+ 35. переключатель iOS-скруглений облаков
+ 36. переключатель «убрать Premium/Stars/TON»
+ 37. переключатель «убрать рекламу/рекомендации/спонсоров»
+ 38. переключатель «не грузить частые контакты»
+ 39. переключатель «не искать GIF»
+ 40. переключатель «не грузить превью ссылок»
+ 41. переключатель «призрак для историй»
+ 42. переключатель снятия запретов защищённого контента
+ 43. переключатель показа ID чатов и пользователей
+ 44. переключатель авто-прокси из буфера
+ 45. переключатель авто-отключения мёртвого прокси
+ 46. iOS-шеврон «назад» вместо стрелки Telegram
+ 47. плоская iOS-шапка без «стекла» и размытия
+ 48. свои иконки нижних табов (вектор KamiGram)
+ 49. анимация выбора таба как в iOS
+ 50. плотная iOS-пилюля выбранного таба
+ 51. полоса историй убрана с главного экрана
+ 52. iOS-пилюля времени на фото/видео
+ 53. крупные жирные заголовки шапки
+ 54. карточки настроек с iOS-скруглением 14
+ 55. разделители списка чатов с iOS-отступом
+ 56. служебные сообщения — iOS-«стадион»
+
+ВСЕГО УЛУЧШЕНИЙ В МОДЕ: 211 (в этом пакете: 155)
