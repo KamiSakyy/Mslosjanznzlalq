@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KamiGram: iOS-шестерёнка (в стиле SF Symbols). Плоская, без стекла. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF8E8E93"
+        android:strokeWidth="1.6"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M 19.10 12.00 L 21.43 13.19 L 21.16 14.51 L 18.56 14.72 L 17.02 17.02 L 17.82 19.51 L 16.71 20.25 L 14.72 18.56 L 12.00 19.10 L 10.81 21.43 L 9.49 21.16 L 9.28 18.56 L 6.98 17.02 L 4.49 17.82 L 3.75 16.71 L 5.44 14.72 L 4.90 12.00 L 2.57 10.81 L 2.84 9.49 L 5.44 9.28 L 6.98 6.98 L 6.18 4.49 L 7.29 3.75 L 9.28 5.44 L 12.00 4.90 L 13.19 2.57 L 14.51 2.84 L 14.72 5.44 L 17.02 6.98 L 19.51 6.18 L 20.25 7.29 L 18.56 9.28 Z M 12.00 8.80 a 3.20 3.20 0 1 0 0 6.40 a 3.20 3.20 0 1 0 0 -6.40 Z" />
+</vector>

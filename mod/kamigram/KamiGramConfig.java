@@ -36,6 +36,19 @@ public final class KamiGramConfig {
     public static final String KEY_AUTO_PROXY_CLIPBOARD = "kamigram_auto_proxy_clipboard";
     /** Switch a dead proxy off automatically so VPN / direct connection can work. */
     public static final String KEY_PROXY_FALLBACK = "kamigram_proxy_fallback";
+    /**
+     * «Мощный» прокси: своя база живых прокси, проверка пинга и моментальное
+     * переключение на рабочий (быстрее встроенного в разы).
+     */
+    public static final String KEY_SMART_PROXY = "kamigram_smart_proxy";
+    /** Ускорение загрузок и потоков на любом интернете, особенно на слабом. */
+    public static final String KEY_FAST_NET = "kamigram_fast_net";
+    /** Скачанное вручную не удаляется автоматически: кэш не чистится за спиной. */
+    public static final String KEY_KEEP_DOWNLOADS = "kamigram_keep_downloads";
+    /** Не грузить GIF и анимации в чатах (0 байт на них). */
+    public static final String KEY_NO_GIFS = "kamigram_no_gifs";
+    /** Больше не спрашивать разрешения на контакты, телефон и уведомления. */
+    public static final String KEY_NO_PERMISSION_NAGS = "kamigram_no_permission_nags";
 
     // ---------------------------------------------------------------- трафик
     /** Ничего не грузить по стикерам, наборам эмодзи и премиум-эмодзи (0 байт). */
@@ -97,7 +110,10 @@ public final class KamiGramConfig {
         return "призрак " + onOff(ghostMode())
             + " · стикеры " + onOff(!noStickers())
             + " · эмодзи " + onOff(!noAnimatedEmoji())
-            + " · истории " + onOff(!noStories());
+            + " · истории " + onOff(!noStories())
+            + " · gif " + onOff(!noGifs())
+            + " · прокси-ускорение " + onOff(smartProxy())
+            + " · кэш " + onOff(keepDownloads());
     }
 
     private static String onOff(boolean value) {
@@ -142,6 +158,31 @@ public final class KamiGramConfig {
     /** Auto-disable a proxy that does not connect. */
     public static boolean proxyFallback() {
         return get(KEY_PROXY_FALLBACK);
+    }
+
+    /** Моментальное переключение прокси на рабочий (мощный прокси-движок). */
+    public static boolean smartProxy() {
+        return get(KEY_SMART_PROXY);
+    }
+
+    /** Ускорение сети и загрузок. */
+    public static boolean fastNet() {
+        return get(KEY_FAST_NET);
+    }
+
+    /** Скачанное не удалять автоматически. */
+    public static boolean keepDownloads() {
+        return get(KEY_KEEP_DOWNLOADS);
+    }
+
+    /** Не грузить GIF. */
+    public static boolean noGifs() {
+        return get(KEY_NO_GIFS);
+    }
+
+    /** Не надоедать запросами разрешений. */
+    public static boolean noPermissionNags() {
+        return get(KEY_NO_PERMISSION_NAGS);
     }
 
     /** Ноль трафика на стикеры, наборы эмодзи и премиум-эмодзи. */

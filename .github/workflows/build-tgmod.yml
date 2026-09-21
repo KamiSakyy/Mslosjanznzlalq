@@ -357,6 +357,10 @@ jobs:
             fi
           fi
 
+          # ---- ИСХОДНИКИ НАШЕГО МОДА В .ZIP (просьба: сохранять всегда, не удалять) ----
+          python3 modrepo/mod/zip-sources.py modrepo "$VERSION" "$RUN" telegram-src || true
+          ls -la modrepo/handoff/sources/ | tail -5 || true
+
           ( cd "$APK_DIR" && sha256sum *.apk | sort -k2 ) > modrepo/handoff/SHA256SUMS.txt || true
           {
             echo '# KamiGram - архив сборок'
