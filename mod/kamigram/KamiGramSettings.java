@@ -46,6 +46,8 @@ public final class KamiGramSettings {
         add(layout, context, "Убрать рекламу, спонсорские и рекомендации каналов", KamiGramConfig.KEY_NO_ADS, onChanged);
         add(layout, context, "Не грузить «часто используемые» контакты", KamiGramConfig.KEY_NO_TOP_PEERS, onChanged);
         add(layout, context, "Не искать GIF при вводе текста", KamiGramConfig.KEY_NO_GIF_SEARCH, onChanged);
+        add(layout, context, "Не грузить превью ссылок и веб-страницы", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged);
+        add(layout, context, "Призрак для историй: мои просмотры не записываются", KamiGramConfig.KEY_STORIES_STEALTH, onChanged);
         add(layout, context, "Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged);
         add(layout, context, "Показывать ID чатов и пользователей", KamiGramConfig.KEY_SHOW_IDS, onChanged);
         add(layout, context, "Прокси из буфера обмена включается сам", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged);

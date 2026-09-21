@@ -53,6 +53,10 @@ public final class KamiGramConfig {
     public static final String KEY_NO_TOP_PEERS = "kamigram_no_top_peers";
     /** Не искать GIF/стикеры при вводе текста (поиск не уходит на сервер). */
     public static final String KEY_NO_GIF_SEARCH = "kamigram_no_gif_search";
+    /** Не подгружать превью ссылок и веб-страницы (экономия трафика). */
+    public static final String KEY_NO_LINK_PREVIEW = "kamigram_no_link_preview";
+    /** Призрак для историй: просмотры чужих историй не записываются (stealth mode). */
+    public static final String KEY_STORIES_STEALTH = "kamigram_stories_stealth";
 
     // ---------------------------------------------------------------- дизайн
     /** iOS-дизайн KamiGram: плоские табы, плоская шапка, свои иконки. */
@@ -168,6 +172,16 @@ public final class KamiGramConfig {
     /** Поиск GIF/стикеров при вводе не уходит на сервер. */
     public static boolean noGifSearch() {
         return get(KEY_NO_GIF_SEARCH);
+    }
+
+    /** Превью ссылок и веб-страницы не подгружаются. */
+    public static boolean noLinkPreview() {
+        return get(KEY_NO_LINK_PREVIEW);
+    }
+
+    /** Призрак для историй: просмотры не записываются. */
+    public static boolean storiesStealth() {
+        return get(KEY_STORIES_STEALTH);
     }
 
     /** Без рекламных блоков Premium / Stars / TON. */

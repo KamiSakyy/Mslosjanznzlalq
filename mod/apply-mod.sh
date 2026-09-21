@@ -2011,6 +2011,91 @@ else
 fi
 
 # =============================================================================
+# P31. ПРИЗРАК ДЛЯ ИСТОРИЙ + ЭКОНОМИЯ НА ПРЕВЬЮ ССЫЛОК:
+#      при запуске включается серверная «невидимка» историй (просмотры не
+#      записываются) — это уникальная функция KamiGram; превью ссылок и
+#      веб-страницы больше не подгружаются (мегабайты картинок).
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    AK_DIR="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    [ -f "$KAMIGRAM_SRC/KamiGramGhost.java" ] || die "P31: нет $KAMIGRAM_SRC/KamiGramGhost.java"
+    cp -f "$KAMIGRAM_SRC/KamiGramGhost.java" "$AK_DIR/KamiGramGhost.java"
+
+    LA_PATH="$JAVA_ROOT/org/telegram/ui/LaunchActivity.java"
+    python3 - "$LA_PATH" <<'PY' || die "P31: не удалось включить призрак для историй"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_STORIES_STEALTH'
+anchor = '        currentAccount = UserConfig.selectedAccount;\n'
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P31: не найдена инициализация аккаунта в LaunchActivity\n')
+        sys.exit(1)
+    insert = (anchor +
+              '        /* ' + mark + ': призрак для историй - просмотры не записываются */\n'
+              '        org.telegram.messenger.kamigram.KamiGramGhost.onAppStarted(currentAccount);\n')
+    src = src.replace(anchor, insert, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('stories stealth installed')
+PY
+    has "$LA_PATH" "KAMIGRAM_STORIES_STEALTH" || die "P31: призрак для историй не встал"
+    ok "P31 ПРИЗРАК ДЛЯ ИСТОРИЙ: при запуске мод включает серверную невидимку историй (просмотры не записываются), превью ссылок и веб-страницы не подгружаются"
+else
+    skip "P31 призрак для историй отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P32. iOS-ДИЗАЙН 4.0 КОДОМ: разделители списка чатов с iOS-отступом,
+#      служебные сообщения и пилюли времени — стадион (полное скругление).
+# =============================================================================
+if [ "$IOS_DESIGN" = "1" ]; then
+    DC_PATH="$JAVA_ROOT/org/telegram/ui/Cells/DialogCell.java"
+    python3 - "$DC_PATH" <<'PY' || die "P32: не удалось сдвинуть разделители списка чатов"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_DIVIDER'
+old = '                left = dp(messagePaddingStart);\n'
+if mark not in src:
+    if old not in src:
+        sys.stderr.write('P32: не найден отступ разделителя в DialogCell\n')
+        sys.exit(1)
+    new = ('                /* ' + mark + ': iOS-разделитель с отступом под текст */\n'
+           '                left = dp(messagePaddingStart) + (org.telegram.messenger.kamigram.KamiGramConfig.iosDesign() ? dp(8) : 0);\n')
+    src = src.replace(old, new, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ios divider inset')
+PY
+    has "$DC_PATH" "KAMIGRAM_IOS_DIVIDER" || die "P32: разделители не сдвинулись"
+
+    CMC_PATH="$JAVA_ROOT/org/telegram/ui/Cells/ChatMessageCell.java"
+    python3 - "$CMC_PATH" <<'PY' || die "P32: не удалось сделать служебные сообщения iOS-пилюлей"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_STADIUM'
+anchor = '    public void drawServiceBackground(Canvas canvas, RectF rect, float radius, float alpha) {\n'
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P32: не найден drawServiceBackground\n')
+        sys.exit(1)
+    add = (anchor +
+           '        /* ' + mark + ': iOS-стадион для служебных сообщений и пилюль времени */\n'
+           '        if (org.telegram.messenger.kamigram.KamiGramConfig.iosDesign() && rect.height() < dp(48)) {\n'
+           '            radius = rect.height() / 2f;\n'
+           '        }\n')
+    src = src.replace(anchor, add, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ios stadium applied')
+PY
+    has "$CMC_PATH" "KAMIGRAM_IOS_STADIUM" || die "P32: iOS-стадион не применился"
+    ok "P32 iOS-ДИЗАЙН 4.0: разделители списка чатов с iOS-отступом, служебные сообщения и пилюли времени — полностью скруглённые (стадион)"
+else
+    skip "P32 iOS-дизайн 4.0 отключён (IOS_DESIGN=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO

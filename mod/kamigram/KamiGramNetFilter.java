@@ -87,6 +87,14 @@ public final class KamiGramNetFilter {
         "TL_messages_getInlineBotResults"
     };
 
+    /** Превью ссылок и веб-страницы: мегабайты картинок на каждую ссылку. */
+    private static final String[] LINK_PREVIEW = {
+        "TL_messages_getWebPage",
+        "TL_messages_getWebPagePreview",
+        "TL_messages_getExtendedMedia",
+        "TL_messages_getFactCheck"
+    };
+
     /** Исходящие действия пользователя по историям - их не блокируем даже при запрете историй. */
     private static final String[] STORY_ACTIONS = {
         "TL_stories_sendStory",
@@ -127,6 +135,9 @@ public final class KamiGramNetFilter {
                 return true;
             }
             if (KamiGramConfig.noGifSearch() && matches(GIF_SEARCH, name)) {
+                return true;
+            }
+            if (KamiGramConfig.noLinkPreview() && matches(LINK_PREVIEW, name)) {
                 return true;
             }
             if (matches(TRASH, name)) {
