@@ -400,12 +400,25 @@ def permissions():
 # =============================================================================
 
 def design():
-    # 8.1 иконка настроек как в iOS
-    for f in ['ui/DialogsActivity.java', 'ui/ChatActivity.java']:
+    # 8.1 иконка настроек как в iOS.
+    # ВАЖНО (это была прошлая ошибка): меню принимает ИД РЕСУРСА (int), а не
+    # Drawable, поэтому подставляем собственный вектор R.drawable.kamigram_ic_ios_settings
+    # (лежит в mod/kamigram/res/drawable и копируется в res при сборке).
+    for f in ['ui/DialogsActivity.java', 'ui/web/WebActionBar.java']:
         replace_once(f, 'KAMIGRAM_IOS_SETTINGS_ICON',
                      'R.drawable.msg_settings_old',
-                     'org.telegram.ui.Components.kamigram.KamiGramIcons.settings()',
-                     'Дизайн', 'иконка настроек — iOS-шестерёнка KamiGram')
+                     '/* KAMIGRAM_IOS_SETTINGS_ICON */ R.drawable.kamigram_ic_ios_settings',
+                     'Дизайн', 'иконка настроек — iOS-шестерёнка (меню и веб-экраны)')
+    # иконка шестерёнки в подменю бота в чате
+    replace_once('ui/ChatActivity.java', 'KAMIGRAM_IOS_SETTINGS_ICON2',
+                 'headerItem.lazilyAddSubItem(bot_settings, R.drawable.msg_settings_old',
+                 'headerItem.lazilyAddSubItem(bot_settings, /* KAMIGRAM_IOS_SETTINGS_ICON2 */ R.drawable.kamigram_ic_ios_settings',
+                 'Дизайн', 'иконка настроек бота — iOS-шестерёнка')
+    # иконка в настройках истории
+    replace_once('ui/Stories/PeerStoriesView.java', 'KAMIGRAM_IOS_SETTINGS_ICON3',
+                 'ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_settings_old',
+                 'ActionBarMenuItem.addItem(popupLayout, /* KAMIGRAM_IOS_SETTINGS_ICON3 */ R.drawable.kamigram_ic_ios_settings',
+                 'Дизайн', 'иконка настроек истории — iOS-шестерёнка')
 
     # 8.2 меню «три точки» — iOS-скругление 14 вместо 12
     replace_once('ui/ActionBar/ActionBarMenuItem.java', 'KAMIGRAM_IOS_POPUP',
@@ -494,26 +507,22 @@ def traffic_extra():
 # =============================================================================
 
 IOS_COLORS = [
-    ('Theme.key_chat_messagePanelVoicePressed', 0xFF5E5CE6, 'кнопка записи голосового — индиго'),
-    ('Theme.key_chat_selectedBackground', 0x225E5CE6, 'подсветка выбранного — мягкое индиго'),
-    ('Theme.key_chat_topPanelLine', 0xFF3A3A3C, 'линия верхней панели — графит'),
-    ('Theme.key_divider', 0xFF2C2C2E, 'разделители — графит iOS'),
-    ('Theme.key_graySection', 0xFF2C2C2E, 'серые секции — графит'),
-    ('Theme.key_graySectionText', 0xFF8E8E93, 'текст секций — iOS-серый'),
-    ('Theme.key_switchTrack', 0xFF39393D, 'выключенный переключатель — графит'),
-    ('Theme.key_switchTrackBlue', 0xFF39393D, 'переключатель — графит'),
-    ('Theme.key_switchTrackBlueSelector', 0xFF48484A, 'нажатие переключателя — графит'),
-    ('Theme.key_switch2Track', 0xFF39393D, 'второй переключатель — графит'),
-    ('Theme.key_actionBarDefaultSelector', 0x22FFFFFF, 'нажатие в шапке — мягкое свечение'),
-    ('Theme.key_featuredStickers_addButton', 0xFF5E5CE6, 'кнопка добавления набора — индиго'),
-    ('Theme.key_featuredStickers_addedIcon', 0xFF5E5CE6, 'галочка добавленного набора — индиго'),
-    ('Theme.key_profile_creatorIcon', 0xFF5E5CE6, 'иконка автора канала — индиго'),
-    ('Theme.key_player_buttonActive', 0xFF5E5CE6, 'активная кнопка плеера — индиго'),
-    ('Theme.key_player_progress', 0xFF5E5CE6, 'прогресс плеера — индиго'),
-    # убрано (нет в исходниках): ('Theme.key_player_progressCached', 0xFF3A3A3C, 'загруженная часть трека — графит'),
-    # убрано (нет в исходниках): ('Theme.key_seekbarBuffered', 0xFF48484A, 'буфер дорожки — графит'),
-    # убрано (нет в исходниках): ('Theme.key_voipgroup_speakerColor', 0xFF5E5CE6, 'активный динамик в звонке — индиго'),
+    # Только акценты и переключатели. Фоны, разделители и текст НЕ трогаем:
+    # их задаёт тема P16 (родная тёмная тема Telegram с iOS-палитрой).
+    ('Theme.key_chat_messagePanelVoicePressed', 0xFFFF453A, 'кнопка записи голосового — iOS-красный'),
+    ('Theme.key_chat_recordTime', 0xFFFF453A, 'таймер записи — iOS-красный'),
+    ('Theme.key_chat_recordedVoiceDot', 0xFFFF453A, 'точка записи — iOS-красный'),
+    ('Theme.key_featuredStickers_addButton', 0xFF0A84FF, 'кнопка добавления набора — iOS-синий'),
+    ('Theme.key_featuredStickers_addedIcon', 0xFF0A84FF, 'галочка набора — iOS-синий'),
+    ('Theme.key_profile_creatorIcon', 0xFF0A84FF, 'иконка автора канала — iOS-синий'),
+    ('Theme.key_player_buttonActive', 0xFF0A84FF, 'активная кнопка плеера — iOS-синий'),
+    ('Theme.key_player_progress', 0xFF0A84FF, 'прогресс плеера — iOS-синий'),
     ('Theme.key_voipgroup_mutedIcon', 0xFFFF453A, 'микрофон выключен — iOS-красный'),
+    ('Theme.key_switchTrack', 0xFF39393D, 'выключенный переключатель — графит iOS'),
+    ('Theme.key_switchTrackBlue', 0xFF39393D, 'переключатель (выкл) — графит iOS'),
+    ('Theme.key_switchTrackBlueSelector', 0xFF48484A, 'нажатие переключателя — графит iOS'),
+    ('Theme.key_switch2Track', 0xFF39393D, 'второй переключатель (выкл) — графит iOS'),
+    ('Theme.key_actionBarDefaultSelector', 0x22FFFFFF, 'нажатие в шапке — мягкое свечение'),
 ]
 
 

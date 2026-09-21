@@ -5,96 +5,133 @@ import android.content.SharedPreferences;
 import org.telegram.messenger.MessagesController;
 
 /**
- * KamiGram: switches for the unique mod features.
+ * KamiGram: переключатели и настройки мода.
  *
- * Values are read from the app-wide settings, so they can be toggled from the UI
- * (kamigram_* keys); every feature is on by default.
+ * Значения лежат в общих настройках приложения (kamigram_*), поэтому их видно
+ * в экране «KamiGram: центр» и они сохраняются между запусками.
+ *
+ * ВАЖНО про значения по умолчанию: всё, что меняет поведение Telegram,
+ * по умолчанию выключено, если это может удивить пользователя (например,
+ * «скачанное не удалять» — иначе нельзя чистить кэш). Наоборот, всё, что
+ * экономит трафик и не мешает, включено.
  */
 public final class KamiGramConfig {
 
-    /** Do not tell the server that we read / are typing / are online. */
+    // ------------------------------------------------------------- приватность
+    /** Призрак: не видно чтение, «печатает», «в сети». */
     public static final String KEY_GHOST = "kamigram_ghost";
-    /** Ignore forward/save/screenshot restrictions in protected chats. */
+    /** Не записывать просмотры историй (серверная невидимка). */
+    public static final String KEY_STORIES_STEALTH = "kamigram_stories_stealth";
+    /** Снять запреты защищённого контента. */
     public static final String KEY_NO_RESTRICTIONS = "kamigram_no_restrictions";
-    /** Show chat and user IDs in the profile. */
+    /** Показывать ID чатов и пользователей. */
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
-    /** Flat iOS-style tabs (no glass, no blur). */
-    public static final String KEY_IOS_TABS = "kamigram_ios_tabs";
-    /**
-     * Force the plain SMS login code instead of the Google Play Integrity / Firebase flow.
-     * A mod is not published in Google Play and is signed with a different key, so the
-     * integrity request can hang forever and the login button just spins.
-     */
-    public static final String KEY_FORCE_SMS = "kamigram_force_sms";
-    /**
-     * Log in straight away: no "is this your number?" popup and no runtime permission
-     * dialogs. Those extra steps are where the login used to freeze on some devices -
-     * the code request must be sent immediately after the button is tapped.
-     */
-    public static final String KEY_FAST_LOGIN = "kamigram_fast_login";
-    /** Activate a proxy automatically when its link appears in the clipboard. */
-    public static final String KEY_AUTO_PROXY_CLIPBOARD = "kamigram_auto_proxy_clipboard";
-    /** Switch a dead proxy off automatically so VPN / direct connection can work. */
-    public static final String KEY_PROXY_FALLBACK = "kamigram_proxy_fallback";
-    /**
-     * «Мощный» прокси: своя база живых прокси, проверка пинга и моментальное
-     * переключение на рабочий (быстрее встроенного в разы).
-     */
-    public static final String KEY_SMART_PROXY = "kamigram_smart_proxy";
-    /** Ускорение загрузок и потоков на любом интернете, особенно на слабом. */
-    public static final String KEY_FAST_NET = "kamigram_fast_net";
-    /** Скачанное вручную не удаляется автоматически: кэш не чистится за спиной. */
-    public static final String KEY_KEEP_DOWNLOADS = "kamigram_keep_downloads";
-    /** Не грузить GIF и анимации в чатах (0 байт на них). */
-    public static final String KEY_NO_GIFS = "kamigram_no_gifs";
-    /** Больше не спрашивать разрешения на контакты, телефон и уведомления. */
+    /** Не спрашивать разрешения (контакты, телефон, уведомления). */
     public static final String KEY_NO_PERMISSION_NAGS = "kamigram_no_permission_nags";
+    /** Запрет скриншотов во всём приложении (FLAG_SECURE). */
+    public static final String KEY_NO_SCREENSHOTS = "kamigram_no_screenshots";
+    /** Скрывать содержимое уведомлений. */
+    public static final String KEY_HIDE_NOTIFICATION_TEXT = "kamigram_hide_notification_text";
 
-    // ---------------------------------------------------------------- трафик
-    /** Ничего не грузить по стикерам, наборам эмодзи и премиум-эмодзи (0 байт). */
+    // ------------------------------------------------------------- прокси и сеть
+    /** Мощный прокси: база живых прокси и моментальное переключение. */
+    public static final String KEY_SMART_PROXY = "kamigram_smart_proxy";
+    /** Нерабочий прокси выключается сам. */
+    public static final String KEY_PROXY_FALLBACK = "kamigram_proxy_fallback";
+    /** Прокси из буфера обмена включается сам. */
+    public static final String KEY_AUTO_PROXY_CLIPBOARD = "kamigram_auto_proxy_clipboard";
+    /** Ускорение загрузок и потоков (особенно на слабом интернете). */
+    public static final String KEY_FAST_NET = "kamigram_fast_net";
+
+    // ------------------------------------------------------------- трафик
+    /** Не грузить стикеры и наборы эмодзи. */
     public static final String KEY_NO_STICKERS = "kamigram_no_stickers";
-    /** Ничего не грузить по историям: ни списки, ни просмотры, ни само медиа. */
+    /** Не грузить истории и их медиа. */
     public static final String KEY_NO_STORIES = "kamigram_no_stories";
-    /** Премиум-эмодзи рисовать обычным эмодзи: файлы .tgs не скачиваются вообще. */
+    /** Премиум-эмодзи показывать обычным эмодзи. */
     public static final String KEY_NO_ANIMATED_EMOJI = "kamigram_no_animated_emoji";
-    /** Убрать рекламные блоки Telegram Premium / Stars / TON / подарков. */
+    /** Не грузить GIF и анимации. */
+    public static final String KEY_NO_GIFS = "kamigram_no_gifs";
+    /** Не подгружать превью ссылок. */
+    public static final String KEY_NO_LINK_PREVIEW = "kamigram_no_link_preview";
+    /** Не искать GIF и стикеры при вводе. */
+    public static final String KEY_NO_GIF_SEARCH = "kamigram_no_gif_search";
+    /** Не грузить «часто используемые» контакты. */
+    public static final String KEY_NO_TOP_PEERS = "kamigram_no_top_peers";
+    /** Реклама и рекомендации не запрашиваются. */
+    public static final String KEY_NO_ADS = "kamigram_no_ads";
+    /** Без блоков Premium / Stars / TON. */
     public static final String KEY_NO_PREMIUM_UI = "kamigram_no_premium_ui";
 
-    /** Реклама и рекомендации: спонсорские сообщения, рекомендованные каналы, папки. */
-    public static final String KEY_NO_ADS = "kamigram_no_ads";
-    /** Не грузить «часто используемые» контакты и топ-пиры. */
-    public static final String KEY_NO_TOP_PEERS = "kamigram_no_top_peers";
-    /** Не искать GIF/стикеры при вводе текста (поиск не уходит на сервер). */
-    public static final String KEY_NO_GIF_SEARCH = "kamigram_no_gif_search";
-    /** Не подгружать превью ссылок и веб-страницы (экономия трафика). */
-    public static final String KEY_NO_LINK_PREVIEW = "kamigram_no_link_preview";
-    /** Призрак для историй: просмотры чужих историй не записываются (stealth mode). */
-    public static final String KEY_STORIES_STEALTH = "kamigram_stories_stealth";
+    // ------------------------------------------------------------- кэш
+    /**
+     * Защищать вручную скачанное. По умолчанию ВЫКЛЮЧЕНО: пользователь должен
+     * иметь возможность чистить кэш как обычно. Включается галочкой в центре.
+     */
+    public static final String KEY_KEEP_DOWNLOADS = "kamigram_keep_downloads";
 
-    // ---------------------------------------------------------------- дизайн
-    /** iOS-дизайн KamiGram: плоские табы, плоская шапка, свои иконки. */
+    // ------------------------------------------------------------- внешний вид
+    /** iOS-дизайн: графит, скругления, плоская шапка. */
     public static final String KEY_IOS_DESIGN = "kamigram_ios_design";
-    /** iOS-геометрия облаков сообщений (скругление 18 вместо 17). */
+    /** iOS-скругления облаков сообщений. */
     public static final String KEY_IOS_BUBBLES = "kamigram_ios_bubbles";
+    /** Акцентный цвет: 0 — iOS-синий, 1 — бирюзовый, 2 — зелёный, 3 — оранжевый, 4 — красный, 5 — графит, 6 — розовый. */
+    public static final String KEY_ACCENT = "kamigram_accent";
+    /** Фон чатов: 0 — чёрный (AMOLED), 1 — графит, 2 — с узором Telegram. */
+    public static final String KEY_CHAT_BACKGROUND = "kamigram_chat_background";
+    /** Материал-дизайн 3 (2026): крупные карточки, мягкие скругления, MD3-строки. */
+    public static final String KEY_MATERIAL3 = "kamigram_material3";
+    /** Компактный список чатов (меньше высота строки). */
+    public static final String KEY_COMPACT_CHATS = "kamigram_compact_chats";
+    /** Шрифт сообщений крупнее на N (0 — как в Telegram). */
+    public static final String KEY_FONT_BOOST = "kamigram_font_boost";
+    /** Отправка сообщения по Enter. */
+    public static final String KEY_ENTER_TO_SEND = "kamigram_enter_to_send";
+    /** Тихая отправка (без звука). */
+    public static final String KEY_SILENT_SEND = "kamigram_silent_send";
+
+    // ------------------------------------------------------------- вход
+    /** Всегда простой SMS-код вместо Google-аттестации. */
+    public static final String KEY_FORCE_SMS = "kamigram_force_sms";
+    /** Войти сразу: без лишних подтверждений и запросов разрешений. */
+    public static final String KEY_FAST_LOGIN = "kamigram_fast_login";
 
     private KamiGramConfig() {
     }
 
-    private static boolean get(String key) {
+    private static boolean get(String key, boolean fallback) {
         try {
             final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
-            return preferences == null || preferences.getBoolean(key, true);
+            return preferences == null || preferences.getBoolean(key, fallback);
         } catch (Throwable ignore) {
-            return true;
+            return fallback;
         }
     }
 
-    /** Значение переключателя (для экрана настроек мода). */
-    public static boolean value(String key) {
-        return get(key);
+    private static int getInt(String key, int fallback) {
+        try {
+            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            return preferences == null ? fallback : preferences.getInt(key, fallback);
+        } catch (Throwable ignore) {
+            return fallback;
+        }
     }
 
-    /** Записать переключатель (экран настроек мода). */
+    public static boolean value(String key) {
+        return get(key, defaultValue(key));
+    }
+
+    /** Значение по умолчанию для каждого ключа. */
+    public static boolean defaultValue(String key) {
+        // выключено по умолчанию: то, что меняет обычное поведение Telegram
+        if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
+            || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
+            || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)) {
+            return false;
+        }
+        return true;
+    }
+
     public static void set(String key, boolean value) {
         try {
             final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -105,142 +142,224 @@ public final class KamiGramConfig {
         }
     }
 
-    /** Сводка состояния для строки настроек. */
+    public static void setInt(String key, int value) {
+        try {
+            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            if (preferences != null) {
+                preferences.edit().putInt(key, value).apply();
+            }
+        } catch (Throwable ignore) {
+        }
+    }
+
+    public static int intValue(String key, int fallback) {
+        return getInt(key, fallback);
+    }
+
+    /** Сводка состояния для строки в настройках. */
     public static String summary() {
-        return "призрак " + onOff(ghostMode())
+        return "прокси " + onOff(smartProxy())
             + " · стикеры " + onOff(!noStickers())
-            + " · эмодзи " + onOff(!noAnimatedEmoji())
-            + " · истории " + onOff(!noStories())
             + " · gif " + onOff(!noGifs())
-            + " · прокси-ускорение " + onOff(smartProxy())
-            + " · кэш " + onOff(keepDownloads());
+            + " · истории " + onOff(!noStories())
+            + " · призрак " + onOff(ghostMode())
+            + " · тема " + accentName();
     }
 
     private static String onOff(boolean value) {
         return value ? "вкл" : "выкл";
     }
 
-    /** Ghost mode: the peer cannot see that we read, type or are online. */
+    // ------------------------------------------------------------------ геттеры
+
     public static boolean ghostMode() {
-        return get(KEY_GHOST);
+        return get(KEY_GHOST, true);
     }
 
-    /** Lift protected-content restrictions (forward, save, screenshots). */
-    public static boolean noRestrictions() {
-        return get(KEY_NO_RESTRICTIONS);
-    }
-
-    /** Show chat/user ID. */
-    public static boolean showIds() {
-        return get(KEY_SHOW_IDS);
-    }
-
-    /** Flat iOS-style tab bar. */
-    public static boolean iosTabs() {
-        return get(KEY_IOS_TABS) && iosDesign();
-    }
-
-    /** Ask the server for a plain SMS code (no Play Integrity / Firebase). */
-    public static boolean forceSmsLogin() {
-        return get(KEY_FORCE_SMS);
-    }
-
-    /** Send the code request right away, without the confirmation / permission popups. */
-    public static boolean fastLogin() {
-        return get(KEY_FAST_LOGIN);
-    }
-
-    /** Auto-enable a proxy link found in the clipboard. */
-    public static boolean autoProxyFromClipboard() {
-        return get(KEY_AUTO_PROXY_CLIPBOARD);
-    }
-
-    /** Auto-disable a proxy that does not connect. */
-    public static boolean proxyFallback() {
-        return get(KEY_PROXY_FALLBACK);
-    }
-
-    /** Моментальное переключение прокси на рабочий (мощный прокси-движок). */
-    public static boolean smartProxy() {
-        return get(KEY_SMART_PROXY);
-    }
-
-    /** Ускорение сети и загрузок. */
-    public static boolean fastNet() {
-        return get(KEY_FAST_NET);
-    }
-
-    /** Скачанное не удалять автоматически. */
-    public static boolean keepDownloads() {
-        return get(KEY_KEEP_DOWNLOADS);
-    }
-
-    /** Не грузить GIF. */
-    public static boolean noGifs() {
-        return get(KEY_NO_GIFS);
-    }
-
-    /** Не надоедать запросами разрешений. */
-    public static boolean noPermissionNags() {
-        return get(KEY_NO_PERMISSION_NAGS);
-    }
-
-    /** Ноль трафика на стикеры, наборы эмодзи и премиум-эмодзи. */
-    public static boolean noStickers() {
-        return get(KEY_NO_STICKERS);
-    }
-
-    /** Ноль трафика на истории. */
-    public static boolean noStories() {
-        return get(KEY_NO_STORIES);
-    }
-
-    /** Премиум-эмодзи показываются обычным эмодзи (файлы не скачиваются). */
-    public static boolean noAnimatedEmoji() {
-        return get(KEY_NO_ANIMATED_EMOJI);
-    }
-
-    /** Реклама и рекомендации не запрашиваются вообще. */
-    public static boolean noAds() {
-        return get(KEY_NO_ADS);
-    }
-
-    /** «Часто используемые» и топ-пиры не грузятся. */
-    public static boolean noTopPeers() {
-        return get(KEY_NO_TOP_PEERS);
-    }
-
-    /** Поиск GIF/стикеров при вводе не уходит на сервер. */
-    public static boolean noGifSearch() {
-        return get(KEY_NO_GIF_SEARCH);
-    }
-
-    /** Превью ссылок и веб-страницы не подгружаются. */
-    public static boolean noLinkPreview() {
-        return get(KEY_NO_LINK_PREVIEW);
-    }
-
-    /** Призрак для историй: просмотры не записываются. */
     public static boolean storiesStealth() {
-        return get(KEY_STORIES_STEALTH);
+        return get(KEY_STORIES_STEALTH, true);
     }
 
-    /** Без рекламных блоков Premium / Stars / TON. */
+    public static boolean noRestrictions() {
+        return get(KEY_NO_RESTRICTIONS, true);
+    }
+
+    public static boolean showIds() {
+        return get(KEY_SHOW_IDS, true);
+    }
+
+    public static boolean noPermissionNags() {
+        return get(KEY_NO_PERMISSION_NAGS, true);
+    }
+
+    public static boolean noScreenshots() {
+        return get(KEY_NO_SCREENSHOTS, false);
+    }
+
+    public static boolean hideNotificationText() {
+        return get(KEY_HIDE_NOTIFICATION_TEXT, false);
+    }
+
+    public static boolean smartProxy() {
+        return get(KEY_SMART_PROXY, true);
+    }
+
+    public static boolean proxyFallback() {
+        return get(KEY_PROXY_FALLBACK, true);
+    }
+
+    public static boolean autoProxyFromClipboard() {
+        return get(KEY_AUTO_PROXY_CLIPBOARD, true);
+    }
+
+    public static boolean fastNet() {
+        return get(KEY_FAST_NET, true);
+    }
+
+    public static boolean noStickers() {
+        return get(KEY_NO_STICKERS, true);
+    }
+
+    public static boolean noStories() {
+        return get(KEY_NO_STORIES, true);
+    }
+
+    public static boolean noAnimatedEmoji() {
+        return get(KEY_NO_ANIMATED_EMOJI, true);
+    }
+
+    public static boolean noGifs() {
+        return get(KEY_NO_GIFS, true);
+    }
+
+    public static boolean noLinkPreview() {
+        return get(KEY_NO_LINK_PREVIEW, true);
+    }
+
+    public static boolean noGifSearch() {
+        return get(KEY_NO_GIF_SEARCH, true);
+    }
+
+    public static boolean noTopPeers() {
+        return get(KEY_NO_TOP_PEERS, true);
+    }
+
+    public static boolean noAds() {
+        return get(KEY_NO_ADS, true);
+    }
+
     public static boolean noPremiumUi() {
-        return get(KEY_NO_PREMIUM_UI);
+        return get(KEY_NO_PREMIUM_UI, true);
     }
 
-    /** Основной iOS-дизайн KamiGram (кодом, а не темой). */
+    public static boolean keepDownloads() {
+        return get(KEY_KEEP_DOWNLOADS, false);
+    }
+
     public static boolean iosDesign() {
-        return get(KEY_IOS_DESIGN);
+        return get(KEY_IOS_DESIGN, true);
     }
 
-    /** iOS-геометрия облаков сообщений. */
+
+    /** Совместимость с патчами сборки: iOS-таб-бар = iOS-дизайн. */
+    public static boolean iosTabs() {
+        return iosDesign();
+    }
+
+    /** Светлая тема принудительно выключена (иначе текст пропадает). */
+    public static boolean forceDark() {
+        return true;
+    }
+
     public static boolean iosBubbles() {
-        return get(KEY_IOS_BUBBLES);
+        return get(KEY_IOS_BUBBLES, true);
     }
 
-    /** Guards the "ask for a plain SMS instead of Firebase" resend so it happens only once. */
+    public static boolean material3() {
+        return get(KEY_MATERIAL3, true);
+    }
+
+    public static boolean compactChats() {
+        return get(KEY_COMPACT_CHATS, false);
+    }
+
+    public static boolean enterToSend() {
+        return get(KEY_ENTER_TO_SEND, false);
+    }
+
+    public static boolean silentSend() {
+        return get(KEY_SILENT_SEND, false);
+    }
+
+    public static boolean forceSmsLogin() {
+        return get(KEY_FORCE_SMS, true);
+    }
+
+    public static boolean fastLogin() {
+        return get(KEY_FAST_LOGIN, true);
+    }
+
+    // ------------------------------------------------------------------ акцент
+
+    private static final String[] ACCENT_NAMES = {
+        "iOS-синий", "бирюзовый", "зелёный", "оранжевый", "красный", "графит", "розовый"
+    };
+
+    private static final int[] ACCENT_COLORS = {
+        0xFF0A84FF, 0xFF32ADE6, 0xFF34C759, 0xFFFF9F0A, 0xFFFF453A, 0xFF8E8E93, 0xFFFF375F
+    };
+
+    public static int accentIndex() {
+        return Math.max(0, Math.min(ACCENT_NAMES.length - 1, getInt(KEY_ACCENT, 0)));
+    }
+
+    public static int accentColor() {
+        return ACCENT_COLORS[accentIndex()];
+    }
+
+    public static String accentName() {
+        return ACCENT_NAMES[accentIndex()];
+    }
+
+    public static String accentNameAt(int index) {
+        return ACCENT_NAMES[Math.max(0, Math.min(ACCENT_NAMES.length - 1, index))];
+    }
+
+    public static int accentCount() {
+        return ACCENT_NAMES.length;
+    }
+
+    public static void setAccent(int index) {
+        setInt(KEY_ACCENT, index);
+    }
+
+    // ------------------------------------------------------------------ фон чата
+
+    public static int chatBackgroundIndex() {
+        return Math.max(0, Math.min(2, getInt(KEY_CHAT_BACKGROUND, 0)));
+    }
+
+    public static String chatBackgroundName() {
+        switch (chatBackgroundIndex()) {
+            case 1:
+                return "графит";
+            case 2:
+                return "узор Telegram";
+            default:
+                return "чёрный (AMOLED)";
+        }
+    }
+
+    public static void setChatBackground(int index) {
+        setInt(KEY_CHAT_BACKGROUND, index);
+    }
+
+    /** Насколько крупнее шрифт сообщений (0..4). */
+    public static int fontBoost() {
+        return Math.max(0, Math.min(4, getInt(KEY_FONT_BOOST, 0)));
+    }
+
+    /** Служебное: чтобы не спрашивать простой SMS-код дважды. */
     private static boolean forceSmsResent;
 
     public static boolean forceSmsConsumed() {

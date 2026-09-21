@@ -548,322 +548,35 @@ else
 fi
 
 # =============================================================================
-# P16. iOS-СТИЛЬ: тёмная тема KamiGram (чистый чёрный, без градиентов и стекла).
-#      Темы Telegram лежат в assets/*.attheme обычным текстом (ключ=значение),
-#      поэтому палитра меняется без правки Java: переписываем тему дня ("Blue"
-#      → bluebubbles.attheme), тему ночи ("Dark Blue" → darkblue.attheme) и night,
-#      чтобы приложение выглядело одинаково тёмно-iOS в любом режиме.
+# P16. iOS-ТЕМА 2026 (правильная). Берём РОДНУЮ тёмную тему Telegram
+#      (assets/night.attheme — там автор Telegram согласовал каждый текст со
+#      своим фоном) и переписываем ТОЛЬКО цвета из mod/kamigram/apply_theme_pro.py:
+#      поверхности #000000 / #1C1C1E / #2C2C2E, текст #FFFFFF и #8E8E93,
+#      облака #262628 (вход) и #2B5278 (исход, как в iOS-теме Telegram),
+#      акцент iOS-синий #0A84FF, переключатели iOS-зелёный #34C759.
+#      Никакого фиолетового #5E5CE6, никакого «стекла», никаких градиентов.
+#      Тот же набор уходит в bluebubbles.attheme и darkblue.attheme, поэтому
+#      даже светлая системная тема приложения выглядит тёмно-iOS — чёрный
+#      текст на чёрном фоне физически невозможен.
 # =============================================================================
 if [ "$IOS_THEME" = "1" ]; then
-    python3 - "$TG_DIR" <<'PY' || die "P16: не удалось применить iOS-палитру"
-import io, os, sys
-
-root = sys.argv[1]
-assets = os.path.join(root, 'TMessagesProj/src/main/assets')
-base_file = os.path.join(assets, 'darkblue.attheme')
-
-def to_int(hexstr):
-    s = hexstr.lstrip('#')
-    if len(s) == 8:
-        v = int(s, 16)
-    else:
-        v = 0xff000000 | int(s, 16)
-    return v - (1 << 32) if v >= (1 << 31) else v
-
-P = {
-    # --- фоны и поверхности ---
-    'chat_wallpaper': '#000000',
-    'windowBackgroundGray': '#000000',
-    'windowBackgroundWhite': '#1C1C1E',
-    'actionBarDefault': '#1C1C1E',
-    'dialogBackground': '#1C1C1E',
-    'dialogBackgroundGray': '#2C2C2E',
-    'graySection': '#1C1C1E',
-    'key_graySectionText': '#8E8E93',
-    'divider': '#38383A',
-    'dialogGrayLine': '#38383A',
-    'dialogShadowLine': '#00000000',
-    'dialogLineProgressBackground': '#3A3A3C',
-    'chat_topPanelBackground': '#1C1C1E',
-    'chat_topPanelLine': '#38383A',
-    'chat_messagePanelBackground': '#1C1C1E',
-    'chat_emojiPanelBackground': '#1C1C1E',
-    'chat_emojiPanelShadowLine': '#2C2C2E',
-    'chat_stickersHintPanel': '#1C1C1E',
-    'chats_menuBackground': '#1C1C1E',
-    'chats_menuTopBackgroundCats': '#1C1C1E',
-    'chats_menuTopShadow': '#00000000',
-    'chats_archivePinBackground': '#1C1C1E',
-    'actionBarDefaultSubmenuBackground': '#1C1C1E',
-    'actionBarDefaultSubmenuSeparator': '#38383A',
-    'undo_background': '#2C2C2E',
-    'inappPlayerBackground': '#1C1C1E',
-    'player_background': '#1C1C1E',
-    'sharedMedia_linkPlaceholder': '#1C1C1E',
-    # --- тексты ---
-    'actionBarDefaultTitle': '#FFFFFF',
-    'actionBarDefaultIcon': '#FFFFFF',
-    'actionBarDefaultSubtitle': '#8E8E93',
-    'actionBarDefaultSearchPlaceholder': '#8E8E93',
-    'actionBarTabActiveText': '#FFFFFF',
-    'actionBarTabUnactiveText': '#8E8E93',
-    'chats_name': '#FFFFFF',
-    'chats_message': '#8E8E93',
-    'chats_date': '#8E8E93',
-    'chats_nameMessage': '#8E8E93',
-    'windowBackgroundWhiteBlackText': '#FFFFFF',
-    'windowBackgroundWhiteGrayText': '#8E8E93',
-    'windowBackgroundWhiteGrayText2': '#8E8E93',
-    'windowBackgroundWhiteGrayText3': '#8E8E93',
-    'windowBackgroundWhiteGrayText4': '#8E8E93',
-    'windowBackgroundWhiteGrayText5': '#8E8E93',
-    'windowBackgroundWhiteGrayText6': '#8E8E93',
-    'windowBackgroundWhiteGrayText8': '#8E8E93',
-    'windowBackgroundWhiteHintText': '#8E8E93',
-    'windowBackgroundWhiteGrayIcon': '#8E8E93',
-    'windowBackgroundWhiteBlueHeader': '#8E8E93',
-    'windowBackgroundWhiteValueText': '#5E5CE6',
-    'windowBackgroundWhiteLinkText': '#5E5CE6',
-    'windowBackgroundWhiteLinkSelection': '#335E5CE6',
-    'dialogTextBlack': '#FFFFFF',
-    'dialogTextGray': '#8E8E93',
-    'dialogTextGray2': '#8E8E93',
-    'dialogTextGray3': '#8E8E93',
-    'dialogTextGray4': '#8E8E93',
-    'dialogTextHint': '#8E8E93',
-    'dialogTextLink': '#5E5CE6',
-    'dialogTextBlue': '#5E5CE6',
-    'dialogTextBlue2': '#5E5CE6',
-    'dialogTextBlue4': '#5E5CE6',
-    'dialogButton': '#5E5CE6',
-    'dialogButtonSelector': '#335E5CE6',
-    'dialogIcon': '#8E8E93',
-    'profile_title': '#8E8E93',
-    'profile_status': '#8E8E93',
-    'profile_actionIcon': '#5E5CE6',
-    'profile_creatorIcon': '#5E5CE6',
-    'profile_actionBackground': '#00000000',
-    'profile_actionPressedBackground': '#00000000',
-    'avatar_subtitleInProfileBlue': '#8E8E93',
-    'emptyListPlaceholder': '#8E8E93',
-    'fastScrollInactive': '#3A3A3C',
-    'contextProgressInner1': '#3A3A3C',
-    'contextProgressOuter1': '#5E5CE6',
-    'text_RedBold': '#FF453A',
-    'text_RedRegular': '#FF453A',
-    'windowBackgroundWhiteGreenText': '#30D158',
-    'windowBackgroundWhiteGreenText2': '#30D158',
-    'windowBackgroundWhiteBlueText': '#5E5CE6',
-    'windowBackgroundWhiteBlueText2': '#5E5CE6',
-    'windowBackgroundWhiteBlueText3': '#5E5CE6',
-    'windowBackgroundWhiteBlueText4': '#5E5CE6',
-    'windowBackgroundWhiteBlueText5': '#5E5CE6',
-    'windowBackgroundWhiteBlueText7': '#5E5CE6',
-    'calls_callReceivedGreenIcon': '#30D158',
-    # --- чат: пузыри, время, статусы ---
-    'chat_inBubble': '#262628',
-    'chat_outBubble': '#2B5278',
-    'chat_inBubbleSelected': '#2C2C2E',
-    'chat_outBubbleSelected': '#33608A',
-    'chat_inBubbleShadow': '#00000000',
-    'chat_outBubbleShadow': '#00000000',
-    'chat_outBubbleGradientSelectedOverlay': '#33FFFFFF',
-    'chat_messageTextIn': '#FFFFFF',
-    'chat_messageTextOut': '#FFFFFF',
-    'chat_messageLinkIn': '#5E5CE6',
-    'chat_messageLinkOut': '#A8D4FF',
-    'chat_serviceBackground': '#CC1C1C1E',
-    'chat_serviceBackgroundSelected': '#CC2C2C2E',
-    'chat_status': '#8E8E93',
-    'chat_inTimeText': '#8E8E93',
-    'chat_outTimeText': '#A8C7E8',
-    'chat_outTimeSelectedText': '#FFFFFF',
-    'chat_inTimeSelectedText': '#8E8E93',
-    'chat_inSentClock': '#8E8E93',
-    'chat_outSentClock': '#A8C7E8',
-    'chat_outSentClockSelected': '#FFFFFF',
-    'chat_outSentCheck': '#A8C7E8',
-    'chat_outSentCheckSelected': '#FFFFFF',
-    'chats_sentCheck': '#5E5CE6',
-    'chats_sentClock': '#8E8E93',
-    'chat_fieldOverlayText': '#5E5CE6',
-    'chat_messagePanelText': '#FFFFFF',
-    'chat_messagePanelHint': '#8E8E93',
-    'chat_messagePanelIcons': '#8E8E93',
-    'chat_messagePanelSend': '#5E5CE6',
-    'chat_recordTime': '#FF453A',
-    'chat_recordedVoiceDot': '#FF453A',
-    'chat_recordVoiceCancel': '#FF453A',
-    'chat_recordVoiceCancelSelected': '#FF453A',
-    'chat_goDownButton': '#2C2C2E',
-    'chat_goDownButtonCounter': '#5E5CE6',
-    'chat_selectedBackground': '#14FFFFFF',
-    'chat_attachActiveTab': '#5E5CE6',
-    'chat_attachUnactiveTab': '#8E8E93',
-    'chat_unreadMessagesStartBackground': '#2C2C2E',
-    'chat_unreadMessagesStartText': '#FFFFFF',
-    'chat_unreadMessagesStartArrowIcon': '#8E8E93',
-    'chat_topPanelTitle': '#FFFFFF',
-    'chat_topPanelMessage': '#8E8E93',
-    'chat_topPanelClose': '#8E8E93',
-    'chat_replyPanelLine': '#38383A',
-    'chat_replyPanelIcons': '#8E8E93',
-    'chat_replyPanelName': '#5E5CE6',
-    'chat_addContact': '#5E5CE6',
-    'chat_inSiteNameText': '#5E5CE6',
-    'chat_outSiteNameText': '#A8D4FF',
-    'chat_inForwardedNameText': '#5E5CE6',
-    'chat_outForwardedNameText': '#A8D4FF',
-    'chat_inReplyNameText': '#5E5CE6',
-    'chat_outReplyNameText': '#A8D4FF',
-    'chat_inVenueInfoText': '#8E8E93',
-    'chat_outVenueInfoText': '#A8C7E8',
-    'chat_inFileInfoText': '#8E8E93',
-    'chat_outFileInfoText': '#A8C7E8',
-    'chat_inContactNameText': '#5E5CE6',
-    'chat_outContactNameText': '#A8D4FF',
-    'chat_inAudioPerfomerText': '#8E8E93',
-    'chat_outAudioPerfomerText': '#A8C7E8',
-    'chat_inAudioTitleText': '#5E5CE6',
-    'chat_outAudioTitleText': '#A8D4FF',
-    'chat_inMenu': '#8E8E93',
-    'chat_inMenuSelected': '#FFFFFF',
-    'chat_outMenu': '#A8C7E8',
-    'chat_outMenuSelected': '#FFFFFF',
-    'chat_inViews': '#8E8E93',
-    'chat_outViews': '#A8C7E8',
-    'chat_inViewsSelected': '#FFFFFF',
-    'chat_outViewsSelected': '#FFFFFF',
-    'chat_mediaMenu': '#8E8E93',
-    'chat_emojiPanelIcon': '#8E8E93',
-    'chat_emojiPanelIconSelected': '#5E5CE6',
-    'chat_emojiPanelEmptyText': '#8E8E93',
-    'chat_emojiPanelBadgeBackground': '#5E5CE6',
-    'chat_emojiPanelTrendingTitle': '#FFFFFF',
-    'chat_emojiPanelTrendingDescription': '#8E8E93',
-    'chat_emojiPanelBackspace': '#8E8E93',
-    'chat_emojiPanelStickerPackSelector': '#3A3A3C',
-    # --- переключатели, чекбоксы, списки ---
-    'switchTrack': '#3A3A3C',
-    'switchTrackChecked': '#30D158',
-    'switchTrackBlue': '#3A3A3C',
-    'switchTrackBlueChecked': '#5E5CE6',
-    'switchTrackBlueThumb': '#FFFFFF',
-    'switchTrackBlueThumbChecked': '#FFFFFF',
-    'switchTrackBlueSelector': '#335E5CE6',
-    'switchTrackBlueSelectorChecked': '#335E5CE6',
-    'checkboxSquareBackground': '#5E5CE6',
-    'checkboxSquareUnchecked': '#8E8E93',
-    'checkboxSquareDisabled': '#3A3A3C',
-    'radioBackground': '#8E8E93',
-    'radioBackgroundChecked': '#5E5CE6',
-    'windowBackgroundChecked': '#5E5CE6',
-    'windowBackgroundUnchecked': '#8E8E93',
-    'windowBackgroundCheckText': '#FFFFFF',
-    'dialogCheckboxSquareUnchecked': '#8E8E93',
-    'dialogCheckboxSquareDisabled': '#3A3A3C',
-    'dialogRoundCheckBox': '#5E5CE6',
-    'listSelectorSDK21': '#0FFFFFFF',
-    'actionBarDefaultSelector': '#14FFFFFF',
-    'actionBarWhiteSelector': '#14FFFFFF',
-    'actionBarDefaultArchivedSelector': '#14FFFFFF',
-    'actionBarActionModeDefaultSelector': '#14FFFFFF',
-    'actionBarActionModeDefaultIcon': '#FFFFFF',
-    'actionBarActionModeDefault': '#1C1C1E',
-    'actionBarTabSelector': '#335E5CE6',
-    'profile_tabSelector': '#335E5CE6',
-    'profile_tabText': '#8E8E93',
-    'actionBarDefaultSubmenuItem': '#FFFFFF',
-    'actionBarDefaultSubmenuItemIcon': '#8E8E93',
-    'chats_menuItemText': '#FFFFFF',
-    'chats_menuItemIcon': '#8E8E93',
-    'chats_menuPhone': '#8E8E93',
-    'chats_menuPhoneCats': '#8E8E93',
-    'chats_actionBackground': '#5E5CE6',
-    'chats_actionMessage': '#8E8E93',
-    'chats_unreadCounter': '#5E5CE6',
-    'chats_unreadCounterMuted': '#3A3A3C',
-    'chats_archiveBackground': '#5E5CE6',
-    'chats_pinnedOverlay': '#0AFFFFFF',
-    'chats_tabletSelectedOverlay': '#0AFFFFFF',
-    'chats_secretIcon': '#30D158',
-    'chats_secretName': '#30D158',
-    'chats_verifiedBackground': '#5E5CE6',
-    'chats_pinnedIcon': '#8E8E93',
-    'chats_muteIcon': '#8E8E93',
-    'chats_attachMessage': '#5E5CE6',
-    'chats_draft': '#FF453A',
-    'groupcreate_cursor': '#5E5CE6',
-    'groupcreate_spanBackground': '#3A3A3C',
-    'groupcreate_spanText': '#FFFFFF',
-    'groupcreate_hintText': '#8E8E93',
-    'groupcreate_sectionText': '#8E8E93',
-    'featuredStickers_addedIcon': '#5E5CE6',
-    'sharedMedia_startStopLoadIcon': '#5E5CE6',
-    'inappPlayerTitle': '#FFFFFF',
-    'inappPlayerPerformer': '#8E8E93',
-    'inappPlayerPlayPause': '#5E5CE6',
-    'inappPlayerClose': '#8E8E93',
-    'player_time': '#8E8E93',
-    'player_actionBarTitle': '#FFFFFF',
-    'player_actionBarSubtitle': '#8E8E93',
-    'player_actionBarItems': '#8E8E93',
-    'player_actionBarSelector': '#14FFFFFF',
-    'player_button': '#8E8E93',
-    'player_buttonActive': '#5E5CE6',
-    'player_progress': '#5E5CE6',
-    'player_progressBackground': '#3A3A3C',
-    'key_player_progressCachedBackground': '#3A3A3C',
-    # --- без градиентов, без стекла ---
-    'chat_BlurAlpha': '#00000000',
-    'chat_BlurAlphaSlow': '#00000000',
-    'premiumGradientBackground1': '#5E5CE6',
-    'premiumGradientBackground2': '#5E5CE6',
-    'premiumGradientBackground3': '#5E5CE6',
-    'premiumGradientBackground4': '#5E5CE6',
-    'premiumStarGradient1': '#5E5CE6',
-    'premiumStarGradient2': '#5E5CE6',
-    'premiumStartSmallStarsColor': '#5E5CE6',
-    'stories_circle1': '#5E5CE6',
-    'stories_circle2': '#5E5CE6',
-    'stories_circle_dialog1': '#5E5CE6',
-    'stories_circle_dialog2': '#5E5CE6',
-    'stories_circle_closeFriends1': '#5E5CE6',
-    'stories_circle_closeFriends2': '#5E5CE6',
-    'glass_defaultIcon': '#FFFFFF',
-    'glass_defaultText': '#FFFFFF',
-    'glass_targetMainTabs': '#00000000',
-    'glass_targetMainTopPanel': '#00000000',
-}
-
-text = io.open(base_file, encoding='utf-8').read()
-out, applied, seen = [], 0, set()
-for line in text.split('\n'):
-    if '=' in line:
-        k = line.split('=', 1)[0]
-        if k in P:
-            line = k + '=' + str(to_int(P[k]))
-            applied += 1
-            seen.add(k)
-    out.append(line)
-missing = [k for k in P if k not in seen]
-if applied < 60:
-    sys.stderr.write('P16: применилось только %d ключей — палитра не подходит под эту версию темы\n' % applied)
-    sys.exit(1)
-if missing:
-    sys.stderr.write('P16: ключи не найдены (пропущены): %s\n' % ', '.join(sorted(missing)[:25]))
-new_theme = '\n'.join(out)
-for name in ('bluebubbles.attheme', 'darkblue.attheme', 'night.attheme'):
-    io.open(os.path.join(assets, name), 'w', encoding='utf-8').write(new_theme)
-print('применено ключей: %d (файлов тем: 3)' % applied)
-PY
-    grep -q "chat_wallpaper=-16777216" "$TG_DIR/TMessagesProj/src/main/assets/bluebubbles.attheme" \
-        || die "P16: тема дня не переписана на чистый чёрный (#000000)"
-    ok "P16 iOS-тема KamiGram: фон #000000, поверхности #1C1C1E, акцент iOS #0A84FF, градиенты и стекло — плоские"
+    KAMIGRAM_PY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/kamigram"
+    python3 "$KAMIGRAM_PY/apply_theme_pro.py" "$TG_DIR/TMessagesProj/src/main/assets" \
+        || die "P16: не удалось применить iOS-палитру"
+    for theme_name in bluebubbles.attheme darkblue.attheme night.attheme; do
+        theme_file="$TG_DIR/TMessagesProj/src/main/assets/$theme_name"
+        grep -q '^windowBackgroundWhiteBlackText=-1' "$theme_file" || die "P16: $theme_name — основной текст не белый"
+        grep -q '^windowBackgroundWhite=-14935010' "$theme_file"  || die "P16: $theme_name — поверхность не #1C1C1E"
+        grep -q '^windowBackgroundGray=-16777216' "$theme_file"   || die "P16: $theme_name — фон не чёрный"
+        grep -q '^actionBarDefaultTitle=-1' "$theme_file"         || die "P16: $theme_name — заголовок шапки не белый"
+        grep -q '^chat_outBubble=-13938056' "$theme_file"         || die "P16: $theme_name — исходящее облако не #2B5278"
+        grep -q '^switchTrackChecked=-13318311' "$theme_file"     || die "P16: $theme_name — переключатель не iOS-зелёный"
+        grep -q '5E5CE6' "$theme_file" && die "P16: $theme_name — остался фиолетовый акцент"
+    done
+    ok "P16 iOS-тема 2026: чёрный фон, графит #1C1C1E, белый текст, iOS-акцент #0A84FF, iOS-зелёный свитч"
 else
     skip "P16 iOS-тема не применяется (IOS_THEME=0)"
 fi
-
 # =============================================================================
 # P17. ПЛОСКИЙ ДИЗАЙН: тяжёлый узор чата (496 КБ) заменяем минимальным SVG
 # =============================================================================
@@ -2172,6 +1885,38 @@ else
 fi
 
 # =============================================================================
+# P80. ЕДИНАЯ ТОЧКА ДИЗАЙНА 2026 (исправление прошлой сборки):
+#      1) на каждом экране держится тёмная iOS-тема и применяются акценты
+#         (ThemeHook.apply через Application.ActivityLifecycleCallbacks) —
+#         поэтому больше нет «чёрного текста на чёрном фоне» и пропавших
+#         названий чатов: палитру берём из assets, а код трогает только акценты;
+#      2) иконка настроек — iOS-шестерёнка (настоящий ресурс, а не Drawable);
+#      3) кэш: обычная очистка работает всегда, защита скачанного — по галочке;
+#      4) новый центр мода: карточки, акценты, размеры кэша по категориям,
+#         ID и ссылки, менеджер загрузок, прокси.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG"
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P80: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+
+    APP_LOADER="$JAVA_ROOT/org/telegram/messenger/ApplicationLoader.java"
+    python3 "$KAMIGRAM_SRC/apply_theme_hook.py" "$APP_LOADER" || die "P80: не удалось подключить хук темы"
+    grep -q "KAMIGRAM_THEME_HOOK" "$APP_LOADER" || die "P80: хук темы не найден в ApplicationLoader"
+    ok "P80 единый дизайн: тёмная iOS-тема и акценты применяются на каждом экране"
+
+    [ -f "$RES_ROOT/drawable/kamigram_ic_ios_settings.xml" ] \
+        || die "P80: нет res/drawable/kamigram_ic_ios_settings.xml"
+    ok "P80 иконка настроек: iOS-шестерёнка kamigram_ic_ios_settings подключена в меню"
+
+else
+    skip "P80 дизайн 2026 отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -2179,6 +1924,8 @@ MOD_NAME=$APP_NAME
 MOD_PACKAGE=$APP_PACKAGE
 MOD_VERSION=$NEW_VERSION
 MOD_BASE_VERSION=$BASE_VERSION
+
+
 MOD_ABIS=$ABIS
 MOD_MAX_ECONOMY=$MAX_ECONOMY
 MOD_NO_STICKERS=$NO_STICKERS
@@ -2193,6 +1940,7 @@ MOD_FLAT_UI=$FLAT_UI
 MOD_AUTO_PROXY=$AUTO_PROXY
 MOD_DROP_APPINDEXING=$DROP_APPINDEXING
 MOD_IOS_UI=$IOS_UI
+DESIGN_VERSION=KamiGram iOS 2026.2 (graphite, accent #0A84FF, no glass)
 MOD_GHOST_MODE=$GHOST_MODE
 MOD_NO_RESTRICTIONS=$NO_RESTRICTIONS
 MOD_FIX_LOGIN=$FIX_LOGIN
