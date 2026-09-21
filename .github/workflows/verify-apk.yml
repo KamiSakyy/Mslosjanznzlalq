@@ -1,0 +1,66 @@
+name: "Проверка APK в handoff/ (какие ключи и фиксы внутри) — без сборки"
+
+# =============================================================================
+#  Никакой сборки: берёт уже готовый APK из handoff/ и показывает, что внутри —
+#  какие api_id/api_hash вшиты, есть ли метки фиксов входа. Результат в notes/.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/verify-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Забрать файлы мода"
+        uses: actions/checkout@v4
+
+      - name: "Разобрать handoff/KamiGram-latest.apk"
+        run: |
+          set -euo pipefail
+          mkdir -p notes /tmp/handoff
+          APK=handoff/KamiGram-latest.apk
+          ls -la "$APK"
+          echo "sha256: $(sha256sum "$APK" | cut -c1-64)"
+          unzip -o -q "$APK" -d /tmp/handoff
+          ls /tmp/handoff/classes*.dex | head
+          {
+            echo "== APK: $APK ($(stat -c%s "$APK") байт) =="
+            echo "sha256: $(sha256sum "$APK" | cut -c1-64)"
+            echo
+            echo "== какие ключи Telegram вшиты =="
+            for k in 014b35b6184100b085b0d0572f9b5103 eb06d4abfb49dc3eeb1aeb98ae0f581e \
+                     1c5c96d5edd401b1ed40db3fb5633e2d b18441a1ff607e10a989891a5462e627 \
+                     a3406de8d171bb422bb6ddf3bbd800e2 3e0cb5efcd52300aec5994fdfc5bdc16; do
+              n=$(strings -a /tmp/handoff/classes*.dex | grep -c "$k" || true)
+              echo "$k -> $n"
+            done
+            echo
+            echo "== метки фиксов входа =="
+            for s in "in connection: " "kamigram_api_key_index_v3" "switched to the Telegram key" \
+                     "code request sent" "fast login" "No answer from the server" \
+                     "KAMIGRAM" "safety_net" "SafetyNet key"; do
+              n=$(strings -a /tmp/handoff/classes*.dex | grep -c "$s" || true)
+              echo "$s -> $n"
+            done
+            echo
+            echo "== ключ, который мод ставит первым (по dex) =="
+            strings -a /tmp/handoff/classes*.dex | grep -E '^[0-9a-f]{32}$' | sort | uniq -c | sort -rn | head -20
+          } > notes/apk-check.txt 2>&1 || true
+          cat notes/apk-check.txt
+
+      - name: "Закоммитить результат"
+        run: |
+          set -euo pipefail
+          git config user.name "arena-agent"
+          git config user.email "297053741+arena-agent@users.noreply.github.com"
+          git add notes/apk-check.txt
+          git commit -m "chore(apk): проверка содержимого handoff APK [skip ci]" || echo "нечего коммитить"
+          git push
