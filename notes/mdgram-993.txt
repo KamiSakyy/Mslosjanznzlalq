@@ -1,0 +1,95 @@
+== MDGram: разбор APK ==
+
+-- /tmp/md/mdgram-any.apk (50283504 байт)
+sha256: a981e122489a32116b524a296c07b5b7d71ecf5845cf85064c4d914b17deeae1
+APK: mdgram-any.apk
+манифест: {'package': 'permission', 'versionName': 'windowSoftInputMode', 'versionCode': 'versionName'}
+
+== известные api_hash ==
+
+== имена, связанные с ключами ==
+APP_ID                 -> есть
+APP_HASH               -> есть
+API_ID                 -> нет
+API_HASH               -> нет
+BUILD_VERSION_STRING   -> есть
+lang_pack              -> есть
+
+== строки с mdgram (для опознания версии/сборки) ==
+{Check out MDGram Messenger!
+Allows you to change MDGram New Design Cool colors, themes,!
+https://mdgram.org/
+;Lorg/telegram/mdgram/Activies/Ab$$ExternalSyntheticLambda0;
+#Lorg/telegram/mdgram/Activies/Ab$1;
+!Lorg/telegram/mdgram/Activies/Ab;
+"Lorg/telegram/mdgram/Activies/AbV;
+)Lorg/telegram/mdgram/Activies/task/utils;
+>Lorg/telegram/mdgram/Forward/BasePresenter$$ViewStateProvid
+-Lorg/telegram/mdgram/Forward/BaseView$$State;
+>Lorg/telegram/mdgram/Forward/ChatPresenter$$ViewStateProvid
+CLorg/telegram/mdgram/MDsettings/ChatHelper/BaseBottomSheetD
+ALorg/telegram/mdgram/MDsettings/ChatHelper/BaseBottomSheetD
+KLorg/telegram/mdgram/MDsettings/ChatHelper/CommonChatsAdapt
+>Lorg/telegram/mdgram/MDsettings/ChatHelper/CommonChatsAdapt
+DLorg/telegram/mdgram/MDsettings/ChatHelper/DialogUserProfil
+8Lorg/telegram/mdgram/MDsettings/ChatHelper/MessageEvent;
+ALorg/telegram/mdgram/MDsettings/ChatHelper/SystemEntity$Lan
+BLorg/telegram/mdgram/MDsettings/ChatHelper/SystemEntity$Tra
+8Lorg/telegram/mdgram/MDsettings/ChatHelper/SystemEntity;
+>Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUserAvat
+RLorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$$Ex
+:Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$1;
+:Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$2;
+:Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$3;
+:Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$4;
+:Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$5;
+:Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil$6;
+8Lorg/telegram/mdgram/MDsettings/ChatHelper/TelegramUtil;
+>Lorg/telegram/mdgram/MDsettings/ChatHelper/UserPersonalView
+@Lorg/telegram/mdgram/MDsettings/ChatHelper/UserPersonalView
+<Lorg/telegram/mdgram/MDsettings/ChatHelper/UserPersonalView
+?Lorg/telegram/mdgram/MDsettings/ChatHelper/UserProfileDialo
+=Lorg/telegram/mdgram/MDsettings/ChatHelper/UserProfileDialo
+CLorg/telegram/mdgram/MDsettings/ChatHelper/ViewUserPersonal
+^Lorg/telegram/mdgram/MDsettings/Chats/Bubbles/DynamicButton
+FLorg/telegram/mdgram/MDsettings/Chats/Bubbles/DynamicButton
+DLorg/telegram/mdgram/MDsettings/Chats/Bubbles/DynamicButton
+ALorg/telegram/mdgram/MDsettings/Chats/Bubbles/messeBubblePr
+WLorg/telegram/mdgram/MDsettings/Chats/MDChatSettingsActivit
+{
+  "apk": "mdgram-any.apk",
+  "size": 50283504,
+  "pairs": [],
+  "hashes": [
+    "0708FA9B378E3C4F3A9060BEE67CF9A4",
+    "0D8115F635B105EE2E4E15D04B2454BF",
+    "0DBA74D8A84B2A14B3144E0EF1284754",
+    "0DED2849F47BF959D956850CE929851F",
+    "169C6BC465B0D6FF9CA3928FEF5B9AE4",
+    "20FD51F69458705AC68CD4FE6B6B13AB",
+    "2477FE96BB2A941D5BCD1D4AC8CC4988",
+    "2772f1672de351c75fda58bbfb3b0a25",
+    "3e3adec17512775099da2f590b066732",
+    "4787579b87a92c960d802d922de60f9d",
+    "48198A0AA7C14058229493D22530F4DB",
+    "6F4FADF034B10403119CD8E3B92FCC5B",
+    "8f7ec0082ec83d4d330023e7e5558436",
+    "980D40238E3E21C14934D037563D930F",
+    "A16a09e667f3bcc908b2fb1366ea957d",
+    "A4A695811051907E162753B56B0F6B41",
+    "C71CAEB9C6B1C9048E6C522F70F13F73",
+    "DC9746512969328454F18FAF8C595F64",
+    "E418FC15E83EBEA0F87FA9FF5EED7005",
+    "FA336F6E0AC925139543AED44CCE7C37",
+    "FD17ED950D5965B4B9DD46582DB1178D",
+    "ddc81a7bce3bf2248910c474367837cf"
+  ]
+}
+
+== найденные пары ==
+{
+  "pairs": []
+}
+== проверка пар из APK MDGram ==
+
+== ПРОВЕРКА КЛЮЧЕЙ НА ЖИВОМ СЕРВЕРЕ TELEGRAM (у каждой пары свой недействительный номер) ==
