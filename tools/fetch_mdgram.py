@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Скачать APK MDGram нужной версии с apkpure / apkcombo / aptoide / trashbox.
+"""Скачать APK MDGram нужной версии с разных зеркал.
 
-Использование: python3 tools/fetch_mdgram.py <версия> <куда_сохранить.apk>
-Пробует несколько источников по очереди и печатает, что получилось.
+Использование: python3 tools/fetch_mdgram.py <версия> <куда.apk>
 """
 import json
 import os
@@ -13,104 +12,137 @@ import urllib.request
 
 UA = ('Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/120.0.0.0 Mobile Safari/537.36')
-PKG = 'org.telegram.mdgram'
-PKG_ALT = 'org.mdgram.mdgram'
+PKGS = ('org.telegram.mdgram', 'org.mdgram.mdgram')
 
 
-def fetch(url, timeout=120, headers=None, binary=False):
+def fetch(url, timeout=180, headers=None, binary=False):
     request = urllib.request.Request(url, headers=headers or {'User-Agent': UA})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         data = response.read()
         return data if binary else data.decode('utf-8', 'ignore')
 
 
-def try_download(url, out, headers=None, min_size=5 * 1024 * 1024):
+def save(url, out, headers=None, min_size=5 * 1024 * 1024):
     try:
-        print('пробую: %s' % url[:150])
+        print('  -> %s' % url[:160])
         data = fetch(url, headers=headers, binary=True)
         if len(data) < min_size or not data.startswith(b'PK'):
-            print('  -> не APK (%d байт)' % len(data))
+            print('     не APK (%d байт)' % len(data))
             return False
-        with open(out, 'wb') as fh:
-            fh.write(data)
-        print('  -> СКАЧАНО: %s (%.1f МБ)' % (out, len(data) / 1048576.0))
+        open(out, 'wb').write(data)
+        print('     СКАЧАНО %.1f МБ -> %s' % (len(data) / 1048576.0, out))
         return True
     except Exception as e:
-        print('  -> ошибка: %s: %s' % (type(e).__name__, str(e)[:120]))
+        print('     ошибка: %s: %s' % (type(e).__name__, str(e)[:110]))
         return False
 
 
-def apkpure_direct(version, out):
-    for pkg in (PKG, PKG_ALT):
-        for suffix in ('', '&arch=arm64-v8a'):
-            url = 'https://d.apkpure.com/b/APK/%s?version=%s%s' % (pkg, version, suffix)
-            if try_download(url, out, headers={'User-Agent': UA, 'Referer': 'https://apkpure.com/'}):
-                return True
+def trashbox(version, out):
+    """trashbox.ru: страница приложения + прямые ссылки на файлы."""
+    for pkg in PKGS:
+        for url in ('https://trashbox.ru/link/android-mdgram',
+                    'https://trashbox.ru/topics/%s' % pkg,
+                    'https://trashbox.ru/search/?query=MDGram'):
+            try:
+                html = fetch(url, headers={'User-Agent': UA})
+            except Exception as e:
+                print('trashbox %s: %s' % (url[:60], str(e)[:70]))
+                continue
+            for match in re.findall(r'https?://[^"\'\s]+\.(?:apk|xapk)', html):
+                if save(match, out, headers={'User-Agent': UA, 'Referer': url}):
+                    return True
     return False
 
 
-def apkpure_page(version, out):
-    """Ищем aria-label / data-dt-direct-download на странице версии."""
-    for pkg in (PKG, PKG_ALT):
+def apkpure(version, out):
+    for pkg in PKGS:
+        for url in ('https://d.apkpure.com/b/APK/%s?version=%s' % (pkg, version),
+                    'https://d.apkpure.com/b/XAPK/%s?version=%s' % (pkg, version),
+                    'https://d.cdnpure.com/b/APK/%s?version=%s' % (pkg, version)):
+            if save(url, out, headers={'User-Agent': UA, 'Referer': 'https://apkpure.com/'}):
+                return True
         for page in ('https://apkpure.com/mdgram-messenger/%s/download/%s' % (pkg, version),
-                     'https://m.apkpure.com/mdgram-messenger/%s/download/%s' % (pkg, version)):
+                     'https://m.apkpure.com/mdgram-messenger/%s/download/%s' % (pkg, version),
+                     'https://apkpure.net/mdgram-messenger/%s/download/%s' % (pkg, version)):
             try:
-                html = fetch(page, headers={'User-Agent': UA})
+                html = fetch(page)
             except Exception as e:
-                print('страница %s: %s' % (page[:80], str(e)[:80]))
+                print('apkpure page %s: %s' % (page[:70], str(e)[:60]))
                 continue
-            for pattern in (r'https://d\.apkpure\.com/b/[^"\'\s]+', r'"downloadUrl":"([^"]+)"',
-                            r'data-dt-direct-download="([^"]+)"'):
-                for match in re.findall(pattern, html):
-                    url = match if match.startswith('http') else match.replace('\\/', '/')
-                    if try_download(url, out, headers={'User-Agent': UA, 'Referer': page}):
-                        return True
+            for match in re.findall(r'https://[^"\'\s]*(?:d\.apkpure|cdnpure)[^"\'\s]+', html):
+                if save(match, out, headers={'User-Agent': UA, 'Referer': page}):
+                    return True
     return False
 
 
 def apkcombo(version, out):
-    for url in ('https://apkcombo.com/mdgram-messenger/%s/download/apk' % PKG,
-                'https://apkcombo.com/downloader/?package=%s' % PKG,
-                'https://apkcombo.com/mdgram-messenger/%s/download/phone-10.5.0-apk' % PKG):
-        try:
-            html = fetch(url, headers={'User-Agent': UA})
-        except Exception as e:
-            print('apkcombo %s: %s' % (url[:70], str(e)[:80]))
-            continue
-        for match in re.findall(r'https://download\.apkcombo\.com/[^"\'\s]+', html):
-            if try_download(match, out):
-                return True
+    for pkg in PKGS:
+        for url in ('https://apkcombo.com/mdgram-messenger/%s/download/apk' % pkg,
+                    'https://apkcombo.com/mdgram-messenger/%s/old-versions/' % pkg,
+                    'https://apkcombo.com/downloader/?package=%s' % pkg):
+            try:
+                html = fetch(url)
+            except Exception as e:
+                print('apkcombo %s: %s' % (url[:60], str(e)[:60]))
+                continue
+            for match in re.findall(r'https://download\.apkcombo\.com/[^"\'\s]+', html):
+                if save(match, out):
+                    return True
     return False
 
 
 def aptoide(version, out):
+    for pkg in PKGS:
+        for url in ('https://ws75.aptoide.com/api/7/app/get/package_name=%s' % pkg,
+                    'https://ws75.aptoide.com/api/7/apps/search/query=MDGram/limit=5'):
+            try:
+                data = json.loads(fetch(url))
+            except Exception as e:
+                print('aptoide %s: %s' % (url[:60], str(e)[:60]))
+                continue
+            urls = re.findall(r'https?://[^"\']+\.apk', json.dumps(data))
+            for candidate in urls:
+                if save(candidate, out):
+                    return True
+    return False
+
+
+def archive_org(version, out):
     try:
-        info = json.loads(fetch('https://ws75.aptoide.com/api/7/app/get/package_name=%s' % PKG))
-        url = info.get('nodes', {}).get('meta', {}).get('data', {}).get('file', {}).get('path')
-        ver = info.get('nodes', {}).get('meta', {}).get('data', {}).get('file', {}).get('vercode')
-        print('aptoide: версия %s' % ver)
-        if url and try_download(url, out):
-            return True
+        data = json.loads(fetch('https://archive.org/advancedsearch.php?q=mdgram&fl%5B%5D=identifier'
+                                '&rows=25&output=json'))
+        ids = [doc['identifier'] for doc in data.get('response', {}).get('docs', [])]
     except Exception as e:
-        print('aptoide: %s' % str(e)[:100])
+        print('archive.org: %s' % str(e)[:80])
+        return False
+    for ident in ids:
+        try:
+            files = json.loads(fetch('https://archive.org/metadata/%s' % ident)).get('files', [])
+        except Exception:
+            continue
+        for entry in files:
+            name = entry.get('name', '')
+            if name.lower().endswith(('.apk', '.xapk')):
+                url = 'https://archive.org/download/%s/%s' % (ident, name)
+                if save(url, out):
+                    return True
     return False
 
 
 def main():
     version = sys.argv[1] if len(sys.argv) > 1 else '9.9.3'
     out = sys.argv[2] if len(sys.argv) > 2 else '/tmp/mdgram_993.apk'
-    print('=== ищу MDGram %s (%s) ===' % (version, PKG))
-    for name, fn in (('apkpure direct', apkpure_direct), ('apkpure page', apkpure_page),
-                     ('apkcombo', apkcombo), ('aptoide', aptoide)):
-        print()
-        print('-- источник: %s' % name)
+    print('=== MDGram %s: ищу APK ===' % version)
+    for name, fn in (('apkpure', apkpure), ('apkcombo', apkcombo), ('trashbox', trashbox),
+                     ('aptoide', aptoide), ('archive.org', archive_org)):
+        print('-- источник %s' % name)
         try:
             if fn(version, out):
-                print('ИТОГ: скачано из %s' % name)
+                print('ИТОГ: скачано (%s)' % name)
                 return 0
         except Exception as e:
-            print('  источник упал: %s' % str(e)[:120])
-    print('ИТОГ: не удалось скачать MDGram %s' % version)
+            print('   источник упал: %s' % str(e)[:100])
+    print('ИТОГ: не удалось')
     return 1
 
 
