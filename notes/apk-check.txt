@@ -1,0 +1,23 @@
+== APK: handoff/KamiGram-latest.apk (35677516 байт) ==
+sha256: 2ec5649018474456216d311ed5b7256c84df62528522e6e232747a058ec25111
+
+== какие ключи Telegram вшиты ==
+014b35b6184100b085b0d0572f9b5103 -> 1
+eb06d4abfb49dc3eeb1aeb98ae0f581e -> 1
+1c5c96d5edd401b1ed40db3fb5633e2d -> 1
+b18441a1ff607e10a989891a5462e627 -> 1
+a3406de8d171bb422bb6ddf3bbd800e2 -> 1
+3e0cb5efcd52300aec5994fdfc5bdc16 -> 0
+
+== метки фиксов входа ==
+in connection:  -> 1
+kamigram_api_key_index_v3 -> 2
+switched to the Telegram key -> 1
+code request sent -> 1
+fast login -> 0
+No answer from the server -> 0
+KAMIGRAM -> 1
+safety_net -> 1
+SafetyNet key -> 1
+
+== ключ, который мод ставит первым (по dex) ==
