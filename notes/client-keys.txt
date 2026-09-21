@@ -1,0 +1,94 @@
+== Nekogram ==
+{
+  "apk": "nekogram.apk",
+  "size": 51252276,
+  "pairs": [],
+  "hashes": [
+    "020BBEA63B139B22514A08798E3404DD",
+    "103453253d3cd99b2ef6d73e3fb34123",
+    "15728E5A8AACAA68FFFFFFFFFFFFFFFF",
+    "1607e34f0fb3bf7895c102dacf9e9b0d",
+    "18a3a94cfd8f81c5e75f2611f8a170bf",
+    "24bb24c05e47e0aefa68a58a766179d9",
+    "3995497CEA956AE515D2261898FA0510",
+    "3e3adec17512775099da2f590b066732",
+    "439d349bfcaa16a18875e02870197447",
+    "49286651ECE45B3DC2007CB8A163BF05",
+    "4FE1356D6D51C245E485B576625E7EC6",
+    "65984a94f408875e595dab142dcaf8ec",
+    "7d1f5ef7401029d19e7561bf5f50169b",
+    "83655D23DCA3AD961C62F356208552BB",
+    "849cde3ec749b4e346489a378307ddb7",
+    "873ffaceba76e791ff2491224a3cdb49",
+    "98DA48361C55D39A69163FA8FD24CF5F",
+    "9ED529077096966D670C354E4ABC9804",
+    "A16a09e667f3bcc908b2fb1366ea957d",
+    "B5C55DF06F4C52C9DE2BCBF695581718",
+    "C4C6628B80DC1CD129024E088A67CC74",
+    "D1f9b13829402b4f23081b627300dc00",
+    "E39E772C180E86039B2783A2EC07A28F",
+    "EE386BFB5A899FA5AE9F24117C4B1FE6",
+    "EF9519B3CD3A431B302B0A6DF25F1437",
+    "F1746C08CA18217C32905E462E36CE3B",
+    "F44C42E9A637ED6B0BFF5CB6F406B7ED",
+    "FFFFFFFFFFFFFFFFC90FDAA22168C234",
+    "c618b4ba1a3c1d71f4dd8db7a6c8d0f9",
+    "d3cd99b2ef6d73e3fb3412387e41c5d2",
+    "fad792c80e2c65062cd35b425f10dcce"
+  ]
+}
+
+== exteraGram ==
+{
+  "apk": "extera.apk",
+  "size": 42996930,
+  "pairs": [],
+  "hashes": [
+    "0708FA9B378E3C4F3A9060BEE67CF9A4",
+    "0D8115F635B105EE2E4E15D04B2454BF",
+    "0DBA74D8A84B2A14B3144E0EF1284754",
+    "0DED2849F47BF959D956850CE929851F",
+    "169C6BC465B0D6FF9CA3928FEF5B9AE4",
+    "20FD51F69458705AC68CD4FE6B6B13AB",
+    "2477FE96BB2A941D5BCD1D4AC8CC4988",
+    "3e3adec17512775099da2f590b066732",
+    "470fa2b4ae81cd56ecbcda9735803434",
+    "48198A0AA7C14058229493D22530F4DB",
+    "6F4FADF034B10403119CD8E3B92FCC5B",
+    "980D40238E3E21C14934D037563D930F",
+    "A16a09e667f3bcc908b2fb1366ea957d",
+    "A4A695811051907E162753B56B0F6B41",
+    "C71CAEB9C6B1C9048E6C522F70F13F73",
+    "DC9746512969328454F18FAF8C595F64",
+    "E418FC15E83EBEA0F87FA9FF5EED7005",
+    "FA336F6E0AC925139543AED44CCE7C37",
+    "FD17ED950D5965B4B9DD46582DB1178D",
+    "a2926e8cbd01ded5bed25b48cf622927"
+  ]
+}
+
+== найденные в APK пары ==
+{
+  "pairs": []
+}
+== проверка найденных пар ==
+
+== ПРОВЕРКА КЛЮЧЕЙ НА ЖИВОМ СЕРВЕРЕ TELEGRAM (у каждой пары свой недействительный номер) ==
+
+
+== ПРОВЕРКА КЛЮЧЕЙ НА ЖИВОМ СЕРВЕРЕ TELEGRAM (у каждой пары свой недействительный номер) ==
+4         Telegram Android (публичный, ключ мода и MDGra ForbiddenError: RPCError 403: RECAPTCHA_CHECK_signup__6LdcRsEqAAAAAHUaNCc1GUe47g5jKlOzbJJiyIZt (caused by SendCodeRe
+2040      Telegram Desktop                               ПРИНЯТ (сервер обработал запрос)
+94575     TDLib / Nicegram                               ПРИНЯТ (сервер обработал запрос)
+17349     Telegram Desktop (example)                     ПРИНЯТ (ответ по номеру: The phone number is invalid (caused by SendCodeRequest))
+6         TG for Android (Play)                          ПРИНЯТ (ответ по номеру: The phone number is invalid (caused by SendCodeRequest))
+5         Public Static Final                            ПРИНЯТ (сервер обработал запрос)
+21724     Telegram X                                     ForbiddenError: RPCError 403: RECAPTCHA_CHECK_signup__6LeyH8EqAAAAAG6LDceICH4hDOiG3TK_19lPAQRb (caused by SendCodeRe
+8         Telegram iOS beta                              ПРИНЯТ (ответ по номеру: The phone number is invalid (caused by SendCodeRequest))
+1025907   Telegram Web K                                 ПРИНЯТ (сервер обработал запрос)
+2496      Telegram Web                                   ПРИНЯТ (ответ по номеру: The phone number is invalid (caused by SendCodeRequest))
+10840     Telegram Swift                                 ПРИНЯТ (ответ по номеру: The phone number is invalid (caused by SendCodeRequest))
+16623     Plus Messenger                                 ПРИНЯТ (ответ по номеру: The phone number is invalid (caused by SendCodeRequest))
+2834      Telegram macOS beta                            ПРИНЯТ (сервер обработал запрос)
+9         Telegram public beta                           ПРИНЯТ (сервер обработал запрос)
+2899      Telegram CLI                                   ПРИНЯТ (сервер обработал запрос)
