@@ -1,0 +1,143 @@
+name: "MDGram 9.9.3: полный smali-разбор ключей (apktool + jadx) — без сборки"
+
+# =============================================================================
+#  Без сборки Android:
+#   1) скачивает официальный APK MDGram 9.9.3 и подтверждает пакет/версию;
+#   2) разбирает его apktool (smali — читаемый байткод) и jadx (по классам);
+#   3) достаёт api_id/api_hash прямо из BuildVars.smali / BuildConfig.smali;
+#   4) печатает сырые строки dex и все hex-32;
+#   5) проверяет найденные пары на живом сервере Telegram;
+#   6) кладёт отчёт и BuildVars в notes/.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия MDGram"
+        default: "9.9.3"
+        type: string
+  push:
+    paths:
+      - '.github/workflows/mdgram-smali.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  smali:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: "Забрать файлы мода"
+        uses: actions/checkout@v4
+
+      - name: "Инструменты: apktool, jadx, aapt2"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apktool aapt jadx || true
+          if ! command -v jadx >/dev/null; then
+            curl -sSL --retry 5 -o /tmp/jadx.zip https://github.com/skylot/jadx/releases/download/v1.5.1/jadx-1.5.1.zip
+            sudo mkdir -p /opt/jadx && sudo unzip -o -q /tmp/jadx.zip -d /opt/jadx
+            sudo chmod +x /opt/jadx/bin/jadx && sudo ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx
+          fi
+          apktool --version || true
+          jadx --version || true
+
+      - name: "Скачать официальный MDGram 9.9.3"
+        run: |
+          set -euo pipefail
+          mkdir -p notes /tmp/md
+          VERSION="${{ inputs.version || '9.9.3' }}"
+          python3 tools/fetch_mdgram.py "$VERSION" "/tmp/md/mdgram-$VERSION.apk" || true
+          ls -la /tmp/md/ || true
+          for f in /tmp/md/*.apk; do
+            [ -s "$f" ] || continue
+            echo "== $f"
+            echo "sha256: $(sha256sum "$f" | cut -c1-64)"
+            aapt dump badging "$f" 2>/dev/null | head -5 || true
+          done
+
+      - name: "Полный разбор smali (apktool) + ключи"
+        run: |
+          set -euo pipefail
+          report=notes/mdgram-smali.txt
+          : > "$report"
+          for apk in /tmp/md/*.apk; do
+            [ -s "$apk" ] || continue
+            name=$(basename "$apk" .apk)
+            {
+              echo "=== $name ==="
+              echo "sha256: $(sha256sum "$apk" | cut -c1-64)"
+              aapt dump badging "$apk" 2>/dev/null | head -3 || true
+              echo
+              echo "-- apktool: распаковка smali"
+              rm -rf "/tmp/apk_$name"
+              apktool d -f -o "/tmp/apk_$name" "$apk" >/tmp/apktool.log 2>&1 && echo "apktool: ok" || (echo "apktool: ошибка"; tail -5 /tmp/apktool.log)
+              echo
+              echo "-- BuildVars / BuildConfig в smali"
+              find "/tmp/apk_$name" -name 'BuildVars.smali' -o -name 'BuildConfig.smali' 2>/dev/null | while read -r f; do
+                echo "### $f"
+                grep -nE 'const-string|sput-object|const/16|const/4' "$f" | head -40
+              done
+              echo
+              echo "-- поиск API_ID / API_HASH по всем smali"
+              grep -rn --include=*.smali -E 'API_ID|API_HASH|api_id|api_hash' "/tmp/apk_$name" 2>/dev/null | head -40
+              echo
+              echo "-- все hex-32 строки в smali (кандидаты api_hash)"
+              grep -rhoE '"([0-9a-fA-F]{32})"' "/tmp/apk_$name" 2>/dev/null | sort | uniq -c | sort -rn | head -40
+              echo
+              echo "-- все hex-32 строки во всех dex"
+              rm -rf "/tmp/unpack_$name" && mkdir -p "/tmp/unpack_$name"
+              unzip -o -q "$apk" -d "/tmp/unpack_$name"
+              for dex in "/tmp/unpack_$name"/classes*.dex; do
+                echo "   $(basename "$dex"): $(strings -a "$dex" | grep -cE '^[0-9a-fA-F]{32}$')"
+              done
+              strings -a "/tmp/unpack_$name"/classes*.dex | grep -E '^[0-9a-fA-F]{32}$' | sort | uniq -c | sort -rn | head -40
+            } >> "$report" 2>&1 || true
+          done
+          tail -120 "$report"
+
+      - name: "jadx: только классы с ключами"
+        run: |
+          set -euo pipefail
+          report=notes/mdgram-smali.txt
+          for apk in /tmp/md/*.apk; do
+            [ -s "$apk" ] || continue
+            name=$(basename "$apk" .apk)
+            for cls in org.telegram.messenger.BuildVars org.telegram.messenger.BuildConfig \
+                       org.telegram.messenger.ApplicationLoader; do
+              out="/tmp/jadx_one_${name}_${cls##*.}"
+              rm -rf "$out"
+              jadx --single-class "$cls" -d "$out" "$apk" >/dev/null 2>&1 || true
+              f=$(find "$out" -name '*.java' 2>/dev/null | head -1)
+              if [ -n "$f" ]; then
+                {
+                  echo
+                  echo "### jadx $cls ($name)"
+                  grep -nE 'APP_ID|APP_HASH|API_ID|API_HASH|SAFETYNET|VERSION' "$f" | head -30
+                  cp "$f" "notes/mdgram-src/${name}-$(basename "$f")" 2>/dev/null || true
+                } >> "$report" 2>&1 || true
+              fi
+            done
+          done
+          tail -60 "$report"
+
+      - name: "Проверить найденные ключи на живом сервере"
+        run: |
+          set -euo pipefail
+          pip install --quiet telethon
+          python3 tools/mdgram_candidates.py notes/mdgram-smali.txt > /tmp/candidates.json
+          head -20 /tmp/candidates.json
+          python3 tools/check_keys.py /tmp/candidates.json >> notes/mdgram-smali.txt 2>&1 || true
+          tail -40 notes/mdgram-smali.txt
+
+      - name: "Закоммитить результат"
+        run: |
+          set -euo pipefail
+          git config user.name "arena-agent"
+          git config user.email "297053741+arena-agent@users.noreply.github.com"
+          git add notes/
+          git commit -m "chore(mdgram): полный smali-разбор MDGram 9.9.3 и проверка ключей [skip ci]" || echo "нечего коммитить"
+          git push
