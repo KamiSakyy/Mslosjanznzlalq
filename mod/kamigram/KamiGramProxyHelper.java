@@ -40,7 +40,7 @@ public final class KamiGramProxyHelper {
     /** last link we already activated, so we do not restart the same proxy over and over */
     private static String lastActivatedLink;
 
-    private static final long PROXY_WATCH_DELAY = 45_000L;
+    private static final long PROXY_WATCH_DELAY = 15_000L;
 
     private KamiGramProxyHelper() {
     }
@@ -183,7 +183,7 @@ public final class KamiGramProxyHelper {
                     || state == ConnectionsManager.ConnectionStateConnectingToProxy) {
                     return;
                 }
-                disableProxy(context, "proxy did not answer in 45 s - switched off, direct connection is active");
+                disableProxy(context, "proxy did not answer in 15 s - switched off, direct connection is active");
             } catch (Throwable e) {
                 FileLog.e(e);
             }
@@ -196,6 +196,10 @@ public final class KamiGramProxyHelper {
      * and offers to drop the proxy and retry.
      */
     public static void showLoginProblem(Context context, String serverAnswer, String details) {
+        showLoginProblem(context, serverAnswer, details, null);
+    }
+
+    public static void showLoginProblem(Context context, String serverAnswer, String details, final Runnable onRetry) {
         try {
             if (context == null) {
                 return;
@@ -224,7 +228,7 @@ public final class KamiGramProxyHelper {
                     break;
             }
             final StringBuilder text = new StringBuilder();
-            text.append("KamiGram: why the code did not arrive\n\n");
+            text.append("KamiGram: why the code did not arrive / почему не приходит код\n\n");
             text.append("Connection: ").append(stateText).append('\n');
             if (proxyEnabled() && SharedConfig.currentProxy != null && SharedConfig.currentProxy.settings != null) {
                 text.append("Proxy: ").append(SharedConfig.currentProxy.settings.getAddress())
@@ -239,14 +243,47 @@ public final class KamiGramProxyHelper {
                 text.append(details).append('\n');
             }
             final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle("KamiGram: login");
+            builder.setTitle("KamiGram");
             builder.setMessage(text.toString());
-            builder.setPositiveButton("Turn off proxy and retry", (dialog, which) ->
-                disableProxy(context, "proxy off - press the login button again"));
-            builder.setNegativeButton("Keep waiting", null);
+            builder.setPositiveButton("Retry login", (dialog, which) -> {
+                if (onRetry != null) {
+                    context.postDelayed(onRetry, 300);
+                }
+            });
+            if (proxyEnabled()) {
+                builder.setNegativeButton("Proxy off", (dialog, which) ->
+                    disableProxy(context, "proxy off - retrying directly"));
+            } else {
+                builder.setNegativeButton("Close", null);
+            }
             builder.show();
         } catch (Throwable e) {
             FileLog.e(e);
+        }
+    }
+
+    /**
+     * Called when a login request got no answer: drops a dead proxy, resets the button
+     * and tells the user exactly what to do. This is what turns "the button spins forever"
+     * into "one more tap and I am in".
+     */
+    public static boolean dropDeadProxy(Context context) {
+        try {
+            if (!proxyEnabled()) {
+                return false;
+            }
+            final int account = UserConfig.selectedAccount;
+            final int state = ConnectionsManager.getInstance(account).getConnectionState();
+            if (state == ConnectionsManager.ConnectionStateConnected
+                || state == ConnectionsManager.ConnectionStateUpdating) {
+                // прокси работает - соединение живо, рвать его не нужно
+                return false;
+            }
+            disableProxy(context, "proxy did not answer - switched off. Press the login button again: now direct/VPN");
+            return true;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return false;
         }
     }
 

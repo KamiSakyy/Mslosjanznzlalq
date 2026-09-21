@@ -965,6 +965,7 @@ if [ "$IOS_UI" = "1" ]; then
              "$JAVA_ROOT/org/telegram/ui/Components/kamigram" \
              "$RES_ROOT/drawable"
     cp -f "$KAMIGRAM_SRC/KamiGramConfig.java" "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramConfig.java"
+    cp -f "$KAMIGRAM_SRC/KamiGramIOSTabBarDrawable.java" "$JAVA_ROOT/org/telegram/ui/Components/kamigram/KamiGramIOSTabBarDrawable.java"
     for icon in kamigram_tab_chats kamigram_tab_contacts kamigram_tab_calls kamigram_tab_settings; do
         cp -f "$KAMIGRAM_SRC/res/drawable/$icon.xml" "$RES_ROOT/drawable/$icon.xml"
     done
@@ -1086,6 +1087,15 @@ src = io.open(path, encoding='utf-8').read()
 marker = '/* KAMIGRAM_IOS_TABS */'
 changed = 0
 
+if 'import org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;' not in src:
+    if 'import org.telegram.ui.Components.glass.GlassTabView;\n' in src:
+        src = src.replace('import org.telegram.ui.Components.glass.GlassTabView;\n',
+                          'import org.telegram.ui.Components.glass.GlassTabView;\nimport org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
+    else:
+        src = src.replace('import org.telegram.ui.Components.FolderDrawable;\n',
+                          'import org.telegram.ui.Components.FolderDrawable;\nimport org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
+    changed += 1
+
 repl = [
     ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CHATS, R.string.MainTabsChats)',
      'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_chats, R.string.MainTabsChats)'),
@@ -1101,8 +1111,15 @@ for old, new in repl:
         src = src.replace(old, new, 1)
         changed += 1
 
-# фон таб-бара не трогаем: штатная отрисовка Telegram остаётся рабочей,
-# а плоский вид даёт P12 (стекло и размытие выключены в LiteMode)
+flat_bg_old = '        tabsView.setBackground(tabsViewBackground);\n'
+flat_bg_new = (
+    '        /* KAMIGRAM_IOS_TABS_BG: flat iOS tab bar drawn by KamiGram code */\n'
+    '        tabsView.setBackground(new KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_windowBackgroundWhite), getThemedColor(Theme.key_divider)));\n'
+    '        tabsViewBackground = null;\n'
+)
+if 'KAMIGRAM_IOS_TABS_BG' not in src and flat_bg_old in src:
+    src = src.replace(flat_bg_old, flat_bg_new, 1)
+    changed += 1
 
 if changed == 0:
     sys.stderr.write('P20: структура MainTabsActivity не изменилась\n')
@@ -1111,7 +1128,7 @@ io.open(path, 'w', encoding='utf-8').write(src)
 PY
 
     [ "$(grep -c 'createKamiGramIOSTab' "$MTA")" = "4" ] || die "P20: ожидалось 4 iOS-таба"
-    ok "P20 КОД: свои iOS-иконки табов KamiGram (вектор, палитра iOS #0A84FF/#8E8E93, без подложки-пилюли) + шеврон «назад» как в iOS (заменено webp-стрелок: $removed_back)"
+    ok "P20 КОД: свой iOS-интерфейс — плоская панель табов и шапка рисуются кодом KamiGram, свои тонкие иконки, анимация выбора, панель на всю ширину, шеврон «назад» как в iOS (заменено webp-стрелок: $removed_back)"
 else
     skip "P20 iOS-интерфейс не применяется (IOS_UI=0)"
 fi
@@ -1387,16 +1404,19 @@ if marker not in src and anchor in src:
              '                        if (!nextPressed) {\n'
              '                            return;\n'
              '                        }\n'
-             '                        final int st = ConnectionsManager.getInstance(currentAccount).getConnectionState();\n'
-             '                        if (st == ConnectionsManager.ConnectionStateConnected || st == ConnectionsManager.ConnectionStateUpdating) {\n'
-             '                            return;\n'
-             '                        }\n'
+             '                        // за 15 секунд ответа нет: сами убираем мёртвый прокси,\n'
+             '                        // возвращаем кнопку в рабочее состояние и объясняем причину\n'
+             '                        final boolean kamigramDropped = org.telegram.messenger.kamigram.KamiGramProxyHelper.dropDeadProxy(getParentActivity());\n'
              '                        nextPressed = false;\n'
              '                        needHideProgress(true);\n'
-             '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError, "The code request got no answer within 20 seconds.");\n'
+             '                        showDoneButton(true, true);\n'
+             '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError,\n'
+             '                            kamigramDropped ? "Proxy was switched off automatically. Tap Retry - the request now goes direct/VPN."\n'
+             '                                            : "No answer from the server within 15 seconds. Tap Retry to send the code request again.",\n'
+             '                            () -> onNextPressed(null));\n'
              '                    } catch (Throwable ignore) {\n'
              '                    }\n'
-             '                }, 20000);\n'
+             '                }, 15000);\n'
              '            } catch (Throwable ignore) {\n'
              '            }\n')
     src = src.replace(anchor, block + anchor, 1)
@@ -1425,6 +1445,40 @@ PY
     ok "P25 УМНЫЙ ПРОКСИ: ссылка в буфере обмена включает прокси сама (при запуске, при входе и по кнопке «Войти»), а нерабочий прокси автоматически выключается — VPN и прямое соединение больше не блокируются"
 else
     skip "P25 умный прокси отключён (SMART_PROXY=0)"
+fi
+
+# =============================================================================
+# P23. iOS-ШАПКА КОДОМ: плоская верхняя панель вместо «стекла» с размытием.
+# =============================================================================
+if [ "$IOS_UI" = "1" ]; then
+    AB="$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java"
+    python3 - "$AB" <<'PY' || die "P23: не удалось сделать плоскую шапку"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+if 'KAMIGRAM_IOS_ACTIONBAR' not in src:
+    anchor = ('    public void setupGlass(BlurredBackgroundDrawableViewFactory factory,\n'
+              '                           BlurredBackgroundColorProvider colorProvider,\n'
+              '                           boolean isForum) {\n')
+    if anchor not in src:
+        sys.stderr.write('P23: не найден setupGlass\n')
+        sys.exit(1)
+    guard = (anchor +
+             '        /* KAMIGRAM_IOS_ACTIONBAR: flat iOS top bar drawn by KamiGram code */\n'
+             '        if (org.telegram.messenger.kamigram.KamiGramConfig.iosTabs()) {\n'
+             '            setBackground(null);\n'
+             '            setClipChildren(false);\n'
+             '            glassMode = true;\n'
+             '            glassModeIsForum = isForum;\n'
+             '            setBackground(new org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_actionBarDefault), getThemedColor(Theme.key_divider)));\n'
+             '            return;\n'
+             '        }\n')
+    src = src.replace(anchor, guard, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+PY
+    ok "P23 iOS-шапка: плоский фон без «стекла» рисуется кодом KamiGram"
+else
+    skip "P23 плоская шапка не применяется (IOS_UI=0)"
 fi
 
 # =============================================================================
