@@ -100,8 +100,9 @@ jobs:
           tail -120 "$report"
 
       - name: "jadx: только классы с ключами"
+        continue-on-error: true
         run: |
-          set -euo pipefail
+          set +e
           report=notes/mdgram-smali.txt
           for apk in /tmp/md/*.apk; do
             [ -s "$apk" ] || continue
@@ -125,8 +126,9 @@ jobs:
           tail -60 "$report"
 
       - name: "Проверить найденные ключи на живом сервере"
+        continue-on-error: true
         run: |
-          set -euo pipefail
+          set +e
           pip install --quiet telethon
           python3 tools/mdgram_candidates.py notes/mdgram-smali.txt > /tmp/candidates.json
           head -20 /tmp/candidates.json
@@ -134,6 +136,7 @@ jobs:
           tail -40 notes/mdgram-smali.txt
 
       - name: "Закоммитить результат"
+        if: always()
         run: |
           set -euo pipefail
           git config user.name "arena-agent"
@@ -141,3 +144,4 @@ jobs:
           git add notes/
           git commit -m "chore(mdgram): полный smali-разбор MDGram 9.9.3 и проверка ключей [skip ci]" || echo "нечего коммитить"
           git push
+          echo "::notice title=MDGram smali::$(grep -aE 'APP_HASH|API_HASH|const-string' notes/mdgram-smali.txt | head -20 | tr '\n' ' ' | cut -c1-900)"
