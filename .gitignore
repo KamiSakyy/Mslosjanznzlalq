@@ -16,3 +16,7 @@ mod-out/
 .ccache/
 .gradle/
 build/
+
+# байт-код python — не хранится в репозитории
+__pycache__/
+*.pyc
