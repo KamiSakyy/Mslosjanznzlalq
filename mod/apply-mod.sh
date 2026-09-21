@@ -1898,7 +1898,7 @@ fi
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG"
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P80: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -1914,6 +1914,25 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
 
 else
     skip "P80 дизайн 2026 отключён (ZERO_TRAFFIC=0)"
+fi
+
+
+# =============================================================================
+# P90. ВТОРОЙ БОЛЬШОЙ ПАКЕТ 2026: отправка по Enter из центра мода, плоские
+#      вкладки без «стекла», применение твиков Telegram при старте (размер
+#      текста, Enter, скрытие текста уведомлений, фон чата, счётчик трафика).
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_v2_patches.py" || die "P90: второй пакет применился не полностью"
+    [ -f "$TG_DIR/MOD_P90_FEATURES.txt" ] || die "P90: нет отчёта MOD_P90_FEATURES.txt"
+    P90_COUNT=$(grep -c . "$TG_DIR/MOD_P90_FEATURES.txt" || true)
+    ok "P90 ВТОРОЙ ПАКЕТ 2026: применено пунктов — $P90_COUNT (отчёт: MOD_P90_FEATURES.txt)"
+    for f in KamiGramTweaks KamiGramTraffic; do
+        [ -f "$JAVA_ROOT/org/telegram/messenger/kamigram/$f.java" ] || die "P90: не скопирован $f.java"
+    done
+    ok "P90 классы мода на месте: KamiGramTweaks / KamiGramTraffic"
+else
+    skip "P90 второй пакет отключён (ZERO_TRAFFIC=0)"
 fi
 
 # =============================================================================

@@ -117,7 +117,16 @@ public final class KamiGramCenter {
                 Row.switchRow("Убрать рекламу и рекомендации", KamiGramConfig.KEY_NO_ADS, onChanged),
                 Row.switchRow("Убрать Premium / Stars / TON", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
                 Row.info("Автоскачивание медиа выключено, авто-проигрывание выключено, "
-                    + "экономия трафика в звонках включена — это уже в сборке.")
+                    + "экономия трафика в звонках включена — это уже в сборке."),
+                Row.info("Трафик: " + KamiGramTraffic.describe()),
+                Row.info(KamiGramTraffic.economyText()),
+                Row.action("Обнулить счётчик экономии", new Runnable() {
+                    @Override
+                    public void run() {
+                        KamiGramTraffic.reset();
+                        toast(context, "Счётчик обнулён");
+                    }
+                })
             });
 
             section(root, context, "КЭШ И ФАЙЛЫ");
@@ -215,7 +224,14 @@ public final class KamiGramCenter {
                 Row.switchRow("Material 3 (2026): карточки и мягкие формы", KamiGramConfig.KEY_MATERIAL3, onChanged),
                 Row.switchRow("Компактный список чатов", KamiGramConfig.KEY_COMPACT_CHATS, onChanged),
                 Row.switchRow("Отправлять по Enter", KamiGramConfig.KEY_ENTER_TO_SEND, onChanged),
-                Row.switchRow("Тихая отправка (без звука)", KamiGramConfig.KEY_SILENT_SEND, onChanged)
+                Row.switchRow("Тихая отправка (без звука)", KamiGramConfig.KEY_SILENT_SEND, onChanged),
+                Row.action("Применить настройки Telegram сейчас", new Runnable() {
+                    @Override
+                    public void run() {
+                        KamiGramTweaks.applyAndRefresh();
+                        toast(context, "Применено: размер текста, Enter, уведомления");
+                    }
+                })
             });
             accentPicker(root, context, onChanged);
             backgroundPicker(root, context);

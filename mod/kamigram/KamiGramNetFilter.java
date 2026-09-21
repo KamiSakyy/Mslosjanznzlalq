@@ -112,27 +112,27 @@ public final class KamiGramNetFilter {
             final String simple = names[0];
             final String full = names[1];
             if (KamiGramConfig.ghostMode() && (hit(GHOST, simple) || hit(GHOST, full))) {
-                return true;
+                return deny();
             }
             if (KamiGramConfig.noStickers() && isStickerRequest(full, simple)) {
-                return true;
+                return deny();
             }
             if (KamiGramConfig.noStories() && isStoryRequest(full, simple)) {
-                return true;
+                return deny();
             }
             if (KamiGramConfig.noAds() && (hit(ADS, simple) || hit(ADS, full))) {
-                return true;
+                return deny();
             }
             if (KamiGramConfig.noTopPeers() && (hit(TOP_PEERS, simple) || hit(TOP_PEERS, full))) {
-                return true;
+                return deny();
             }
             if (KamiGramConfig.noGifSearch() && (hit(GIF_SEARCH, simple) || hit(GIF_SEARCH, full))) {
-                return true;
+                return deny();
             }
             if (KamiGramConfig.noLinkPreview() && (hit(LINK_PREVIEW, simple) || hit(LINK_PREVIEW, full))) {
-                return true;
+                return deny();
             }
-            return hit(TRASH, simple) || hit(TRASH, full);
+            return (hit(TRASH, simple) || hit(TRASH, full)) && deny();
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -146,15 +146,37 @@ public final class KamiGramNetFilter {
     public static boolean blockDownload(TLRPC.Document document, Object parentObject) {
         try {
             if (KamiGramConfig.noStories() && parentObject instanceof TL_stories.StoryItem) {
-                return true;
+                return denyFile(document);
             }
             if (KamiGramConfig.noStickers() && isStickerDocument(document)) {
-                return true;
+                return denyFile(document);
             }
         } catch (Throwable e) {
             FileLog.e(e);
         }
         return false;
+    }
+
+    /** Отсекли запрос: считаем это для счётчика экономии трафика. */
+    private static boolean deny() {
+        try {
+            KamiGramTraffic.blockedRequest();
+        } catch (Throwable ignore) {
+        }
+        return true;
+    }
+
+    /** Отсекли файл: помним и размер (экономия трафика в байтах). */
+    private static boolean denyFile(TLRPC.Document document) {
+        try {
+            long size = 0;
+            if (document != null && document.size > 0) {
+                size = document.size;
+            }
+            KamiGramTraffic.blockedBytes(size);
+        } catch (Throwable ignore) {
+        }
+        return true;
     }
 
     /** [простое имя, имя с пространством: TL_messages_getWebPage]. */

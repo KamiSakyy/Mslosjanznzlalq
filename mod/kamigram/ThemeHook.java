@@ -177,6 +177,8 @@ public final class ThemeHook {
             keepDarkTheme();
             applyAccent();
             tintSystemBars(activity);
+            applySecureFlag(activity);
+            KamiGramTweaks.apply();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
@@ -221,6 +223,21 @@ public final class ThemeHook {
             if (Build.VERSION.SDK_INT >= 29) {
                 window.setNavigationBarContrastEnforced(false);
                 window.setNavigationBarDividerColor(0x00000000);
+            }
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /**
+     * Запрет скриншотов и превью в списке задач — если пользователь включил
+     * это в центре мода. По умолчанию выключено: ничего не меняем.
+     */
+    public static void applySecureFlag(Activity activity) {
+        try {
+            if (KamiGramConfig.noScreenshots()) {
+                activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            } else {
+                activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
             }
         } catch (Throwable ignore) {
         }
