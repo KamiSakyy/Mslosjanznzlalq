@@ -4,31 +4,39 @@ import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.net.Uri;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.net.Uri;
+import android.os.Build;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.proxy.ProxySettings;
 import org.telegram.tgnet.ConnectionsManager;
 
+import java.security.MessageDigest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * KamiGram: proxy helper.
+ * KamiGram: proxy + login helper.
  *
  * - activates an MTProto / SOCKS / web proxy as soon as its link shows up in the
  *   clipboard (copy the link anywhere, open the app - the proxy is already on);
- * - turns the proxy off automatically when it does not connect, so that VPN or a
- *   direct connection can work instead of hanging forever;
- * - warns on the login screen if there is no connection at all.
+ * - turns a clearly dead proxy off automatically, but never while the proxy is
+ *   still connecting and never in the middle of a login attempt;
+ * - explains a stuck login: connection state, proxy, server answer, signature and
+ *   build info - with one tap to copy it.
  */
 public final class KamiGramProxyHelper {
 
@@ -40,7 +48,7 @@ public final class KamiGramProxyHelper {
     /** last link we already activated, so we do not restart the same proxy over and over */
     private static String lastActivatedLink;
 
-    private static final long PROXY_WATCH_DELAY = 15_000L;
+    private static final long PROXY_WATCH_DELAY = 25_000L;
 
     private KamiGramProxyHelper() {
     }
@@ -162,10 +170,29 @@ public final class KamiGramProxyHelper {
         }
     }
 
+    private static String connectionStateText(int account) {
+        final int state = ConnectionsManager.getInstance(account).getConnectionState();
+        switch (state) {
+            case ConnectionsManager.ConnectionStateConnected:
+                return "connected";
+            case ConnectionsManager.ConnectionStateUpdating:
+                return "connected (updating)";
+            case ConnectionsManager.ConnectionStateConnecting:
+                return "connecting to server";
+            case ConnectionsManager.ConnectionStateConnectingToProxy:
+                return "connecting to proxy";
+            case ConnectionsManager.ConnectionStateWaitingForNetwork:
+                return "waiting for network";
+            default:
+                return "unknown (" + state + ")";
+        }
+    }
+
     /**
-     * Watches the connection: if a proxy is on but Telegram is still not connected
-     * after ~25 seconds (while the device itself is online), the proxy is switched
-     * off automatically - a dead proxy must not block VPN or a direct connection.
+     * Watches the connection: if a proxy is on but Telegram is not connected at all
+     * after ~25 seconds (while the device itself is online and the proxy is not even
+     * being tried), the proxy is switched off - a dead proxy must not block VPN or a
+     * direct connection. A proxy that is still connecting is never dropped.
      */
     public static void watchProxy(final Context context) {
         if (!KamiGramConfig.proxyFallback() || !proxyEnabled()) {
@@ -183,17 +210,92 @@ public final class KamiGramProxyHelper {
                     || state == ConnectionsManager.ConnectionStateConnectingToProxy) {
                     return;
                 }
-                disableProxy(context, "proxy did not answer in 15 s - switched off, direct connection is active");
+                disableProxy(context, "proxy did not answer in 25 s - switched off, direct connection is active");
             } catch (Throwable e) {
                 FileLog.e(e);
             }
         }, PROXY_WATCH_DELAY);
     }
 
+    /** SHA-256 of the signing certificate: shows whether the build carries the original Telegram key. */
+    private static String signatureHash(Context context) {
+        try {
+            final PackageManager manager = context.getPackageManager();
+            final PackageInfo info = manager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
+            Signature[] signatures = null;
+            if (Build.VERSION.SDK_INT >= 28) {
+                if (info.signingInfo != null) {
+                    signatures = info.signingInfo.getApkContentsSigners();
+                }
+            } else {
+                signatures = info.signatures;
+            }
+            if (signatures == null || signatures.length == 0) {
+                return "unknown";
+            }
+            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            final byte[] hash = digest.digest(signatures[0].toByteArray());
+            final StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < hash.length; i++) {
+                builder.append(String.format("%02x", hash[i]));
+                if (i == 7) {
+                    break;
+                }
+            }
+            return builder.toString();
+        } catch (Throwable e) {
+            return "unknown";
+        }
+    }
+
+    /** Everything needed to understand why the login code does not arrive. */
+    public static String loginDiagnostics(Context context) {
+        final StringBuilder text = new StringBuilder();
+        try {
+            final int account = UserConfig.selectedAccount;
+            text.append("Build: ").append(BuildVars.BUILD_VERSION_STRING)
+                .append(", api_id ").append(BuildVars.APP_ID).append('\n');
+            if (context != null) {
+                text.append("Package: ").append(context.getPackageName()).append('\n');
+                text.append("Cert SHA-256: ").append(signatureHash(context)).append("...\n");
+            }
+            text.append("SafetyNet key: ").append(BuildVars.SAFETYNET_KEY == null || BuildVars.SAFETYNET_KEY.length() == 0 ? "empty (Google integrity is not used)" : "set").append('\n');
+            try {
+                text.append("Google services: ")
+                    .append(PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices() ? "yes" : "no")
+                    .append('\n');
+            } catch (Throwable ignore) {
+            }
+            text.append("Connection: ").append(connectionStateText(account)).append('\n');
+            text.append("Online: ").append(ApplicationLoader.isNetworkOnline() ? "yes" : "no").append('\n');
+            if (proxyEnabled() && SharedConfig.currentProxy != null && SharedConfig.currentProxy.settings != null) {
+                text.append("Proxy: ").append(SharedConfig.currentProxy.settings.getAddress())
+                    .append(':').append(SharedConfig.currentProxy.settings.getPort()).append(" (on)\n");
+            } else {
+                text.append("Proxy: off\n");
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+        return text.toString();
+    }
+
+    private static void copyToClipboard(Context context, String text) {
+        try {
+            final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (manager != null) {
+                manager.setPrimaryClip(ClipData.newPlainText("KamiGram login", text));
+                Toast.makeText(context, "KamiGram: copied", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
     /**
      * A stuck login is the worst case for a mod user: the button spins and nothing explains why.
-     * This shows exactly what the app sees - connection state, proxy address, server answer -
-     * and offers to drop the proxy and retry.
+     * This shows exactly what the app sees - connection state, proxy, server answer, build info -
+     * and offers to retry, to drop the proxy or to copy the whole report.
      */
     public static void showLoginProblem(Context context, String serverAnswer, String details) {
         showLoginProblem(context, serverAnswer, details, null);
@@ -205,46 +307,21 @@ public final class KamiGramProxyHelper {
                 return;
             }
             final int account = UserConfig.selectedAccount;
-            final int state = ConnectionsManager.getInstance(account).getConnectionState();
-            final String stateText;
-            switch (state) {
-                case ConnectionsManager.ConnectionStateConnected:
-                    stateText = "connected";
-                    break;
-                case ConnectionsManager.ConnectionStateUpdating:
-                    stateText = "connected (updating)";
-                    break;
-                case ConnectionsManager.ConnectionStateConnecting:
-                    stateText = "connecting to server";
-                    break;
-                case ConnectionsManager.ConnectionStateConnectingToProxy:
-                    stateText = "connecting to proxy";
-                    break;
-                case ConnectionsManager.ConnectionStateWaitingForNetwork:
-                    stateText = "waiting for network";
-                    break;
-                default:
-                    stateText = "unknown (" + state + ")";
-                    break;
-            }
             final StringBuilder text = new StringBuilder();
-            text.append("KamiGram: why the code did not arrive / почему не приходит код\n\n");
-            text.append("Connection: ").append(stateText).append('\n');
-            if (proxyEnabled() && SharedConfig.currentProxy != null && SharedConfig.currentProxy.settings != null) {
-                text.append("Proxy: ").append(SharedConfig.currentProxy.settings.getAddress())
-                    .append(':').append(SharedConfig.currentProxy.settings.getPort()).append(" (on)\n");
-            } else {
-                text.append("Proxy: off\n");
-            }
+            text.append("KamiGram: no answer yet / ответа пока нет\n\n");
             if (serverAnswer != null && serverAnswer.length() > 0) {
                 text.append("Server: ").append(serverAnswer).append('\n');
             }
             if (details != null && details.length() > 0) {
                 text.append(details).append('\n');
             }
+            text.append('\n').append(loginDiagnostics(context));
+            text.append("\nThe code is sent to your Telegram app (service message) or by SMS.\n");
+            final String report = text.toString();
+
             final AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle("KamiGram");
-            builder.setMessage(text.toString());
+            builder.setMessage(report);
             builder.setPositiveButton("Retry login", (dialog, which) -> {
                 if (onRetry != null) {
                     context.postDelayed(onRetry, 300);
@@ -252,10 +329,11 @@ public final class KamiGramProxyHelper {
             });
             if (proxyEnabled()) {
                 builder.setNegativeButton("Proxy off", (dialog, which) ->
-                    disableProxy(context, "proxy off - retrying directly"));
+                    disableProxy(context, "proxy off - press the login button again"));
             } else {
                 builder.setNegativeButton("Close", null);
             }
+            builder.setNeutralButton("Copy", (dialog, which) -> copyToClipboard(context, report));
             builder.show();
         } catch (Throwable e) {
             FileLog.e(e);
@@ -263,9 +341,8 @@ public final class KamiGramProxyHelper {
     }
 
     /**
-     * Called when a login request got no answer: drops a dead proxy, resets the button
-     * and tells the user exactly what to do. This is what turns "the button spins forever"
-     * into "one more tap and I am in".
+     * Emergency proxy drop, kept for the case when the app is fully idle and the proxy
+     * is clearly dead. Never touches a proxy that is still connecting.
      */
     public static boolean dropDeadProxy(Context context) {
         try {
@@ -275,8 +352,9 @@ public final class KamiGramProxyHelper {
             final int account = UserConfig.selectedAccount;
             final int state = ConnectionsManager.getInstance(account).getConnectionState();
             if (state == ConnectionsManager.ConnectionStateConnected
-                || state == ConnectionsManager.ConnectionStateUpdating) {
-                // прокси работает - соединение живо, рвать его не нужно
+                || state == ConnectionsManager.ConnectionStateUpdating
+                || state == ConnectionsManager.ConnectionStateConnectingToProxy) {
+                // прокси работает или ещё пытается - рвать его не нужно
                 return false;
             }
             disableProxy(context, "proxy did not answer - switched off. Press the login button again: now direct/VPN");

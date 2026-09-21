@@ -1270,69 +1270,57 @@ else
 fi
 
 # =============================================================================
-# P24. ВХОД В АККАУНТ (ГЛАВНЫЙ ФИКС): Telegram требует проверку Google Play
-#      Integrity / Firebase, чтобы отправить SMS. Мод опубликован не в Google
-#      Play и подписан другим ключом, поэтому проверка не проходит и может
-#      висеть бесконечно — кнопка «Войти» крутится и ничего не происходит.
-#      KamiGram просит у сервера обычный SMS-код и не ждёт Google.
+# P24. ВХОД В АККАУНТ (ГЛАВНЫЙ ФИКС, v3 — схема живых модов Nekogram/exteraGram):
+#      в их BuildVars.java ключ SafetyNet ПУСТОЙ (SAFETYNET_KEY = ""). Тогда
+#      официальный код Telegram сам ставит allow_firebase = false и сервер шлёт
+#      обычный код (SMS или в приложение Telegram), а не firebase-код, который
+#      требует аттестации Google Play Integrity.
+#      Мод не опубликован в Google Play и подписан другим ключом, поэтому
+#      Integrity пройти не может: с непустым ключом сервер отправляет firebase-код,
+#      ждёт аттестацию, кнопка «Войти» крутится и ничего не приходит.
+#      Настройки codeSettings (allow_app_hash / allow_firebase) остаются ровно
+#      официальными — как у Nekogram, без своих отклонений.
+#      Страховка: если сервер всё равно прислал firebase-тип, в Google не идём
+#      вообще, а сразу просим другой способ доставки кода.
 # =============================================================================
 if [ "$FIX_LOGIN" = "1" ]; then
+    LOGIN_MARK="KAMIGRAM_NO_SAFETYNET"
     LA_LOGIN="$JAVA_ROOT/org/telegram/ui/LoginActivity.java"
-    python3 - "$LA_LOGIN" "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" <<'PY' || die "P24: не удалось включить обычный SMS-вход"
-import io, sys
-login_path, launch_path = sys.argv[1], sys.argv[2]
-config = 'org.telegram.messenger.kamigram.KamiGramConfig'
-changed = []
+    python3 - "$BUILDVARS" "$JAVA_ROOT/org/telegram/ui/LoginActivity.java" "$LOGIN_MARK" <<'PY' || die "P24: не удалось перевести вход на схему Nekogram"
+import io, re, sys
+buildvars_path, login_path, mark = sys.argv[1], sys.argv[2], sys.argv[3]
+
+src = io.open(buildvars_path, encoding='utf-8').read()
+if mark not in src:
+    pat = re.compile(r'(public static String SAFETYNET_KEY = )"[^"]*"(;)')
+    if not pat.search(src):
+        sys.stderr.write('P24: не нашёл SAFETYNET_KEY в BuildVars.java\n')
+        sys.exit(1)
+    src = pat.sub(lambda m: '%s""%s /* %s: как в Nekogram/exteraGram */' % (m.group(1), m.group(2), mark), src, count=1)
+    io.open(buildvars_path, 'w', encoding='utf-8').write(src)
 
 src = io.open(login_path, encoding='utf-8').read()
-if 'KAMIGRAM_FORCE_SMS' not in src:
-    # 1) не объявляем серверу поддержку firebase/app-hash — пусть шлёт обычный SMS
-    old_settings = ('            settings.allow_app_hash = settings.allow_firebase = PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
-    if old_settings not in src:
-        sys.stderr.write('P24: не найдена настройка allow_app_hash в LoginActivity\n')
-        sys.exit(1)
-    new_settings = ('            /* KAMIGRAM_FORCE_SMS: mod is not in Google Play, so Play Integrity cannot pass */\n'
-                    '            final boolean kamigramForceSms = ' + config + '.forceSmsLogin();\n'
-                    '            settings.allow_app_hash = settings.allow_firebase = !kamigramForceSms && PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
-    src = src.replace(old_settings, new_settings, 1)
-
-    # 2) если сервер всё равно ответил типом firebase — не ждём Google, сразу просим SMS
-    old_firebase = ('        if (res.type instanceof TLRPC.TL_auth_sentCodeTypeFirebaseSms && !res.type.verifiedFirebase && !isRequestingFirebaseSms) {\n')
-    if old_firebase not in src:
+if mark not in src:
+    old = '        if (res.type instanceof TLRPC.TL_auth_sentCodeTypeFirebaseSms && !res.type.verifiedFirebase && !isRequestingFirebaseSms) {\n'
+    if old not in src:
         sys.stderr.write('P24: не найден блок firebase в fillNextCodeParams\n')
         sys.exit(1)
-    new_firebase = (old_firebase +
-                    '            ' + '/* KAMIGRAM_FORCE_SMS */' + '\n'
-                    '            if (' + config + '.forceSmsLogin() && !' + config + '.forceSmsConsumed()) {\n'
-                    '                ' + config + '.markForceSmsResent();\n'
-                    '                needShowProgress(0);\n'
-                    '                isRequestingFirebaseSms = true;\n'
-                    '                resendCodeFromSafetyNet(params, res, "KAMIGRAM_FORCE_SMS");\n'
-                    '                return;\n'
-                    '            }\n')
-    src = src.replace(old_firebase, new_firebase, 1)
+    new = old + (
+        '            /* ' + mark + ': аттестации нет - в Google не идём, просим другой способ доставки кода */\n'
+        '            if (TextUtils.isEmpty(BuildVars.SAFETYNET_KEY)) {\n'
+        '                needShowProgress(0);\n'
+        '                isRequestingFirebaseSms = true;\n'
+        '                resendCodeFromSafetyNet(params, res, "KAMIGRAM_NO_INTEGRITY");\n'
+        '                return;\n'
+        '            }\n')
+    src = src.replace(old, new, 1)
     io.open(login_path, 'w', encoding='utf-8').write(src)
-    changed.append('LoginActivity')
-
-src = io.open(launch_path, encoding='utf-8').read()
-if 'KAMIGRAM_FORCE_SMS' not in src:
-    old_launch = ('                                req.settings.allow_app_hash = req.settings.allow_firebase = PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
-    if old_launch not in src:
-        sys.stderr.write('P24: не найден allow_app_hash в LaunchActivity\n')
-        sys.exit(1)
-    new_launch = ('                                /* KAMIGRAM_FORCE_SMS: plain SMS instead of Google Play Integrity */\n'
-                  '                                req.settings.allow_app_hash = req.settings.allow_firebase = !' + config + '.forceSmsLogin() && PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();\n')
-    src = src.replace(old_launch, new_launch, 1)
-    io.open(launch_path, 'w', encoding='utf-8').write(src)
-    changed.append('LaunchActivity')
-
-if not changed:
-    sys.stderr.write('P24: ни одна точка не найдена\n')
-    sys.exit(1)
-print('fix login applied to: ' + ', '.join(changed))
+print('login v3 applied')
 PY
-    [ "$(grep -c 'KAMIGRAM_FORCE_SMS' "$LA_LOGIN")" -ge 2 ] || die "P24: маркеров в LoginActivity меньше двух"
-    ok "P24 ФИКС ВХОДА: код приходит обычным SMS — мод не ждёт Google Play Integrity/Firebase (из-за этого кнопка «Войти» висела без ответа)"
+    [ "$(grep -c "$LOGIN_MARK" "$BUILDVARS")" -ge 1 ] || die "P24: SAFETYNET_KEY не обнулён"
+    [ "$(grep -c "$LOGIN_MARK" "$LA_LOGIN")" -ge 1 ] || die "P24: страховка от firebase-кода не внедрена"
+    [ "$(grep -c 'kamigram_force_sms\|KAMIGRAM_FORCE_SMS' "$LA_LOGIN")" -eq 0 ] || die "P24: в LoginActivity остался старый хак forceSms — сборка отменена"
+    ok "P24 ВХОД v3 (как Nekogram/exteraGram): SAFETYNET_KEY пуст -> сервер шлёт обычный код, а не Firebase-код с аттестацией Google; настройки доставки кода официальные"
 else
     skip "P24 фикс входа отключён (FIX_LOGIN=0)"
 fi
@@ -1404,15 +1392,14 @@ if marker not in src and anchor in src:
              '                        if (!nextPressed) {\n'
              '                            return;\n'
              '                        }\n'
-             '                        // за 15 секунд ответа нет: сами убираем мёртвый прокси,\n'
-             '                        // возвращаем кнопку в рабочее состояние и объясняем причину\n'
-             '                        final boolean kamigramDropped = org.telegram.messenger.kamigram.KamiGramProxyHelper.dropDeadProxy(getParentActivity());\n'
+             '                        // за 15 секунд ответа нет: возвращаем кнопку в рабочее состояние\n'
+             '                        // и объясняем причину. Прокси сами НЕ выключаем: вход не должен\n'
+             '                        // ломаться из-за сторожа, выключить его можно кнопкой в диалоге.\n'
              '                        nextPressed = false;\n'
              '                        needHideProgress(true);\n'
              '                        showDoneButton(true, true);\n'
              '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError,\n'
-             '                            kamigramDropped ? "Proxy was switched off automatically. Tap Retry - the request now goes direct/VPN."\n'
-             '                                            : "No answer from the server within 15 seconds. Tap Retry to send the code request again.",\n'
+             '                            "No answer from the server within 15 seconds. Tap Retry to send the request again.",\n'
              '                            () -> onNextPressed(null));\n'
              '                    } catch (Throwable ignore) {\n'
              '                    }\n'
