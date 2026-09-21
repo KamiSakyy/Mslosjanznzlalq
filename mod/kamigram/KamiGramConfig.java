@@ -37,6 +37,22 @@ public final class KamiGramConfig {
     /** Switch a dead proxy off automatically so VPN / direct connection can work. */
     public static final String KEY_PROXY_FALLBACK = "kamigram_proxy_fallback";
 
+    // ---------------------------------------------------------------- трафик
+    /** Ничего не грузить по стикерам, наборам эмодзи и премиум-эмодзи (0 байт). */
+    public static final String KEY_NO_STICKERS = "kamigram_no_stickers";
+    /** Ничего не грузить по историям: ни списки, ни просмотры, ни само медиа. */
+    public static final String KEY_NO_STORIES = "kamigram_no_stories";
+    /** Премиум-эмодзи рисовать обычным эмодзи: файлы .tgs не скачиваются вообще. */
+    public static final String KEY_NO_ANIMATED_EMOJI = "kamigram_no_animated_emoji";
+    /** Убрать рекламные блоки Telegram Premium / Stars / TON / подарков. */
+    public static final String KEY_NO_PREMIUM_UI = "kamigram_no_premium_ui";
+
+    // ---------------------------------------------------------------- дизайн
+    /** iOS-дизайн KamiGram: плоские табы, плоская шапка, свои иконки. */
+    public static final String KEY_IOS_DESIGN = "kamigram_ios_design";
+    /** iOS-геометрия облаков сообщений (скругление 18 вместо 17). */
+    public static final String KEY_IOS_BUBBLES = "kamigram_ios_bubbles";
+
     private KamiGramConfig() {
     }
 
@@ -47,6 +63,34 @@ public final class KamiGramConfig {
         } catch (Throwable ignore) {
             return true;
         }
+    }
+
+    /** Значение переключателя (для экрана настроек мода). */
+    public static boolean value(String key) {
+        return get(key);
+    }
+
+    /** Записать переключатель (экран настроек мода). */
+    public static void set(String key, boolean value) {
+        try {
+            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            if (preferences != null) {
+                preferences.edit().putBoolean(key, value).apply();
+            }
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** Сводка состояния для строки настроек. */
+    public static String summary() {
+        return "призрак " + onOff(ghostMode())
+            + " · стикеры " + onOff(!noStickers())
+            + " · эмодзи " + onOff(!noAnimatedEmoji())
+            + " · истории " + onOff(!noStories());
+    }
+
+    private static String onOff(boolean value) {
+        return value ? "вкл" : "выкл";
     }
 
     /** Ghost mode: the peer cannot see that we read, type or are online. */
@@ -66,7 +110,7 @@ public final class KamiGramConfig {
 
     /** Flat iOS-style tab bar. */
     public static boolean iosTabs() {
-        return get(KEY_IOS_TABS);
+        return get(KEY_IOS_TABS) && iosDesign();
     }
 
     /** Ask the server for a plain SMS code (no Play Integrity / Firebase). */
@@ -87,6 +131,36 @@ public final class KamiGramConfig {
     /** Auto-disable a proxy that does not connect. */
     public static boolean proxyFallback() {
         return get(KEY_PROXY_FALLBACK);
+    }
+
+    /** Ноль трафика на стикеры, наборы эмодзи и премиум-эмодзи. */
+    public static boolean noStickers() {
+        return get(KEY_NO_STICKERS);
+    }
+
+    /** Ноль трафика на истории. */
+    public static boolean noStories() {
+        return get(KEY_NO_STORIES);
+    }
+
+    /** Премиум-эмодзи показываются обычным эмодзи (файлы не скачиваются). */
+    public static boolean noAnimatedEmoji() {
+        return get(KEY_NO_ANIMATED_EMOJI);
+    }
+
+    /** Без рекламных блоков Premium / Stars / TON. */
+    public static boolean noPremiumUi() {
+        return get(KEY_NO_PREMIUM_UI);
+    }
+
+    /** Основной iOS-дизайн KamiGram (кодом, а не темой). */
+    public static boolean iosDesign() {
+        return get(KEY_IOS_DESIGN);
+    }
+
+    /** iOS-геометрия облаков сообщений. */
+    public static boolean iosBubbles() {
+        return get(KEY_IOS_BUBBLES);
     }
 
     /** Guards the "ask for a plain SMS instead of Firebase" resend so it happens only once. */

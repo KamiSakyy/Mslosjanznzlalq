@@ -71,6 +71,8 @@ GHOST_MODE=${GHOST_MODE:-1}               # уникальная функция:
 NO_RESTRICTIONS=${NO_RESTRICTIONS:-1}     # уникальная функция: снять запреты защищённого контента
 FIX_LOGIN=${FIX_LOGIN:-1}                   # фикс входа: обычный SMS вместо Google Play Integrity
 SMART_PROXY=${SMART_PROXY:-1}             # прокси из буфера сам включается, мёртвый — сам выключается
+ZERO_TRAFFIC=${ZERO_TRAFFIC:-1}           # нулевой трафик: стикеры/премиум-эмодзи/истории не грузятся
+IOS_DESIGN=${IOS_DESIGN:-1}               # iOS-дизайн KamiGram кодом (скругления, пилюля таба)
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
@@ -1688,6 +1690,251 @@ else
 fi
 
 # =============================================================================
+# P27. НУЛЕВОЙ ТРАФИК (КОД): стикеры, премиум-эмодзи, истории и реклама Premium
+#      отсекаются ДО выхода в сеть - и сами запросы, и файлы (.tgs/.webm/.webp).
+#      Там же работает режим «призрак»: подтверждения прочтения, «печатает» и
+#      статус «в сети» не уходят на сервер вообще.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    AK_DIR="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$AK_DIR"
+    for f in KamiGramConfig KamiGramNetFilter KamiGramSettings; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P27: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$AK_DIR/$f.java"
+    done
+    ok "P27 код мода на месте: KamiGramConfig / KamiGramNetFilter / KamiGramSettings"
+
+    CM_PATH="$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java"
+    python3 - "$CM_PATH" <<'PY' || die "P27: не удалось включить сетевой фильтр"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_NET_FILTER'
+anchor = '    private void sendRequestInternal(TLObject object, RequestDelegate onComplete, RequestDelegateTimestamp onCompleteTimestamp, QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken) {\n'
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P27: не найден sendRequestInternal\n')
+        sys.exit(1)
+    guard = (anchor +
+        '        /* ' + mark + ': нулевой трафик - ненужный запрос не уходит в сеть вовсе */\n'
+        '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockRequest(object)) {\n'
+        '            if (BuildVars.LOGS_ENABLED) {\n'
+        '                FileLog.d("KamiGram: запрос не отправлен (экономия трафика) " + object);\n'
+        '            }\n'
+        '            return;\n'
+        '        }\n')
+    src = src.replace(anchor, guard, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('net filter installed')
+PY
+    has "$CM_PATH" "KAMIGRAM_NET_FILTER" || die "P27: сетевой фильтр не встал в ConnectionsManager"
+
+    FL_PATH="$JAVA_ROOT/org/telegram/messenger/FileLoader.java"
+    python3 - "$FL_PATH" <<'PY' || die "P27: не удалось отключить загрузку стикеров и медиа историй"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_MEDIA_FILTER'
+anchor = '    private void loadFile(final TLRPC.Document document, final SecureDocument secureDocument, final WebFile webDocument, TLRPC.TL_fileLocationToBeDeprecated location, final ImageLocation imageLocation, final Object parentObject, final String locationExt, final long locationSize, final int priority, final int cacheType) {\n'
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P27: не найден loadFile в FileLoader\n')
+        sys.exit(1)
+    guard = (anchor +
+        '        /* ' + mark + ': файлы стикеров, премиум-эмодзи и медиа историй не скачиваются */\n'
+        '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)) {\n'
+        '            if (BuildVars.LOGS_ENABLED) {\n'
+        '                FileLog.d("KamiGram: файл не скачивается (экономия трафика) " + document);\n'
+        '            }\n'
+        '            return;\n'
+        '        }\n')
+    src = src.replace(anchor, guard, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('media filter installed')
+PY
+    has "$FL_PATH" "KAMIGRAM_MEDIA_FILTER" || die "P27: фильтр загрузки не встал в FileLoader"
+
+    MO_PATH="$JAVA_ROOT/org/telegram/messenger/MessageObject.java"
+    python3 - "$MO_PATH" <<'PY' || die "P27: не удалось отключить премиум-эмодзи"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_NO_ANIMATED_EMOJI'
+anchor = ('    public boolean isAnimatedEmoji() {\n'
+          '        return emojiAnimatedSticker != null || emojiAnimatedStickerId != null;\n'
+          '    }\n')
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P27: не найден isAnimatedEmoji в MessageObject\n')
+        sys.exit(1)
+    replace = ('    public boolean isAnimatedEmoji() {\n'
+               '        /* ' + mark + ': премиум-эмодзи рисуются обычным эмодзи, файлы .tgs не грузятся */\n'
+               '        if (org.telegram.messenger.kamigram.KamiGramConfig.noAnimatedEmoji()) {\n'
+               '            return false;\n'
+               '        }\n'
+               '        return emojiAnimatedSticker != null || emojiAnimatedStickerId != null;\n'
+               '    }\n')
+    src = src.replace(anchor, replace, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('animated emoji off')
+PY
+    has "$MO_PATH" "KAMIGRAM_NO_ANIMATED_EMOJI" || die "P27: не отключились премиум-эмодзи"
+
+    SC_PATH="$JAVA_ROOT/org/telegram/ui/Stories/StoriesController.java"
+    if [ -f "$SC_PATH" ]; then
+        python3 - "$SC_PATH" <<'PY' || echo "P27: истории не отключились в StoriesController (не критично)"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_NO_STORIES'
+anchor = '    public void loadStories() {\n'
+if mark not in src:
+    if anchor not in src:
+        sys.stderr.write('P27: не найден loadStories\n')
+        sys.exit(1)
+    replace = (anchor +
+        '        /* ' + mark + ': истории не запрашиваются с сервера вообще */\n'
+        '        if (org.telegram.messenger.kamigram.KamiGramConfig.noStories()) {\n'
+        '            return;\n'
+        '        }\n')
+    src = src.replace(anchor, replace, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('stories off')
+PY
+    fi
+    ok "P27 НУЛЕВОЙ ТРАФИК: запросы по стикерам, наборам эмодзи, премиум-эмодзи и историям не уходят в сеть; файлы .tgs/.webm/.webp и медиа историй не скачиваются; реклама Telegram Premium не запрашивается"
+else
+    skip "P27 нулевой трафик отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P28. ФУНКЦИИ МОДА В ИНТЕРФЕЙСЕ: «Настройки → KamiGram: функции мода» со
+#      переключателями (призрак, трафик, iOS-дизайн и остальное) — видно глазами,
+#      а не только в коде. Плюс убраны рекламные строки Telegram Premium/Stars.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    SA_PATH="$JAVA_ROOT/org/telegram/ui/SettingsActivity.java"
+    python3 - "$SA_PATH" <<'PY' || die "P28: не удалось добавить экран функций мода в настройки"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_FEATURE_ROW'
+row_anchor = "        items.add(SettingCell.Factory.of(10, IconBackgroundColors.PURPLE.top, IconBackgroundColors.PURPLE.bottom, R.drawable.settings_language, getString(R.string.SettingsLanguage), LocaleController.getCurrentLanguageName()));\n"
+if mark not in src:
+    if row_anchor not in src:
+        sys.stderr.write('P28: не найдена строка настроек языка\n')
+        sys.exit(1)
+    row = (row_anchor +
+           '        items.add(SettingCell.Factory.of(90, 0xFF34C759, 0xFF0A84FF, R.drawable.settings_features, "KamiGram: функции мода", org.telegram.messenger.kamigram.KamiGramConfig.summary())); /* ' + mark + ' */\n')
+    src = src.replace(row_anchor, row, 1)
+
+case_anchor = '            case 17:\n                showDialog(AlertsCreator.createSupportAlert(this, resourceProvider));\n'
+if 'case 90:' not in src:
+    if case_anchor not in src:
+        sys.stderr.write('P28: не найден case 17 в списке настроек\n')
+        sys.exit(1)
+    case_new = ('            case 90: /* ' + mark + ' */\n'
+                '                org.telegram.messenger.kamigram.KamiGramSettings.show(getParentActivity(), () -> listView.adapter.update(true));\n'
+                '                break;\n' + case_anchor)
+    src = src.replace(case_anchor, case_new, 1)
+
+# рекламные строки Telegram Premium / Stars / TON / Business / подарков / «возможностей»
+hidden = 0
+for rid in ('11', '12', '13', '15', '16', '23'):
+    needle = 'items.add(SettingCell.Factory.of(' + rid + ','
+    guard = 'if (!org.telegram.messenger.kamigram.KamiGramConfig.noPremiumUi()) ' + needle
+    if needle in src and guard not in src:
+        src = src.replace(needle, guard, 1)
+        hidden += 1
+io.open(path, 'w', encoding='utf-8').write(src)
+print('settings screen added, premium rows guarded: %d' % hidden)
+PY
+    has "$SA_PATH" "KAMIGRAM_FEATURE_ROW" || die "P28: строка функций мода не появилась в настройках"
+    has "$SA_PATH" "case 90:" || die "P28: обработчик строки функций мода не добавлен"
+    ok "P28 ФУНКЦИИ МОДА НА ЭКРАНЕ: в настройках появилась строка «KamiGram: функции мода» со сводкой состояния и переключателями (призрак, стикеры, эмодзи, истории, iOS-дизайн, Premium-блоки); рекламные блоки Premium/Stars/TON скрыты"
+else
+    skip "P28 экран функций мода отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P29. iOS-ДИЗАЙН КОДОМ (2.0): скругление облаков как в iOS, iOS-пилюля выбора
+#      таба, шапка без «стекла», полоса историй убрана с главного экрана.
+# =============================================================================
+if [ "$IOS_DESIGN" = "1" ]; then
+    CFG_PATH="$JAVA_ROOT/org/telegram/messenger/SharedConfig.java"
+    python3 - "$CFG_PATH" <<'PY' || die "P29: не удалось включить iOS-геометрию"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_BUBBLE'
+changed = 0
+old_field = '    public static int bubbleRadius = 17;'
+new_field = '    public static int bubbleRadius = org.telegram.messenger.kamigram.KamiGramConfig.iosBubbles() ? 18 : 17; /* ' + mark + ' */'
+if old_field in src:
+    src = src.replace(old_field, new_field, 1)
+    changed += 1
+old_pref = 'bubbleRadius = preferences.getInt("bubbleRadius", 17);'
+new_pref = 'bubbleRadius = preferences.getInt("bubbleRadius", org.telegram.messenger.kamigram.KamiGramConfig.iosBubbles() ? 18 : 17); /* ' + mark + ' */'
+if old_pref in src:
+    src = src.replace(old_pref, new_pref, 1)
+    changed += 1
+if changed == 0:
+    sys.stderr.write('P29: не найдено поле bubbleRadius\n')
+    sys.exit(1)
+io.open(path, 'w', encoding='utf-8').write(src)
+print('bubble radius patched: %d' % changed)
+PY
+    has "$CFG_PATH" "KAMIGRAM_IOS_BUBBLE" || die "P29: iOS-геометрия не применилась"
+
+    GTV_PATH="$JAVA_ROOT/org/telegram/ui/Components/glass/GlassTabView.java"
+    if [ -f "$GTV_PATH" ]; then
+        python3 - "$GTV_PATH" <<'PY' || echo "P29: iOS-пилюля таба не применилась (не критично)"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_IOS_PILL'
+if mark not in src:
+    old_color = '            paintCounterBackground.setColor(Theme.multAlpha(colorSelected, 0.09f * alpha));\n'
+    if old_color not in src:
+        sys.stderr.write('P29: не найдена отрисовка выбора таба\n')
+        sys.exit(1)
+    new_color = ('            /* ' + mark + ': iOS-подсветка выбранного таба - плотная пилюля */\n'
+                 '            paintCounterBackground.setColor(Theme.multAlpha(colorSelected, (kamigramIOSTab ? 0.20f : 0.09f) * alpha));\n')
+    src = src.replace(old_color, new_color, 1)
+    old_rect = '            tmpRectF.set(0, 0, viewWidth, getHeight());\n'
+    if old_rect in src:
+        new_rect = ('            tmpRectF.set(AndroidUtilities.dp(5), AndroidUtilities.dp(2), viewWidth - AndroidUtilities.dp(5), getHeight() - AndroidUtilities.dp(2)); /* ' + mark + ' */\n')
+        src = src.replace(old_rect, new_rect, 1)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ios pill applied')
+PY
+    fi
+
+    DA_PATH="$JAVA_ROOT/org/telegram/ui/DialogsActivity.java"
+    python3 - "$DA_PATH" <<'PY' || echo "P29: полоса историй не убрана (не критично)"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_NO_STORIES_BAR'
+if mark not in src:
+    old = '                    hasStories = newVisibility;\n'
+    if old not in src:
+        sys.stderr.write('P29: не найдено присваивание hasStories\n')
+        sys.exit(1)
+    new = ('                    hasStories = newVisibility && !org.telegram.messenger.kamigram.KamiGramConfig.noStories(); /* ' + mark + ' */\n')
+    src = src.replace(old, new)
+    old2 = '            hasStories = newVisibility;\n'
+    new2 = '            hasStories = newVisibility && !org.telegram.messenger.kamigram.KamiGramConfig.noStories(); /* ' + mark + ' */\n'
+    src = src.replace(old2, new2)
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('stories bar hidden')
+PY
+    ok "P29 iOS-ДИЗАЙН КОДОМ: скругление облаков 18 (как в iOS), плотная iOS-пилюля выбранного таба, полоса историй убрана с главного экрана"
+else
+    skip "P29 iOS-дизайн отключён (IOS_DESIGN=0)"
+fi
+
+# =============================================================================
 #  Итоги: MOD_INFO.txt + patch-diff для аудита изменений
 # =============================================================================
 cat > "$TG_DIR/MOD_INFO.txt" <<INFO
@@ -1703,6 +1950,8 @@ MOD_RES_CONFIGS=$RES_CONFIGS
 MOD_SLIM_HEAVY=$SLIM_HEAVY
 MOD_BUILD_LEAN=$BUILD_LEAN
 MOD_IOS_THEME=$IOS_THEME
+MOD_ZERO_TRAFFIC=$ZERO_TRAFFIC
+MOD_IOS_DESIGN=$IOS_DESIGN
 MOD_FLAT_UI=$FLAT_UI
 MOD_AUTO_PROXY=$AUTO_PROXY
 MOD_DROP_APPINDEXING=$DROP_APPINDEXING

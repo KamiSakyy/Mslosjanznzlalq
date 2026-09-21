@@ -330,3 +330,40 @@ api_id из своих секретов, а не с публичным ключ�
 | Куда подставляется | запрос кода (`LoginActivity`), соединение (`ConnectionsManager.init`), пасскеи (`PasskeysController`) |
 | Если сервер всё же откажет | мод берёт следующий ключ из списка проверенных и перезапускается (список начинается с того же рабочего ключа) |
 | Свой ключ | если в настройках появится `kamigram_own_api_id` / `kamigram_own_api_hash`, мод использует их |
+
+## Р. НУЛЕВОЙ ТРАФИК, ПРИЗРАК НА ЭКРАНЕ И iOS-ДИЗАЙН КОДОМ (v11, сборка r33)
+
+### 1. Стикеры, премиум-эмодзи и истории больше не жрут интернет
+
+Раньше блокировались только точки входа в коде Telegram, поэтому файлы всё равно
+скачивались (премиум-эмодзи приходят вместе с сообщением, а истории — медиа-файлами).
+Теперь работает фильтр в САМОЙ СЕТИ (`KamiGramNetFilter`, патч P27):
+
+| Что отсекается | Где именно |
+|---|---|
+| Все запросы по стикерам и наборам эмодзи (`messages.*Sticker*`, `messages.*Emoji*`, `getCustomEmojiDocuments`, `getEmojiStickerGroups`, `getFeaturedEmojiStickers`, …) | `ConnectionsManager.sendRequestInternal` — запрос не уходит в сеть |
+| Все запросы по историям (`stories.getAllStories`, `getPeerStories`, `getPinnedStories`, `getStoriesArchive`, `getStoriesByID`, `getStoriesViews`, `getStoryViewsList`, `readStories`, `incrementStoryViews`, …) | там же (исходящие действия пользователя — публикация, реакция, удаление — не блокируются) |
+| Файлы стикеров и премиум-эмодзи (`application/x-tgsticker`, `.webm`, документы со атрибутом стикера/кастомного эмодзи) | `FileLoader.loadFile(...)` — файл не скачивается |
+| Медиа историй (фото/видео/аудио) | там же, по родителю `TL_stories.StoryItem` |
+| Премиум-эмодзи в сообщениях | `MessageObject.isAnimatedEmoji()` → `false`: вместо `.tgs` рисуется обычный эмодзи, 0 байт |
+| Реклама Premium/Stars/бусты/палитры/наборы GIF и музыки (`help.getPremiumPromo`, `help.getPromoData`, `help.getPeerColors`, `messages.getSavedGifs`, `messages.getSavedMusic`, `premium.*`, `payments.getStars*`) | сетевой фильтр (список `TRASH`) |
+| Полоса историй на главном экране | `DialogsActivity.hasStories` (патч P29) |
+
+### 2. Призрак — видно и работает на уровне сети
+
+`KamiGramConfig.showSettingsDialog` → новый экран **«Настройки → KamiGram: функции мода»**:
+строка со сводкой состояния (`призрак вкл · стикеры выкл · …`) и переключателями.
+
+Сам режим в сетевом фильтре блокирует: `messages.readHistory`, `channels.readHistory`,
+`messages.readEncryptedHistory`, `messages.readMessageContents`, `messages.readMentions`,
+`messages.setTyping`, `account.updateStatus`, `stories.readStories`, `stories.incrementStoryViews`.
+
+### 3. iOS-дизайн кодом (больше, чем тема)
+
+| Что | Где в коде |
+|---|---|
+| Скругление облаков сообщений 18 (как в iOS) | `SharedConfig.bubbleRadius` (по умолчанию 18 при включённом iOS-дизайне) |
+| Плотная iOS-пилюля выбранного таба + отступы | `GlassTabView.dispatchDraw` |
+| Полоса историй убрана с главного экрана | `DialogsActivity` |
+| Плоская шапка без «стекла», свой шеврон «назад» | `ActionBar.setupGlass`, `ic_ab_back` (P20/P23) |
+| Рекламные блоки Premium/Stars/TON/Business/подарков/«возможностей» скрыты | `SettingsActivity.fillItems` (P28) |
