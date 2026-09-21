@@ -1,0 +1,76 @@
+MDGram APK: e7dc2746fb53f75f0bd85b06b16670233c9ab3931ce018c7a41dc2771e1331c9
+размер: 54254500
+
+== известные ключи (проверка, что строки вообще видны) ==
+014b35b6184100b085b0d0572f9b5103 -> 1
+b18441a1ff607e10a989891a5462e627 -> 0
+eb06d4abfb49dc3eeb1aeb98ae0f581e -> 0
+1c5c96d5edd401b1ed40db3fb5633e2d -> 0
+3e0cb5efcd52300aec5994fdfc5bdc16 -> 0
+a3406de8d171bb422bb6ddf3bbd800e2 -> 0
+
+== все hex-32 строки из dex (кандидаты api_hash), первые 400 ==
+
+== вхождения 'mdgram' и рядом ==
+	MDGram V5
+#Lorg/telegram/ui/MDGramUpdateSheet;
+$Muestra tu nombre en vez de "MDGram"
+%Lorg/telegram/messenger/MDGramConfig;
+%Lorg/telegram/ui/AboutMDGramActivity;
+%Lorg/telegram/ui/MDGramUpdateSheet$1;
+&Lorg/telegram/messenger/MDGramUpdater;
+&Reinicia MDGram para aplicar la fuente
+(Lorg/telegram/ui/MDGramSettingsActivity;
+(https://mdgram-web.vercel.app/api/latest
+)Lorg/telegram/messenger/MDGramTranslator;
+*Lorg/telegram/ui/MDGramSettingsActivity$1;
+-Lorg/telegram/ui/Components/MDGramSideDrawer;
+-Reinicia MDGram para aplicarlo en todos lados
+.Lorg/telegram/messenger/MDGramResidentService;
+.Lorg/telegram/messenger/MDGramTranslator$1Tag;
+/Lorg/telegram/messenger/MDGramUpdater$Callback;
+/Lorg/telegram/ui/Components/MDGramSideDrawer$1;
+0Lorg/telegram/messenger/MDGramTranslator$Result;
+1Lorg/telegram/messenger/MDGramUpdater$UpdateInfo;
+3lambda$addRow$0$org-telegram-ui-AboutMDGramActivity
+6lambda$fillItems$1$org-telegram-ui-AboutMDGramActivity
+6lambda$fillItems$2$org-telegram-ui-AboutMDGramActivity
+7Lorg/telegram/messenger/MDGramUpdater$DownloadListener;
+8Lorg/telegram/messenger/MDGramTranslator$ResultEntities;
+8Lorg/telegram/ui/MDGramUpdateSheet$GradientProgressView;
+8lambda$new$0$org-telegram-ui-Components-MDGramSideDrawer
+:lambda$createView$0$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$1$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$2$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$3$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$4$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$5$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$6$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$7$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$8$org-telegram-ui-MDGramSettingsActivity
+:lambda$createView$9$org-telegram-ui-MDGramSettingsActivity
+;lambda$createView$10$org-telegram-ui-MDGramSettingsActivity
+<lambda$addItem$8$org-telegram-ui-Components-MDGramSideDrawer
+=Lorg/telegram/ui/MDGramUpdateSheet$$ExternalSyntheticLambda0;
+=Lorg/telegram/ui/MDGramUpdateSheet$$ExternalSyntheticLambda1;
+=Lorg/telegram/ui/MDGramUpdateSheet$$ExternalSyntheticLambda2;
+>Ingresa al sitio oficial de MDGram para mantenerte actualizado
+?Lorg/telegram/ui/AboutMDGramActivity$$ExternalSyntheticLambda0;
+?Lorg/telegram/ui/AboutMDGramActivity$$ExternalSyntheticLambda1;
+?Lorg/telegram/ui/AboutMDGramActivity$$ExternalSyntheticLambda2;
+@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda0;
+@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda1;
+@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda2;
+@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda3;
+@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda4;
+@Lorg/telegram/messenger/MDGramUpdater$$ExternalSyntheticLambda5;
+Acerca de MDGram
+Ajustes de MDGram
+Alambda$buildContent$2$org-telegram-ui-Components-MDGramSideDrawer
+Alambda$buildContent$3$org-telegram-ui-Components-MDGramSideDrawer
+Alambda$buildContent$4$org-telegram-ui-Components-MDGramSideDrawer
+Alambda$buildContent$5$org-telegram-ui-Components-MDGramSideDrawer
+Alambda$buildContent$6$org-telegram-ui-Components-MDGramSideDrawer
+Alambda$buildContent$7$org-telegram-ui-Components-MDGramSideDrawer
+
+== версия/пакет ==
