@@ -1383,9 +1383,10 @@ if marker not in src and anchor in src:
     block = ('            ' + '/* ' + marker + ': fix proxy, warn if offline, unfreeze a stuck button */' + '\n'
              '            try {\n'
              '                org.telegram.messenger.kamigram.KamiGramProxyHelper.prepareForLogin(getParentActivity());\n'
+             '                org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(1, null);\n'
              '                AndroidUtilities.runOnUIThread(() -> {\n'
              '                    try {\n'
-             '                        if (!nextPressed) {\n'
+             '                        if (org.telegram.messenger.kamigram.KamiGramProxyHelper.loginStage() >= 5) {\n'
              '                            return;\n'
              '                        }\n'
              '                        // за 20 секунд ответа нет: возвращаем кнопку в рабочее состояние\n'
@@ -1395,7 +1396,7 @@ if marker not in src and anchor in src:
              '                        needHideProgress(true);\n'
              '                        showDoneButton(true, true);\n'
              '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError,\n'
-             '                            "No answer from the server within 20 seconds. Tap Retry to send the request again.",\n'
+             '                            "Nothing happened for 20 seconds. The step below shows where it stopped - tap Retry, and check the Telegram app (chat 777000): the code often arrives there as a service message.",\n'
              '                            () -> onNextPressed(null));\n'
              '                    } catch (Throwable ignore) {\n'
              '                    }\n'
@@ -1414,9 +1415,47 @@ replace_once(login_path, field_anchor,
 error_anchor = ('            int reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {\n'
                 '                nextPressed = false;\n')
 replace_once(login_path, error_anchor,
-             error_anchor + '                kamigramLastError = error != null ? (error.text != null ? error.text : "network error") : null; /* KAMIGRAM_LOGIN_DIAG_ERROR */\n',
+             error_anchor + '                kamigramLastError = error != null ? (error.text != null ? error.text : "network error") : null; /* KAMIGRAM_LOGIN_DIAG_ERROR */\n'
+             + '                org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(5, kamigramLastError);\n',
              'KAMIGRAM_LOGIN_DIAG_ERROR')
 done.append('LoginActivity.diagnostics')
+
+# вход напрямую: без окна «это ваш номер?» и без диалогов разрешений (на них вход зависал),
+# плюс метка этапа «запрос кода отправлен»
+src = io.open(login_path, encoding='utf-8').read()
+fast_marker = 'KAMIGRAM_FAST_LOGIN'
+if fast_marker not in src:
+    guard_anchor = ('        public void onNextPressed(String code) {\n'
+                    '            if (getParentActivity() == null || nextPressed || isRequestingFirebaseSms) {\n'
+                    '                return;\n'
+                    '            }\n')
+    if src.count(guard_anchor) != 1:
+        sys.stderr.write('P25: не найден вход PhoneView.onNextPressed (fast login)\n')
+        sys.exit(1)
+    guard_new = ('        public void onNextPressed(String code) {\n'
+                 '            /* ' + fast_marker + ': вход идёт сразу, без окна подтверждения номера и без\n'
+                 '               диалогов разрешений - именно на этих шагах вход зависал */\n'
+                 '            org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(1, null);\n'
+                 '            if (getParentActivity() == null || nextPressed || isRequestingFirebaseSms) {\n'
+                 '                org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(9, "press ignored: a request is already running");\n'
+                 '                return;\n'
+                 '            }\n'
+                 '            if (org.telegram.messenger.kamigram.KamiGramConfig.fastLogin()) {\n'
+                 '                confirmedNumber = true;\n'
+                 '                checkPermissions = false;\n'
+                 '            }\n')
+    src = src.replace(guard_anchor, guard_new, 1)
+    send_anchor = ('            nextPressed = true;\n'
+                   '            PhoneInputData phoneInputData = new PhoneInputData();\n')
+    if src.count(send_anchor) != 1:
+        sys.stderr.write('P25: не найдена отправка запроса кода в PhoneView.onNextPressed (fast login)\n')
+        sys.exit(1)
+    src = src.replace(send_anchor,
+                      ('            nextPressed = true;\n'
+                       '            org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(4, null); /* ' + fast_marker + ' */\n'
+                       '            PhoneInputData phoneInputData = new PhoneInputData();\n'), 1)
+    io.open(login_path, 'w', encoding='utf-8').write(src)
+    done.append('LoginActivity.fastLogin')
 
 if not done:
     sys.stderr.write('P25: ничего не внедрено\n')

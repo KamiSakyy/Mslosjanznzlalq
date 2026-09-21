@@ -50,6 +50,39 @@ public final class KamiGramProxyHelper {
 
     private static final long PROXY_WATCH_DELAY = 25_000L;
 
+    /**
+     * Login trace: where the last login attempt got stuck.
+     * 0 = nothing, 1 = button pressed, 4 = code request sent, 5 = server answered,
+     * 9 = the press was ignored because another request is still running.
+     */
+    private static volatile int loginStage;
+    private static volatile String loginStageInfo;
+
+    public static void traceLogin(int stage, String info) {
+        loginStage = stage;
+        loginStageInfo = info;
+    }
+
+    public static int loginStage() {
+        return loginStage;
+    }
+
+    /** Human readable step, so the user can see exactly where the login stopped. */
+    public static String loginStageText() {
+        switch (loginStage) {
+            case 1:
+                return "Step: button pressed, request is being prepared.";
+            case 4:
+                return "Step: code request sent - waiting for the server answer.";
+            case 5:
+                return "Step: server answered" + (loginStageInfo != null && loginStageInfo.length() > 0 ? " (" + loginStageInfo + ")" : "") + ".";
+            case 9:
+                return "Step: the press was ignored - another request is still running.";
+            default:
+                return "Step: no request was sent yet.";
+        }
+    }
+
     private KamiGramProxyHelper() {
     }
 
@@ -315,6 +348,7 @@ public final class KamiGramProxyHelper {
             if (details != null && details.length() > 0) {
                 text.append(details).append('\n');
             }
+            text.append('\n').append(loginStageText()).append('\n');
             text.append('\n').append(loginDiagnostics(context));
             text.append("\nThe code is sent to your Telegram app (service message) or by SMS.\n");
             final String report = text.toString();

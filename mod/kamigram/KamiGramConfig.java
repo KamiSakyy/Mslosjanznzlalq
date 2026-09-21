@@ -26,6 +26,12 @@ public final class KamiGramConfig {
      * integrity request can hang forever and the login button just spins.
      */
     public static final String KEY_FORCE_SMS = "kamigram_force_sms";
+    /**
+     * Log in straight away: no "is this your number?" popup and no runtime permission
+     * dialogs. Those extra steps are where the login used to freeze on some devices -
+     * the code request must be sent immediately after the button is tapped.
+     */
+    public static final String KEY_FAST_LOGIN = "kamigram_fast_login";
     /** Activate a proxy automatically when its link appears in the clipboard. */
     public static final String KEY_AUTO_PROXY_CLIPBOARD = "kamigram_auto_proxy_clipboard";
     /** Switch a dead proxy off automatically so VPN / direct connection can work. */
@@ -66,6 +72,11 @@ public final class KamiGramConfig {
     /** Ask the server for a plain SMS code (no Play Integrity / Firebase). */
     public static boolean forceSmsLogin() {
         return get(KEY_FORCE_SMS);
+    }
+
+    /** Send the code request right away, without the confirmation / permission popups. */
+    public static boolean fastLogin() {
+        return get(KEY_FAST_LOGIN);
     }
 
     /** Auto-enable a proxy link found in the clipboard. */
