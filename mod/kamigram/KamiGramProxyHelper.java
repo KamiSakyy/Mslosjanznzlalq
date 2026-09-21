@@ -74,6 +74,8 @@ public final class KamiGramProxyHelper {
                 return "Step: button pressed, request is being prepared.";
             case 4:
                 return "Step: code request sent - waiting for the server answer.";
+            case 6:
+                return "Step: the server sent the code - the code screen is open.";
             case 5:
                 return "Step: server answered" + (loginStageInfo != null && loginStageInfo.length() > 0 ? " (" + loginStageInfo + ")" : "") + ".";
             case 9:
@@ -160,6 +162,15 @@ public final class KamiGramProxyHelper {
             return false;
         }
         try {
+            // до входа в аккаунт прокси из буфера НЕ поднимаем: мёртвый прокси молча съедает
+            // запрос кода, и вход выглядит так, будто ничего не происходит
+            if (UserConfig.getActivatedAccountsCount() == 0) {
+                return false;
+            }
+        } catch (Throwable ignore) {
+            return false;
+        }
+        try {
             final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
             if (manager == null || !manager.hasPrimaryClip()) {
                 return false;
@@ -183,6 +194,43 @@ public final class KamiGramProxyHelper {
         } catch (Throwable e) {
             FileLog.e(e);
             return false;
+        }
+    }
+
+    /** Is any proxy switched on right now? */
+    public static boolean hasProxy() {
+        return proxyEnabled();
+    }
+
+    /** True while the proxy connection is healthy - a proxy that is still only "connecting" is not. */
+    public static boolean proxyLooksAlive() {
+        try {
+            if (!proxyEnabled()) {
+                return true;
+            }
+            final int state = ConnectionsManager.getInstance(UserConfig.selectedAccount).getConnectionState();
+            return state == ConnectionsManager.ConnectionStateConnected
+                || state == ConnectionsManager.ConnectionStateUpdating;
+        } catch (Throwable e) {
+            return true;
+        }
+    }
+
+    /**
+     * A proxy that never connects must not eat the login request: the request dies with a
+     * silent network error and the app shows absolutely nothing. This switches the proxy off
+     * (the user is warned) so the retry goes direct / over VPN.
+     */
+    public static void disableProxyForLogin(Context context) {
+        disableProxy(context, "the proxy did not connect - switched off, retrying the login directly");
+    }
+
+    /** Loud, always visible progress of the login: a toast works even when no dialog can be shown. */
+    public static void toastLogin(String text) {
+        try {
+            Toast.makeText(ApplicationLoader.applicationContext, "KamiGram: " + text, Toast.LENGTH_LONG).show();
+        } catch (Throwable e) {
+            FileLog.e(e);
         }
     }
 
@@ -405,7 +453,8 @@ public final class KamiGramProxyHelper {
             return;
         }
         try {
-            activateFromClipboard(context);
+            // прокси из буфера при входе НЕ поднимаем: иначе мёртвый прокси может
+            // съесть запрос кода (это ровно то, из-за чего вход выглядит «мёртвым»)
             if (proxyEnabled()) {
                 watchProxy(context);
             }

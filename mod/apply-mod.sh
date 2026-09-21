@@ -1314,6 +1314,12 @@ if mark not in src:
         '                return;\n'
         '            }\n')
     src = src.replace(old, new, 1)
+    # этап 6: сервер прислал код - открывается экран кода
+    old_done = '        if (res.type instanceof TLRPC.TL_auth_sentCodeTypeApp) {\n'
+    if old_done in src:
+        src = src.replace(old_done,
+                          '        org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(6, null); /* KAMIGRAM_LOGIN_DONE */\n'
+                          '        if (res.type instanceof TLRPC.TL_auth_sentCodeTypeApp) {\n', 1)
     io.open(login_path, 'w', encoding='utf-8').write(src)
 print('login v3 applied')
 PY
@@ -1384,9 +1390,27 @@ if marker not in src and anchor in src:
              '            try {\n'
              '                org.telegram.messenger.kamigram.KamiGramProxyHelper.prepareForLogin(getParentActivity());\n'
              '                org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(1, null);\n'
+             '                /* KAMIGRAM_PROXY_RESCUE: мёртвый прокси не должен съедать запрос кода */\n'
              '                AndroidUtilities.runOnUIThread(() -> {\n'
              '                    try {\n'
-             '                        if (org.telegram.messenger.kamigram.KamiGramProxyHelper.loginStage() >= 5) {\n'
+             '                        if (org.telegram.messenger.kamigram.KamiGramProxyHelper.loginStage() == 6) {\n'
+             '                            return;\n'
+             '                        }\n'
+             '                        if (!org.telegram.messenger.kamigram.KamiGramProxyHelper.hasProxy()\n'
+             '                            || org.telegram.messenger.kamigram.KamiGramProxyHelper.proxyLooksAlive()) {\n'
+             '                            return;\n'
+             '                        }\n'
+             '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.disableProxyForLogin(getParentActivity());\n'
+             '                        nextPressed = false;\n'
+             '                        needHideProgress(true);\n'
+             '                        showDoneButton(true, true);\n'
+             '                        onNextPressed(null);\n'
+             '                    } catch (Throwable ignore) {\n'
+             '                    }\n'
+             '                }, 12000);\n'
+             '                AndroidUtilities.runOnUIThread(() -> {\n'
+             '                    try {\n'
+             '                        if (org.telegram.messenger.kamigram.KamiGramProxyHelper.loginStage() == 6) {\n'
              '                            return;\n'
              '                        }\n'
              '                        // за 20 секунд ответа нет: возвращаем кнопку в рабочее состояние\n'
@@ -1396,7 +1420,7 @@ if marker not in src and anchor in src:
              '                        needHideProgress(true);\n'
              '                        showDoneButton(true, true);\n'
              '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError,\n'
-             '                            "Nothing happened for 20 seconds. The step below shows where it stopped - tap Retry, and check the Telegram app (chat 777000): the code often arrives there as a service message.",\n'
+             '                            "Nothing happened for 20 seconds. Below: the exact step, the server answer and the connection state. Tap Retry, or open the Telegram app (chat 777000) - the code is often delivered there.",\n'
              '                            () -> onNextPressed(null));\n'
              '                    } catch (Throwable ignore) {\n'
              '                    }\n'
@@ -1417,6 +1441,7 @@ error_anchor = ('            int reqId = ConnectionsManager.getInstance(currentA
 replace_once(login_path, error_anchor,
              error_anchor + '                kamigramLastError = error != null ? (error.text != null ? error.text : "network error") : null; /* KAMIGRAM_LOGIN_DIAG_ERROR */\n'
              + '                org.telegram.messenger.kamigram.KamiGramProxyHelper.traceLogin(5, kamigramLastError);\n',
+
              'KAMIGRAM_LOGIN_DIAG_ERROR')
 done.append('LoginActivity.diagnostics')
 
