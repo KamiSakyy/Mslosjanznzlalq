@@ -1541,7 +1541,7 @@ if mark not in src:
              '                    && org.telegram.messenger.kamigram.KamiGramAuthKeys.switchNext(getParentActivity(), error.text)) {\n'
              '                    nextPressed = false;\n'
              '                    needHideProgress(false);\n'
-             '                    onNextPressed(null);\n'
+             '                    AndroidUtilities.runOnUIThread(() -> onNextPressed(null), 800);\n'
              '                    return;\n'
              '                }\n')
     src = src[:line_end] + block + src[line_end:]
