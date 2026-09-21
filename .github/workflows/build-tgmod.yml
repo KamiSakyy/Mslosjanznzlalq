@@ -83,9 +83,13 @@ on:
 permissions:
   contents: write
 
+# Один активный прогон: новый пуш отменяет предыдущий. Иначе две сборки
+# одновременно дописывают архив в handoff, push одной отклоняется, и в
+# handoff может остаться APK от старого коммита (так и вышло: в архиве
+# лежала сборка #42, а Latest-релиз вышел #44).
 concurrency:
   group: tgmod-kami-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
