@@ -1495,6 +1495,81 @@ else
 fi
 
 # =============================================================================
+# P26. ОФИЦИАЛЬНЫЕ КЛЮЧИ TELEGRAM С АВТОПОДМЕНОЙ: официальный клиент Telegram
+#      использует свой api_id, и сервер может отказать чужой сборке с этим ключом
+#      (API_ID_PUBLISHED_FLOOD). Тогда вход не проходит вообще. KamiGram несёт
+#      ключи нескольких официальных клиентов (Telegram Desktop, Android, X, Web,
+#      iOS, Web K, Swift) и сам переключается на следующий, если сервер отклонил
+#      текущий, после чего повторяет запрос кода.
+# =============================================================================
+if [ "$FIX_LOGIN" = "1" ]; then
+    AL_PATH="$JAVA_ROOT/org/telegram/messenger/ApplicationLoader.java"
+    KP_PATH="$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramProxyHelper.java"
+    AK_PATH="$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramAuthKeys.java"
+    [ -f "$KAMIGRAM_SRC/KamiGramAuthKeys.java" ] || die "P26: нет $KAMIGRAM_SRC/KamiGramAuthKeys.java"
+    cp -f "$KAMIGRAM_SRC/KamiGramAuthKeys.java" "$AK_PATH"
+    python3 - "$AL_PATH" "$LA_LOGIN" "$KP_PATH" <<'PY' || die "P26: не удалось внедрить автоподмену официальных ключей"
+import io, sys
+app_path, login_path, helper_path = sys.argv[1], sys.argv[2], sys.argv[3]
+mark = 'KAMIGRAM_AUTH_KEYS'
+
+# 1) официальный ключ подставляется до старта сетевого слоя
+src = io.open(app_path, encoding='utf-8').read()
+if mark not in src:
+    anchor = '    public void onCreate() {\n        applicationLoaderInstance = this;\n'
+    if anchor not in src:
+        sys.stderr.write('P26: не найден ApplicationLoader.onCreate\n')
+        sys.exit(1)
+    src = src.replace(anchor,
+        '    public void onCreate() {\n'
+        '        /* ' + mark + ': официальный ключ Telegram подставляется до старта сети */\n'
+        '        org.telegram.messenger.kamigram.KamiGramAuthKeys.load();\n'
+        '        applicationLoaderInstance = this;\n', 1)
+    io.open(app_path, 'w', encoding='utf-8').write(src)
+
+# 2) сервер отказал по ключу -> следующий официальный ключ и повтор запроса кода
+src = io.open(login_path, encoding='utf-8').read()
+if mark not in src:
+    anchor = '                kamigramLastError = error != null ? (error.text != null ? error.text : "network error") : null;'
+    idx = src.find(anchor)
+    if idx < 0:
+        sys.stderr.write('P26: не найдена точка ответа сервера в LoginActivity\n')
+        sys.exit(1)
+    line_end = src.find('\n', idx) + 1
+    block = ('                /* ' + mark + ': сервер отказал по ключу - берём следующий официальный ключ и повторяем */\n'
+             '                if (error != null && error.text != null && error.text.contains("API_ID")\n'
+             '                    && org.telegram.messenger.kamigram.KamiGramAuthKeys.switchNext(getParentActivity(), error.text)) {\n'
+             '                    nextPressed = false;\n'
+             '                    needHideProgress(false);\n'
+             '                    onNextPressed(null);\n'
+             '                    return;\n'
+             '                }\n')
+    src = src[:line_end] + block + src[line_end:]
+    io.open(login_path, 'w', encoding='utf-8').write(src)
+
+# 3) в отчёте о входе видно, какой официальный ключ используется
+src = io.open(helper_path, encoding='utf-8').read()
+if 'KamiGramAuthKeys.describe()' not in src:
+    anchor = '            text.append("SafetyNet key: ")'
+    idx = src.find(anchor)
+    if idx < 0:
+        sys.stderr.write('P26: не найдена строка диагностики в KamiGramProxyHelper\n')
+        sys.exit(1)
+    line_start = src.rfind('\n', 0, idx) + 1
+    src = (src[:line_start]
+           + '            text.append("Telegram key: ").append(KamiGramAuthKeys.describe()).append(\'\\n\');\n'
+           + src[line_start:])
+    io.open(helper_path, 'w', encoding='utf-8').write(src)
+print('auth keys patched')
+PY
+    has "$AK_PATH" 'KamiGramAuthKeys' || die "P26: файл ключей не скопирован"
+    has "$LA_LOGIN" "$mark" || die "P26: автоподмена ключа не внедрена в LoginActivity"
+    ok "P26 ОФИЦИАЛЬНЫЕ КЛЮЧИ TELEGRAM: мод несёт ключи официальных клиентов (Desktop/Android/X/Web/iOS) и сам переключается на следующий, если сервер отклонил текущий (API_ID_PUBLISHED_FLOOD), затем повторяет запрос кода"
+else
+    skip "P26 автоподмена официальных ключей отключена (FIX_LOGIN=0)"
+fi
+
+# =============================================================================
 # P23. iOS-ШАПКА КОДОМ: плоская верхняя панель вместо «стекла» с размытием.
 # =============================================================================
 if [ "$IOS_UI" = "1" ]; then
