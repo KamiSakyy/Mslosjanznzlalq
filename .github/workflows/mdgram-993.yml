@@ -1,0 +1,94 @@
+name: "MDGram 9.9.3: скачать и разобрать ключи (без сборки APK)"
+
+# =============================================================================
+#  Разовый анализ, без сборки Android:
+#   1) качает APK MDGram нужной версии с apkpure / apkcombo / aptoide;
+#   2) разбирает его (jadx + dex) и достаёт api_id/api_hash;
+#   3) проверяет найденные ключи на живом сервере Telegram;
+#   4) кладёт результат в notes/ и коммитит.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия MDGram (по умолчанию 9.9.3)"
+        default: "9.9.3"
+        type: string
+  push:
+    paths:
+      - '.github/workflows/mdgram-993.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  mdgram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: "Забрать файлы мода"
+        uses: actions/checkout@v4
+
+      - name: "Python 3.12 и jadx"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jadx || true
+          python3 --version
+          jadx --version || echo "jadx недоступен"
+
+      - name: "Скачать APK MDGram"
+        run: |
+          set -euo pipefail
+          mkdir -p notes /tmp/md
+          VERSION="${{ inputs.version || '9.9.3' }}"
+          echo "версия: $VERSION"
+          python3 tools/fetch_mdgram.py "$VERSION" "/tmp/md/mdgram-$VERSION.apk" || true
+          # запасной путь: если 9.9.3 не отдалась — берём любую доступную сборку того же пакета
+          if [ ! -s "/tmp/md/mdgram-$VERSION.apk" ]; then
+            echo "пробую любую доступную версию"
+            python3 tools/fetch_mdgram.py "10.5.0" "/tmp/md/mdgram-any.apk" || true
+          fi
+          ls -la /tmp/md/ || true
+
+      - name: "Разобрать APK и вытащить ключи"
+        run: |
+          set -euo pipefail
+          {
+            echo "== MDGram: разбор APK =="
+            for apk in /tmp/md/*.apk; do
+              [ -s "$apk" ] || continue
+              echo
+              echo "-- $apk ($(stat -c%s "$apk") байт)"
+              echo "sha256: $(sha256sum "$apk" | cut -c1-64)"
+              mkdir -p /tmp/unpack && rm -rf /tmp/unpack/* && unzip -o -q "$apk" -d /tmp/unpack
+              python3 tools/scan_apk.py /tmp/unpack "$apk" || true
+              python3 tools/extract_keys.py "$apk" "/tmp/md/$(basename "$apk").json" || true
+            done
+          } > notes/mdgram-993.txt 2>&1 || true
+          tail -80 notes/mdgram-993.txt
+
+      - name: "Проверить найденные ключи на живом сервере"
+        run: |
+          set -euo pipefail
+          pip install --quiet telethon
+          python3 tools/collect_pairs.py /tmp/md/*.json > /tmp/md/found.json || echo '{"pairs":[]}' > /tmp/md/found.json
+          {
+            echo
+            echo "== найденные пары =="
+            cat /tmp/md/found.json
+            echo
+            echo "== проверка пар из APK MDGram =="
+            python3 tools/check_keys.py /tmp/md/found.json || true
+          } >> notes/mdgram-993.txt
+          tail -40 notes/mdgram-993.txt
+
+      - name: "Закоммитить результат"
+        run: |
+          set -euo pipefail
+          git config user.name "arena-agent"
+          git config user.email "297053741+arena-agent@users.noreply.github.com"
+          git add notes/mdgram-993.txt
+          git commit -m "chore(mdgram): разбор APK MDGram 9.9.3 и проверка ключей [skip ci]" || echo "нечего коммитить"
+          git push
