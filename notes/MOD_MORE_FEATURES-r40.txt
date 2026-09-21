@@ -1,0 +1,91 @@
+  1. [Трафик] TL_account_getWallPapers — список обоев не запрашивается — KamiGramNetFilter
+  2. [Трафик] TL_account_getMultiWallPapers — наборы обоев не запрашиваются — KamiGramNetFilter
+  3. [Трафик] TL_account_getWallPaper — отдельные обои не запрашиваются — KamiGramNetFilter
+  4. [Трафик] TL_account_getThemes — облачные темы не запрашиваются (в моде своя тема) — KamiGramNetFilter
+  5. [Трафик] TL_account_getTheme — конкретная облачная тема не запрашивается — KamiGramNetFilter
+  6. [Трафик] TL_account_createTheme — создание облачных тем не нужно — KamiGramNetFilter
+  7. [Трафик] TL_account_installTheme — установка облачной темы не нужна — KamiGramNetFilter
+  8. [Трафик] TL_account_saveTheme — сохранение тем в облако не нужно — KamiGramNetFilter
+  9. [Трафик] TL_account_installWallPaper — установка обоев из облака не нужна — KamiGramNetFilter
+ 10. [Трафик] TL_account_saveWallPaper — сохранение обоев в облако не нужно — KamiGramNetFilter
+ 11. [Трафик] TL_account_resetWallPapers — сброс обоев не нужен — KamiGramNetFilter
+ 12. [Трафик] TL_account_updateTheme — обновление тем в облаке не нужно — KamiGramNetFilter
+ 13. [Трафик] TL_account_getDefaultEmojiStatuses — эмодзи-статусы не запрашиваются — KamiGramNetFilter
+ 14. [Трафик] TL_account_getRecentEmojiStatuses — недавние эмодзи-статусы не запрашиваются — KamiGramNetFilter
+ 15. [Трафик] TL_account_getChannelDefaultEmojiStatuses — эмодзи-статусы каналов не запрашиваются — KamiGramNetFilter
+ 16. [Трафик] TL_account_getChannelRestrictedStatusEmojis — ограничения эмодзи-статусов не запрашиваются — KamiGramNetFilter
+ 17. [Трафик] TL_account_getDefaultBackgroundEmojis — фоновые эмодзи не запрашиваются — KamiGramNetFilter
+ 18. [Трафик] TL_account_getDefaultGroupPhotoEmojis — эмодзи для аватарок групп не запрашиваются — KamiGramNetFilter
+ 19. [Трафик] TL_account_getDefaultProfilePhotoEmojis — эмодзи для аватарок профиля не запрашиваются — KamiGramNetFilter
+ 20. [Трафик] TL_account_updateEmojiStatus — свой эмодзи-статус не отправляется — KamiGramNetFilter
+ 21. [Трафик] TL_account_clearRecentEmojiStatuses — чистка недавних статусов не нужна — KamiGramNetFilter
+ 22. [Трафик] TL_account_getSavedMusicIds — музыка профиля не запрашивается — KamiGramNetFilter
+ 23. [Трафик] TL_account_getSavedMusicByID — треки профиля не запрашиваются — KamiGramNetFilter
+ 24. [Трафик] TL_account_getSavedRingtones — сохранённые рингтоны не запрашиваются — KamiGramNetFilter
+ 25. [Трафик] TL_account_getBirthdays — дни рождения контактов не запрашиваются — KamiGramNetFilter
+ 26. [Трафик] TL_account_updateBirthday — свой день рождения не отправляется — KamiGramNetFilter
+ 27. [Трафик] TL_account_getReactionsNotifySettings — настройки уведомлений о реакциях не запрашиваются — KamiGramNetFilter
+ 28. [Трафик] TL_account_setReactionsNotifySettings — настройки уведомлений о реакциях не отправляются — KamiGramNetFilter
+ 29. [Трафик] TL_account_toggleSponsoredMessages — переключатель рекламы не запрашивается (её нет) — KamiGramNetFilter
+ 30. [Трафик] TL_account_webPagePreview — превью веб-страниц не запрашивается — KamiGramNetFilter
+ 31. [Трафик] TL_bots_getBotRecommendations — рекомендованные боты не запрашиваются — KamiGramNetFilter
+ 32. [Трафик] TL_bots_toggleUserEmojiStatusPermission — права на эмодзи-статус не запрашиваются — KamiGramNetFilter
+ 33. [Трафик] TL_channels_setBoostsToUnblockRestrictions — бусты для снятия ограничений не отправляются — KamiGramNetFilter
+ 34. [Трафик] TL_channels_updateEmojiStatus — эмодзи-статус канала не отправляется — KamiGramNetFilter
+ 35. [Трафик] TL_channels_setEmojiStickers — эмодзи-наборы канала не отправляются — KamiGramNetFilter
+ 36. [Трафик] TL_contacts_getStatuses — статусы контактов не перезапрашиваются — KamiGramNetFilter
+ 37. [Трафик] TL_help_dismissSuggestion — отклонение подсказок не отправляется — KamiGramNetFilter
+ 38. [Трафик] TL_langpack_getDifference — обновления переводов не запрашиваются — KamiGramNetFilter
+ 39. [Трафик] TL_messages_reorderStickerSets — порядок наборов не отправляется — KamiGramNetFilter
+ 40. [Трафик] TL_messages_toggleStickerSets — установка/снятие наборов не отправляется — KamiGramNetFilter
+ 41. [Трафик] TL_messages_uninstallStickerSet — удаление набора не отправляется — KamiGramNetFilter
+ 42. [Трафик] TL_messages_getEmojiKeywords — подсказки эмодзи не запрашиваются — KamiGramNetFilter
+ 43. [Трафик] TL_messages_getTopReactions — популярные реакции не запрашиваются — KamiGramNetFilter
+ 44. [Трафик] TL_messages_getDefaultTagReactions — реакции по умолчанию не запрашиваются — KamiGramNetFilter
+ 45. [Трафик] TL_messages_getPaidReactionPrivacy — платные реакции не запрашиваются — KamiGramNetFilter
+ 46. [Трафик] TL_messages_saveGif — сохранение GIF не отправляется — KamiGramNetFilter
+ 47. [Трафик] TL_messages_toggleBotInAttachMenu — переключение ботов в меню не отправляется — KamiGramNetFilter
+ 48. [Трафик] TL_messages_viewSponsoredMessage — просмотр рекламы не отправляется (её нет) — KamiGramNetFilter
+ 49. [Трафик] TL_messages_clickSponsoredMessage — клик по рекламе не отправляется (её нет) — KamiGramNetFilter
+ 50. [Трафик] TL_stickers_checkShortName — проверка короткого имени набора не нужна — KamiGramNetFilter
+ 51. [Трафик] TL_stories_getAllStories — все истории не запрашиваются — KamiGramNetFilter
+ 52. [Трафик] TL_stories_getPinnedStories — закреплённые истории не запрашиваются — KamiGramNetFilter
+ 53. [Трафик] TL_stories_getStoriesArchive — архив историй не запрашивается — KamiGramNetFilter
+ 54. [Трафик] TL_stories_getStoriesByID — истории по ID не запрашиваются — KamiGramNetFilter
+ 55. [Трафик] TL_stories_getStoriesViews — просмотры историй не запрашиваются — KamiGramNetFilter
+ 56. [Трафик] TL_stories_getStoryViewsList — список зрителей историй не запрашивается — KamiGramNetFilter
+ 57. [Трафик] TL_stories_searchPosts — поиск по историям отключён — KamiGramNetFilter
+ 58. [Трафик] TL_stats_getStoryStats — статистика историй не запрашивается — KamiGramNetFilter
+ 59. [Трафик] TL_payments_getConnectedStarRefBots — партнёрские боты Stars не запрашиваются — KamiGramNetFilter
+ 60. [Трафик] TL_payments_getConnectedStarRefBot — партнёрский бот Stars не запрашивается — KamiGramNetFilter
+ 61. [Трафик] TL_payments_getSuggestedStarRefBots — рекомендованные партнёрские боты не запрашиваются — KamiGramNetFilter
+ 62. [Трафик] TL_payments_clearSavedInfo — очистка платёжных данных не отправляется — KamiGramNetFilter
+ 63. [Трафик] TL_premium_applyBoost — бусты не применяются — KamiGramNetFilter
+ 64. [Трафик] TL_stars_getStarGifts — подарки Stars не запрашиваются — KamiGramNetFilter
+ 65. [Трафик] TL_stars_getSavedStarGift — сохранённые подарки не запрашиваются — KamiGramNetFilter
+ 66. [Трафик] TL_stars_getStarGiftCollections — коллекции подарков не запрашиваются — KamiGramNetFilter
+ 67. [Трафик] TL_stars_getStarGiftUpgradePreview — прокачка подарков не запрашивается — KamiGramNetFilter
+ 68. [Трафик] TL_stars_getResaleStarGifts — перепродажа подарков не запрашивается — KamiGramNetFilter
+ 69. [Трафик] TL_stars_getUniqueStarGiftValueInfo — оценка подарков не запрашивается — KamiGramNetFilter
+ 70. [Трафик] TL_stars_reorderStarGiftCollections — порядок коллекций подарков не отправляется — KamiGramNetFilter
+ 71. [Трафик] TL_stars_toggleStarGiftsPinnedToTop — закрепление подарков не отправляется — KamiGramNetFilter
+ 72. [Трафик] TL_users_suggestBirthday — подсказка дня рождения не запрашивается — KamiGramNetFilter
+ 73. [Загрузки] чистка базы не удаляет файлы медиа — MessagesStorage
+ 74. [Разрешения] доступ к контактам больше не запрашивается — AndroidManifest.xml
+ 75. [Разрешения] запись контактов не нужна — AndroidManifest.xml
+ 76. [Разрешения] чтение номеров не нужно — AndroidManifest.xml
+ 77. [Разрешения] список аккаунтов устройства не нужен — AndroidManifest.xml
+
+=== важное из этого пакета (10) ===
+  1. GIF и анимации не грузятся (0 байт)
+  2. скачанное не удаляется (автоочистка медиа выключена)
+  3. вручную скачанное защищено даже от очистки кэша
+  4. мощный прокси-движок: моментальное переключение
+  5. кнопка прокси в шапке главного экрана, чата и настроек
+  6. показ ID чатов и пользователей (в шапке и в меню)
+  7. ускорение загрузок: адаптивные блоки и 6-8 потоков
+  8. больше не спрашиваем разрешения на контакты и телефон
+  9. iOS-графит + индиго, без голубого и без «стекла»
+ 10. iOS-иконка настроек и iOS-скругления меню
+
+ВСЕГО В MORE-ПАКЕТЕ: 77
