@@ -345,25 +345,46 @@ jobs:
           RUN="${{ github.run_number }}"
           APK_DIR="modrepo/handoff/apk"
           SRC_DIR="modrepo/handoff/sources"
-          mkdir -p "$APK_DIR" "$SRC_DIR"
           NAME="KamiGram-$VERSION-r$RUN.apk"
-          [ -f "$APK_DIR/$NAME" ] || cp "$APK" "$APK_DIR/$NAME"
-          cp "$APK" "$APK_DIR/KamiGram-latest.apk"
-          cp "$APK" "modrepo/handoff/KamiGram-latest.apk"
-          cp telegram-src/MOD_INFO.txt "$SRC_DIR/MOD_INFO-$VERSION-r$RUN.txt" 2>/dev/null || true
+          echo "APK: $APK"
+          ls -la "$APK" || { echo "::error title=Handoff::не найден файл APK ($APK)"; exit 1; }
+          # копии держим ВНЕ репозитория: их не тронет синхронизация с origin ниже
+          OUT=/tmp/handoff-out
+          rm -rf "$OUT"; mkdir -p "$OUT/sources"
+          cp "$APK" "$OUT/$NAME"
+          cp "$APK" "$OUT/KamiGram-latest.apk"
+          cp telegram-src/MOD_INFO.txt "$OUT/sources/MOD_INFO-$VERSION-r$RUN.txt" 2>/dev/null || true
 
           if [ -d telegram-src/.git ]; then
             ( cd telegram-src && git add -A >/dev/null 2>&1; \
               git diff --cached --binary HEAD -- . ':(exclude)mod-changes.patch' > ../changes.patch 2>/dev/null ) || true
             if [ -s changes.patch ]; then
-              gzip -9 -c changes.patch > "$SRC_DIR/changes-$VERSION-r$RUN.patch.gz" || true
-              grep -E '^ .* \| ' changes.patch > "$SRC_DIR/changes-$VERSION-r$RUN.stat.txt" 2>/dev/null || true
+              gzip -9 -c changes.patch > "$OUT/sources/changes-$VERSION-r$RUN.patch.gz" || true
+              grep -E '^ .* \| ' changes.patch > "$OUT/sources/changes-$VERSION-r$RUN.stat.txt" 2>/dev/null || true
             fi
           fi
 
           # ---- ИСХОДНИКИ НАШЕГО МОДА В .ZIP (просьба: сохранять всегда, не удалять) ----
           python3 modrepo/mod/zip-sources.py modrepo "$VERSION" "$RUN" telegram-src || true
-          ls -la modrepo/handoff/sources/ | tail -5 || true
+          ls -la "$OUT/sources/" | tail -5 || true
+
+          cd modrepo
+          git config user.name "arena-ai-coding-agent[bot]"
+          git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
+          # СНАЧАЛА синхронизируемся с веткой (без этого push падал: бинарные APK
+          # конфликтовали при rebase, и архив не попадал в репозиторий).
+          for i in 1 2 3; do
+            if git fetch origin "${GITHUB_REF_NAME}" && git reset -q --hard "origin/${GITHUB_REF_NAME}"; then
+              echo "::notice title=Handoff::синхронизация с origin/${GITHUB_REF_NAME} — ок"
+              break
+            fi
+            sleep 5
+          done
+          mkdir -p handoff/apk handoff/sources
+          cp "$OUT"/*.apk handoff/apk/ || true
+          cp "$OUT"/sources/* handoff/sources/ 2>/dev/null || true
+          cp "$OUT/KamiGram-latest.apk" handoff/KamiGram-latest.apk 2>/dev/null || true
+          cd ..
 
           ( cd "$APK_DIR" && sha256sum *.apk | sort -k2 ) > modrepo/handoff/SHA256SUMS.txt || true
           {
@@ -399,8 +420,6 @@ jobs:
           ls -lh modrepo/handoff/apk | tail -5
 
           cd modrepo
-          git config user.name "arena-ai-coding-agent[bot]"
-          git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
           git add -f handoff
           if git diff --cached --quiet; then
             echo "::notice title=Handoff::архив уже актуален"
@@ -412,7 +431,8 @@ jobs:
               echo "::notice title=Handoff::архив обновлён — handoff/apk/$NAME"
               exit 0
             fi
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            git fetch origin "${GITHUB_REF_NAME}" || true
+            git rebase --strategy-option=theirs "origin/${GITHUB_REF_NAME}" || { git rebase --abort || true; sleep 5; }
           done
           echo "::warning title=Handoff::push архива не удался (APK есть в артефактах и релизе)"
 
