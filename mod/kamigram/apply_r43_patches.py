@@ -202,27 +202,14 @@ def text_only():
 # =============================================================================
 
 def deleted_log():
-    """Журнал удалённых: тексты берём там, где они точно есть — в ChatActivity."""
-    patch('ui/ChatActivity.java', 'KAMIGRAM_KEEP_DELETED',
-          '    private void createDeleteMessagesAlert(final MessageObject finalSelectedObject, final MessageObject.GroupedMessages finalSelectedGroup, boolean hideDimAfter) {\n',
-          '        /* KAMIGRAM_KEEP_DELETED: текст удаляемых сообщений остаётся в журнале на устройстве */\n'
-          '        try {\n'
-          '            if (' + CFG + '.keepDeleted()) {\n'
-          '                if (finalSelectedObject != null) {\n'
-          '                    ' + DEL + '.log(getDialogId(), finalSelectedObject.messageText);\n'
-          '                }\n'
-          '                for (int kamigramSlot = 0; kamigramSlot < 2; kamigramSlot++) {\n'
-          '                    for (int kamigramIndex = 0; kamigramIndex < selectedMessagesIds[kamigramSlot].size(); kamigramIndex++) {\n'
-          '                        final MessageObject kamigramObject = messagesDict[kamigramSlot].get(selectedMessagesIds[kamigramSlot].keyAt(kamigramIndex));\n'
-          '                        if (kamigramObject != null) {\n'
-          '                            ' + DEL + '.log(getDialogId(), kamigramObject.messageText);\n'
-          '                        }\n'
-          '                    }\n'
-          '                }\n'
-          '            }\n'
-          '        } catch (Throwable kamigramIgnore) {\n'
-          '        }\n',
-          'журнал удалённых сообщений (текст остаётся на устройстве)')
+    """УДАЛЁННЫЕ (переделано в r54): журнал текстов больше не ведётся.
+
+    Раньше здесь текст удаляемых сообщений складывался в SharedPreferences —
+    это не работало по-настоящему. Теперь удалённые сообщения просто ОСТАЮТСЯ
+    В ЧАТЕ (патчи KAMIGRAM_KEEP_DELETED* из apply_r54_patches.py): локальная
+    строка не стирается, а сообщение об удалении в интерфейс не приходит.
+    """
+    return
 
 
 # =============================================================================

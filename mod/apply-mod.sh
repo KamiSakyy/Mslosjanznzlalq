@@ -375,19 +375,20 @@ fi
 DC="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/DownloadController.java"
 if [ "$AUTODOWNLOAD_OFF" = "1" ]; then
     # строки пресетов: mask0_mask1_mask2_mask3_photo_video_doc_audio_preloadVideo_preloadMusic_enabled_lowCallData_bitrate_preloadStories
+    # ФОТО теперь скачиваются сами — по нажатию открываются мгновенно; видео и
+    # документы по-прежнему только по нажатию (трафик не тратится зря).
+    # Поля: mask0..mask3_photo_video_doc_audio_preloadVideo_preloadMusic_enabled_lowCallData_bitrate_preloadStories
     sed_i 's#String defaultLow = "[^"]*";#String defaultLow = "0_0_0_0_1048576_512000_512000_524288_0_0_0_1_50_0";#' "$DC"
-    sed_i 's#String defaultMedium = "[^"]*";#String defaultMedium = "0_0_0_0_1048576_10485760_1048576_524288_0_0_0_1_100_0";#' "$DC"
-    sed_i 's#String defaultHigh = "[^"]*";#String defaultHigh = "0_0_0_0_1048576_15728640_3145728_524288_0_0_0_1_100_0";#' "$DC"
-    # старый формат настроек (обновление поверх существующей установки)
-    sed_i 's#getInt(key, AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)#getInt(key, 0)#' "$DC"
-    sed_i 's#getInt("wifiDownloadMask" + (a == 0 ? "" : a), AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)#getInt("wifiDownloadMask" + (a == 0 ? "" : a), 0)#' "$DC"
+    sed_i 's#String defaultMedium = "[^"]*";#String defaultMedium = "0_0_0_0_1048576_1048576_1048576_524288_0_0_0_1_100_0";#' "$DC"
+    sed_i 's#String defaultHigh = "[^"]*";#String defaultHigh = "0_0_0_0_1048576_1048576_1048576_524288_0_0_0_1_100_0";#' "$DC"
+    # старый формат настроек (обновление поверх существующей установки) — только фото
+    sed_i 's#getInt(key, AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)#getInt(key, AUTODOWNLOAD_TYPE_PHOTO)#' "$DC"
+    sed_i 's#getInt("wifiDownloadMask" + (a == 0 ? "" : a), AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)#getInt("wifiDownloadMask" + (a == 0 ? "" : a), AUTODOWNLOAD_TYPE_PHOTO)#' "$DC"
     sed_i 's#getInt("roamingDownloadMask" + (a == 0 ? "" : a), AUTODOWNLOAD_TYPE_PHOTO)#getInt("roamingDownloadMask" + (a == 0 ? "" : a), 0)#' "$DC"
-    sed_i 's#getBoolean("globalAutodownloadEnabled", true)#getBoolean("globalAutodownloadEnabled", false)#' "$DC"
 
     has "$DC" 'defaultMedium = "0_0_0_0_' || die "P10: не удалось обнулить defaultMedium"
-    has "$DC" 'globalAutodownloadEnabled", false' || die "P10: не удалось выключить globalAutodownloadEnabled"
-    grep -q 'AUTODOWNLOAD_TYPE_PHOTO | AUTODOWNLOAD_TYPE_VIDEO' "$DC" && die "P10: остались маски автоскачивания по умолчанию"
-    ok "P10 автоскачивание медиа выключено по умолчанию (моб./Wi-Fi/роуминг), preload видео/музыки/историй — off"
+    grep -q 'AUTODOWNLOAD_TYPE_VIDEO | AUTODOWNLOAD_TYPE_DOCUMENT)' "$DC" && die "P10: остались маски автоскачивания по умолчанию"
+    ok "P10 фото скачиваются сами (открытие мгновенное), видео/документы — по нажатию; preload видео/музыки/историй off"
 else
     skip "P10 автоскачивание оставлено как в upstream (AUTODOWNLOAD_OFF=0)"
 fi
@@ -406,13 +407,13 @@ src = io.open(path, encoding='utf-8').read()
 marker = '/* KAMIGRAM_NO_STICKERS */'
 targets = [
     ('public void loadStickers(int type, boolean cache, boolean force, boolean scheduleIfLoading, Utilities.Callback<ArrayList<TLRPC.TL_messages_stickerSet>> onFinish) {',
-     '        if (true) { ' + marker + ' if (onFinish != null) onFinish.run(null); return; }'),
+     '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.stickersBlocked()) { ' + marker + ' if (onFinish != null) onFinish.run(null); return; }'),
     ('public void loadFeaturedStickers(boolean emoji, boolean cache) {',
-     '        if (true) { ' + marker + ' return; }'),
+     '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.stickersBlocked()) { ' + marker + ' return; }'),
     ('public void loadStickersByEmojiOrName(String name, boolean isEmoji, boolean cache) {',
-     '        if (true) { ' + marker + ' return; }'),
+     '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.stickersBlocked()) { ' + marker + ' return; }'),
     ('public boolean areStickersLoaded(int type) {',
-     '        if (true) return true; ' + marker),
+     '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.stickersBlocked()) return true; ' + marker),
 ]
 if marker not in src:
     for sig, inject in targets:
@@ -423,7 +424,7 @@ if marker not in src:
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
     [ "$(grep -c 'KAMIGRAM_NO_STICKERS' "$MDC")" = "4" ] || die "P11: ожидалось 4 точки блокировки"
-    ok "P11 загрузка наборов стикеров/масок/премиум-эмодзи/подарков заблокирована (0 байт трафика)"
+    ok "P11 стикеры и премиум-эмодзи грузятся как обычно; отключаются только тумблером в центре мода"
 else
     skip "P11 стикеры оставлены как в upstream (NO_STICKERS=0)"
 fi
@@ -869,63 +870,43 @@ else
 fi
 
 # =============================================================================
-# P21. GHOST MODE — уникальная функция KamiGram: собеседник не видит,
-#      что мы читаем сообщения, печатаем и находимся в сети.
+# P21. GHOST MODE (по образцу AyuGram, ветка rewrite): запросы не выбрасываются
+#      наугад — перехват идёт в ОДНОЙ точке (ConnectionsManager.sendRequestInternal)
+#      по конкретным типам запросов. «Прочитано» не уходит на сервер, но приложение
+#      получает пустой ответ, поэтому непрочитанные чистятся ЛОКАЛЬНО и счётчики
+#      работают как обычно (в прежней версии запрос молча пропадал — из-за этого
+#      призрак выглядел нерабочим).
 # =============================================================================
 if [ "$GHOST_MODE" = "1" ]; then
-    MC="$JAVA_ROOT/org/telegram/messenger/MessagesController.java"
     CM="$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java"
-    python3 - "$MC" "$CM" <<'PY' || die "P21: не удалось включить ghost-режим"
+    python3 - "$CM" <<'PYPATCH' || die "P21: не удалось включить ghost-режим"
 import io, sys
-mc_path, cm_path = sys.argv[1], sys.argv[2]
-marker = '/* KAMIGRAM_GHOST */'
-config = 'org.telegram.messenger.kamigram.KamiGramConfig'
-
-src = io.open(mc_path, encoding='utf-8').read()
-if 'KAMIGRAM_GHOST_READ' not in src:
-    old = '    private void completeReadTask(ReadTask task) {\n'
-    if old not in src:
-        sys.stderr.write('P21: не найден completeReadTask\n')
-        sys.exit(1)
-    src = src.replace(old, old +
-                      '        /* KAMIGRAM_GHOST_READ: no read receipts sent */\n'
-                      '        if (' + config + '.ghostMode()) {\n'
-                      '            return;\n'
-                      '        }\n', 1)
-
-    old_typing = '    public boolean sendTyping(long dialogId, long threadMsgId, int action, String emojicon, int classGuid) {\n'
-    if old_typing not in src:
-        sys.stderr.write('P21: не найден sendTyping\n')
-        sys.exit(1)
-    src = src.replace(old_typing, old_typing +
-                      '        /* KAMIGRAM_GHOST_TYPING: no typing indicator sent */\n'
-                      '        if (' + config + '.ghostMode()) {\n'
-                      '            return false;\n'
-                      '        }\n', 1)
-    io.open(mc_path, 'w', encoding='utf-8').write(src)
-
-src = io.open(cm_path, encoding='utf-8').read()
-if 'KAMIGRAM_GHOST_STATUS' not in src:
-    anchor = '    public int sendRequest(TLObject object, RequestDelegate completionBlock) {\n'
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+mark = 'KAMIGRAM_GHOST_HOOK'
+anchor = ('    private void sendRequestInternal(TLObject object, RequestDelegate onComplete, RequestDelegateTimestamp onCompleteTimestamp, '
+          'QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, '
+          'boolean immediate, int requestToken) {\n')
+if mark not in src:
     if anchor not in src:
-        sys.stderr.write('P21: не найден sendRequest(TLObject, RequestDelegate)\n')
+        sys.stderr.write('P21: не найден sendRequestInternal\n')
         sys.exit(1)
     guard = (anchor +
-             '        /* KAMIGRAM_GHOST_STATUS: no online/offline sent */\n'
-             '        if (object instanceof org.telegram.tgnet.tl.TL_account.updateStatus && ' + config + '.ghostMode()) {\n'
-             '            return 0;\n'
-             '        }\n')
+        '        /* ' + mark + ': призрак — запрос обработан локально и в сеть не уходит */\n'
+        '        if (org.telegram.messenger.kamigram.KamiGramGhost.interceptRequest(object, onComplete)) {\n'
+        '            return;\n'
+        '        }\n')
     src = src.replace(anchor, guard, 1)
-    io.open(cm_path, 'w', encoding='utf-8').write(src)
-print('ghost-режим внедрён')
-PY
-    [ "$(grep -c 'KAMIGRAM_GHOST' "$MC")" -ge 2 ] || die "P21: ghost-маркеров в MessagesController меньше двух"
-    ok "P21 УНИКАЛЬНАЯ ФУНКЦИЯ: ghost-режим — не уходят «прочитано», «печатает» и статус «в сети» (KamiGramConfig.ghostMode())"
+    io.open(path, 'w', encoding='utf-8').write(src)
+print('ghost hook installed')
+PYPATCH
+    has "$CM" "KAMIGRAM_GHOST_HOOK" || die "P21: ghost-хук не встал в ConnectionsManager"
+    has "$CM" "KamiGramGhost.interceptRequest" || die "P21: вызова KamiGramGhost.interceptRequest нет"
+    ok "P21 GHOST (AyuGram): призрак — «печатает», «в сети», «прочитано» и «просмотрено» не уходят на сервер; локально всё работает как обычно"
 else
     skip "P21 ghost-режим не применяется (GHOST_MODE=0)"
 fi
 
-# =============================================================================
 # P22. БЕЗ ЗАПРЕТОВ — уникальная функция: защищённый контент можно
 #      пересылать, сохранять, копировать и снимать скриншоты.
 # =============================================================================
@@ -2015,3 +1996,14 @@ for p in "${SKIPPED_LIST[@]:-}"; do [ -n "$p" ] && printf '  %s·%s %s\n' "$C_YE
 log "───────────────────────────────────────────────────────────"
 log "MOD_INFO.txt: $TG_DIR/MOD_INFO.txt"
 log "Готово. Дальше: cd $TG_DIR && ./gradlew :TMessagesProj_App:assembleAfatRelease"
+
+# =============================================================================
+# P33. r54: призрак (иконка только в шапке главного экрана), имя KamiGram,
+#      видимая иконка родного менеджера загрузок, удалённые сообщения остаются
+#      в чате, свой шрифт — везде (сообщения, каналы, настройки).
+# =============================================================================
+python3 "$KAMIGRAM_SRC/apply_r54_patches.py" "$TG_DIR" "$APP_NAME" || die "P33: патчи r54 не применились"
+grep -q 'KAMIGRAM_GHOST_HEADER' "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" || die "P33: иконка призрака не встала в шапку главного экрана"
+grep -q 'KAMIGRAM_KEEP_DELETED_STORAGE' "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P33: защита удалённых в базе не встала"
+grep -q 'KAMIGRAM_FONT' "$JAVA_ROOT/org/telegram/ui/ActionBar/BaseFragment.java" || die "P33: шрифт не применяется ко всему экрану"
+ok "P33 r54: призрак в шапке главного экрана, имя KamiGram, загрузки всегда видны, удалённые остаются в чате, шрифт везде"

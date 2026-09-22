@@ -274,7 +274,7 @@ public final class KamiGramCache {
     public static String describe() {
         final String totalText = human(total());
         if (!keep()) {
-            return "занято " + totalText + " · очистка кэша работает как обычно";
+            return totalText;
         }
         return "занято " + totalText + " · автоудаление выключено, защищено файлов: "
             + protectedCount();

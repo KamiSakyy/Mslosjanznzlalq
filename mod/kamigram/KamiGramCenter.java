@@ -14,25 +14,24 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
-import org.telegram.ui.CacheControlActivity;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.ProxyListActivity;
 
 /**
- * KamiGram: настройки мода. Дизайн — по палитре и приёмам приложения Yoru
- * (yoru-android), перенесённым на Telegram:
+ * KamiGram: центр настроек. Дизайн — палитра и приёмы Yoru (yoru-android),
+ * перенесённые на Telegram:
  *
- *   * фон #0D0B12, карточки #1C1724 с тонкой обводкой #352A43 и радиусом 18;
- *   * заголовки разделов 19sp полужирные, подписи 11sp приглушённые (#A99BB8);
- *   * главное действие — градиентная кнопка (#E2CCFF → #C8A7FF, тёмный текст);
- *   * чипы-значения (радиус 11, обводка) вместо «дешёвых» текстовых полей;
- *   * ни одного лишнего пункта: ID, вход, само-проверки и прочая служебная
- *     информация пользователю НЕ показываются;
- *   * сверху — разделы (одно касание), снизу — закреплённая кнопка «Готово».
+ *   * фон #0D0B12, карточки #1C1724 с обводкой #352A43 и радиусом 18;
+ *   * разделы-чипы сверху, закреплённая кнопка «Готово» снизу;
+ *   * НИ ОДНОЙ подсказки-пояснения: только названия и понятные переключатели;
+ *   * выбор цвета убран — палитра одна (Yoru);
+ *   * размер текста — полоска-слайдер (тянешь пальцем) + кнопка сброса;
+ *   * никаких служебных пунктов (ID, вход, само-проверки).
  */
 public final class KamiGramCenter {
 
@@ -69,30 +68,21 @@ public final class KamiGramCenter {
             header.setOrientation(LinearLayout.HORIZONTAL);
             header.setGravity(Gravity.CENTER_VERTICAL);
 
-            final LinearLayout titles = new LinearLayout(context);
-            titles.setOrientation(LinearLayout.VERTICAL);
             final TextView title = new TextView(context);
             title.setText("KamiGram");
             title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
             title.setTypeface(AndroidUtilities.bold());
             title.setTextColor(ThemeHook.YORU_TEXT);
-            titles.addView(title);
-            final TextView subtitle = new TextView(context);
-            subtitle.setText("настройки мода");
-            subtitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
-            subtitle.setTextColor(ThemeHook.YORU_MUTED);
-            subtitle.setPadding(0, dp(2), 0, 0);
-            titles.addView(subtitle);
-            header.addView(titles, new LinearLayout.LayoutParams(0,
+            header.addView(title, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             final TextView close = new TextView(context);
             close.setText("✕");
             close.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-            close.setTextColor(ThemeHook.YORU_MUTED);
+            close.setTextColor(ThemeHook.YORU_TEXT);
             close.setGravity(Gravity.CENTER);
             close.setBackground(rounded(ThemeHook.YORU_SURFACE, 14));
-            close.setOnClickListener(v -> dismissAll(context));
+            close.setOnClickListener(v -> dismissAll());
             header.addView(close, new LinearLayout.LayoutParams(dp(34), dp(34)));
             root.addView(header, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -132,7 +122,7 @@ public final class KamiGramCenter {
             done.setGravity(Gravity.CENTER);
             done.setBackground(gradient(ThemeHook.YORU_PURPLE_SOFT, ThemeHook.YORU_PURPLE, 16));
             press(done);
-            done.setOnClickListener(v -> dismissAll(context));
+            done.setOnClickListener(v -> dismissAll());
             final LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
             doneParams.topMargin = dp(6);
@@ -189,7 +179,7 @@ public final class KamiGramCenter {
         }
     }
 
-    private static void dismissAll(Context context) {
+    private static void dismissAll() {
         final Dialog dialog = shownDialog;
         shownDialog = null;
         try {
@@ -204,24 +194,25 @@ public final class KamiGramCenter {
 
     private static void fillConnection(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
-            Row.toggle(context, "KamiProxy", KamiGramConfig.KEY_BUILTIN_PROXY,
-                "Подбирает самый быстрый прокси сам.", onChanged),
-            Row.info(KamiGramBuiltinProxy.statusText()),
-            Row.toggle(context, "Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, null, onChanged),
-            Row.toggle(context, "Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, null, onChanged),
+            Row.toggle("KamiProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
+            Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
+            Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged),
             Row.action("Открыть список прокси", () -> openProxyScreen(context))
         });
         card(root, context, new Row[]{
-            Row.toggle(context, "Только текст", KamiGramConfig.KEY_TEXT_ONLY,
-                "Фото и видео — по нажатию.", onChanged),
-            Row.toggle(context, "Не грузить истории", KamiGramConfig.KEY_NO_STORIES, null, onChanged),
-            Row.toggle(context, "Не грузить GIF", KamiGramConfig.KEY_NO_GIFS, null, onChanged),
-            Row.toggle(context, "Без превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, null, onChanged),
-            Row.toggle(context, "Без рекламы и рекомендаций", KamiGramConfig.KEY_NO_ADS, null, onChanged)
+            Row.toggle("Не грузить истории", KamiGramConfig.KEY_NO_STORIES, onChanged),
+            Row.toggle("Без рекламы и рекомендаций", KamiGramConfig.KEY_NO_ADS, onChanged),
+            Row.toggle("Скрывать рекламные посты", KamiGramConfig.KEY_ADS_FILTER, onChanged),
+            Row.action("Показать скрытую рекламу", () -> KamiGramAds.showHiddenReport(context))
         });
         card(root, context, new Row[]{
-            Row.toggle(context, "Скрывать рекламные посты", KamiGramConfig.KEY_ADS_FILTER, null, onChanged),
-            Row.action("Показать скрытую рекламу", () -> KamiGramAds.showHiddenReport(context))
+            Row.toggle("Стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
+            Row.toggle("Премиум-эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
+            Row.toggle("Скрывать Premium и подарки", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
+            Row.toggle("GIF и анимации", KamiGramConfig.KEY_NO_GIFS, onChanged),
+            Row.toggle("Превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged),
+            Row.toggle("Поиск GIF и стикеров", KamiGramConfig.KEY_NO_GIF_SEARCH, onChanged),
+            Row.toggle("Часто используемые контакты", KamiGramConfig.KEY_NO_TOP_PEERS, onChanged)
         });
     }
 
@@ -229,20 +220,15 @@ public final class KamiGramCenter {
 
     private static void fillPrivacy(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
-            Row.toggle(context, "Призрак", KamiGramConfig.KEY_GHOST,
-                "Нет «в сети», «печатает» и прочтений.", onChanged),
-            Row.toggle(context, "Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, null, onChanged),
-            Row.toggle(context, "Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, null, onChanged),
-            Row.toggle(context, "Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, null, onChanged),
-            Row.toggle(context, "Запретить скриншоты", KamiGramConfig.KEY_NO_SCREENSHOTS, null, onChanged)
+            Row.toggle("Призрак", KamiGramConfig.KEY_GHOST, onChanged),
+            Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
+            Row.toggle("Удалённые сообщения", KamiGramConfig.KEY_KEEP_DELETED, onChanged),
+            Row.toggle("Одноразовые без пометки", KamiGramConfig.KEY_VIEW_ONCE, onChanged),
+            Row.toggle("Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle(context, "Сохранять удалённые сообщения", KamiGramConfig.KEY_KEEP_DELETED, null, onChanged),
-            Row.action("Журнал удалённых (" + KamiGramDeleted.size() + ")", () -> KamiGramDeleted.show(context)),
-            Row.action("Очистить журнал", () -> {
-                KamiGramDeleted.clear();
-                KamiGramUi.notify(context, "Журнал очищен");
-            })
+            Row.toggle("Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, onChanged),
+            Row.toggle("Запретить скриншоты", KamiGramConfig.KEY_NO_SCREENSHOTS, onChanged)
         });
     }
 
@@ -250,20 +236,27 @@ public final class KamiGramCenter {
 
     private static void fillLook(LinearLayout root, final Context context, final Runnable onChanged) {
         card(root, context, new Row[]{
-            Row.toggle(context, "Плавные анимации", KamiGramConfig.KEY_SMOOTH_ANIMATIONS, null, onChanged),
-            Row.toggle(context, "Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, null, onChanged)
+            Row.toggle("Плавные анимации", KamiGramConfig.KEY_SMOOTH_ANIMATIONS, onChanged),
+            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged)
         });
-        accentPicker(root, context, onChanged);
-        fontPicker(root, context, onChanged);
+        textSizeCard(root, context, onChanged);
+        fontCard(root, context, onChanged);
     }
 
     // ------------------------------------------------------------------ ПАМЯТЬ
 
     private static void fillMemory(LinearLayout root, final Context context, Runnable onChanged) {
         card(root, context, new Row[]{
-            Row.toggle(context, "Скачанное вручную не удалять", KamiGramConfig.KEY_KEEP_DOWNLOADS, null, onChanged),
-            Row.info(KamiGramCache.describe()),
-            Row.action("Менеджер загрузок", () -> openDownloads(context))
+            Row.toggle("Скачанное вручную не удалять", KamiGramConfig.KEY_KEEP_DOWNLOADS, onChanged),
+            Row.action("Загрузки", () -> openDownloads(context)),
+            Row.action("Всего занято · " + KamiGramCache.human(KamiGramCache.total()), () -> {
+                KamiGramCache.clearAll();
+                KamiGramUi.notify(context, "Кэш очищен");
+            }),
+            Row.action("Освободить память", () -> {
+                KamiGramCache.freeMemory();
+                KamiGramUi.notify(context, "Память освобождена");
+            })
         });
         cacheCategories(root, context);
         card(root, context, new Row[]{
@@ -275,18 +268,14 @@ public final class KamiGramCenter {
                     KamiGramUi.notify(context, "Кэш очищен");
                 })
                 .negative("Отмена", null)
-                .show()),
-            Row.action("Освободить память", () -> {
-                KamiGramCache.freeMemory();
-                KamiGramUi.notify(context, "Память освобождена");
-            })
+                .show())
         });
     }
 
     // ------------------------------------------------------------------ кэш по категориям
 
     private static void cacheCategories(LinearLayout root, final Context context) {
-        final Row[] rows = new Row[KamiGramCache.TYPE_COUNT + 1];
+        final Row[] rows = new Row[KamiGramCache.TYPE_COUNT];
         for (int i = 0; i < KamiGramCache.TYPE_COUNT; i++) {
             final int type = i;
             rows[i] = Row.action(KamiGramCache.nameOf(type) + " · " + KamiGramCache.human(KamiGramCache.sizeOf(type)),
@@ -295,53 +284,106 @@ public final class KamiGramCenter {
                     KamiGramUi.notify(context, KamiGramCache.nameOf(type) + " очищено");
                 });
         }
-        rows[KamiGramCache.TYPE_COUNT] = Row.info("Всего занято: " + KamiGramCache.human(KamiGramCache.total()));
         card(root, context, rows);
     }
 
-    // ------------------------------------------------------------------ акцент
+    // ------------------------------------------------------------------ размер текста (полоска)
 
-    private static void accentPicker(LinearLayout root, final Context context, final Runnable onChanged) {
-        final int count = KamiGramConfig.accentCount();
-        final Row[] rows = new Row[count];
-        for (int i = 0; i < count; i++) {
-            final int index = i;
-            rows[i] = Row.action((KamiGramConfig.accentIndex() == i ? "Акцент · " : "") + KamiGramConfig.accentNameAt(i),
-                () -> {
-                    KamiGramConfig.setAccent(index);
-                    ThemeHook.notifyAccentChanged();
-                    if (onChanged != null) {
-                        onChanged.run();
-                    }
-                    KamiGramUi.notify(context, "Акцент: " + KamiGramConfig.accentNameAt(index));
-                });
-        }
-        card(root, context, rows);
-    }
+    private static void textSizeCard(final LinearLayout root, final Context context, final Runnable onChanged) {
+        final LinearLayout container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setBackground(stroke(ThemeHook.YORU_CARD, 18));
+        container.setPadding(dp(16), dp(14), dp(16), dp(12));
 
-    // ------------------------------------------------------------------ размер текста и свой шрифт
+        final LinearLayout head = new LinearLayout(context);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
 
-    private static void fontPicker(LinearLayout root, final Context context, final Runnable onChanged) {
-        final String[] names = {"Как в Telegram", "Крупнее на 1", "Крупнее на 2", "Крупнее на 3"};
-        final Row[] rows = new Row[names.length + 3];
-        for (int i = 0; i < names.length; i++) {
-            final int index = i;
-            rows[i] = Row.action((KamiGramConfig.fontBoost() == i ? "Размер · " : "") + names[i],
-                () -> {
-                    KamiGramConfig.setInt(KamiGramConfig.KEY_FONT_BOOST, index);
-                    KamiGramTweaks.applyFontSize();
-                    if (onChanged != null) {
-                        onChanged.run();
-                    }
-                });
-        }
-        rows[names.length] = Row.info("Свой шрифт: " + KamiGramFont.describe());
-        rows[names.length + 1] = Row.action("Выбрать шрифт (.ttf)", () -> KamiGramFont.pick(context));
-        rows[names.length + 2] = Row.action("Сбросить шрифт", () -> {
-            KamiGramFont.reset();
-            KamiGramUi.notify(context, "Шрифт сброшен");
+        final TextView title = new TextView(context);
+        title.setText("Размер текста");
+        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        title.setTypeface(AndroidUtilities.bold());
+        title.setTextColor(ThemeHook.YORU_TEXT);
+        head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        final TextView value = new TextView(context);
+        value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        value.setTextColor(ThemeHook.YORU_PURPLE);
+        value.setBackground(stroke(ThemeHook.YORU_SURFACE, 11));
+        value.setPadding(dp(10), dp(4), dp(10), dp(4));
+        value.setText(KamiGramConfig.fontSize() + "sp");
+        head.addView(value);
+        container.addView(head, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final SeekBar slider = new SeekBar(context);
+        slider.setMax(KamiGramConfig.FONT_SIZE_MAX - KamiGramConfig.FONT_SIZE_MIN);
+        slider.setProgress(KamiGramConfig.fontBoost());
+        tintSlider(slider);
+        final LinearLayout.LayoutParams sliderParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sliderParams.topMargin = dp(6);
+        container.addView(slider, sliderParams);
+
+        final TextView reset = new TextView(context);
+        reset.setText("Сбросить размер");
+        reset.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        reset.setTextColor(ThemeHook.YORU_MUTED);
+        reset.setPadding(0, dp(6), 0, 0);
+        press(reset);
+        reset.setOnClickListener(v -> {
+            slider.setProgress(KamiGramConfig.FONT_SIZE_DEFAULT - KamiGramConfig.FONT_SIZE_MIN);
+            KamiGramConfig.setFontBoost(KamiGramConfig.FONT_SIZE_DEFAULT - KamiGramConfig.FONT_SIZE_MIN);
+            value.setText(KamiGramConfig.FONT_SIZE_DEFAULT + "sp");
+            KamiGramTweaks.applyFontSize();
+            if (onChanged != null) {
+                onChanged.run();
+            }
         });
-        card(root, context, rows);
+        container.addView(reset);
+
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                value.setText((KamiGramConfig.FONT_SIZE_MIN + progress) + "sp");
+                if (fromUser) {
+                    KamiGramConfig.setFontBoost(progress);
+                    KamiGramTweaks.applyFontSize();
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            }
+        });
+
+        final LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = dp(12);
+        root.addView(container, params);
+    }
+
+    // ------------------------------------------------------------------ свой шрифт
+
+    private static void fontCard(LinearLayout root, final Context context, final Runnable onChanged) {
+        card(root, context, new Row[]{
+            Row.action("Шрифт · " + KamiGramFont.describe(), () -> KamiGramFont.pick(context)),
+            Row.action("Выбрать шрифт (.ttf)", () -> KamiGramFont.pick(context)),
+            Row.action("Сбросить шрифт", () -> {
+                KamiGramFont.reset();
+                KamiGramUi.notify(context, "Шрифт сброшен");
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            })
+        });
     }
 
     // ------------------------------------------------------------------ экраны
@@ -357,12 +399,31 @@ public final class KamiGramCenter {
         }
     }
 
+    /**
+     * «Загрузки» — это родной менеджер загрузок Telegram (там видно, что качается
+     * и что уже скачано), а не экран очистки кэша.
+     */
     public static void openDownloads(Context context) {
         try {
             final Activity activity = AndroidUtilities.findActivity(context);
-            if (activity instanceof LaunchActivity) {
-                ((LaunchActivity) activity).presentFragment(new CacheControlActivity());
+            if (!(activity instanceof LaunchActivity)) {
+                return;
             }
+            final org.telegram.ui.ActionBar.INavigationLayout layout =
+                ((LaunchActivity) activity).actionBarLayout;
+            if (layout != null) {
+                final java.util.ArrayList<org.telegram.ui.ActionBar.BaseFragment> stack = layout.getFragmentStack();
+                for (int a = stack.size() - 1; a >= 0; a--) {
+                    final org.telegram.ui.ActionBar.BaseFragment fragment = stack.get(a);
+                    if (fragment instanceof org.telegram.ui.DialogsActivity) {
+                        dismissAll();
+                        final org.telegram.ui.DialogsActivity dialogs = (org.telegram.ui.DialogsActivity) fragment;
+                        AndroidUtilities.runOnUIThread(dialogs::kamigramShowDownloads, 160);
+                        return;
+                    }
+                }
+            }
+            dismissAll();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
@@ -394,6 +455,19 @@ public final class KamiGramCenter {
             }
             return false;
         });
+    }
+
+    private static void tintSlider(SeekBar slider) {
+        try {
+            slider.setProgressTintList(android.content.res.ColorStateList.valueOf(ThemeHook.YORU_PURPLE));
+            slider.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(ThemeHook.YORU_LINE));
+            slider.setThumbTintList(android.content.res.ColorStateList.valueOf(ThemeHook.YORU_PURPLE));
+            try {
+                slider.setSplitTrack(false);
+            } catch (Throwable ignore) {
+            }
+        } catch (Throwable ignore) {
+        }
     }
 
     private static GradientDrawable rounded(int color, int radius) {
@@ -455,83 +529,54 @@ public final class KamiGramCenter {
 
         private static final int TYPE_TOGGLE = 0;
         private static final int TYPE_ACTION = 1;
-        private static final int TYPE_INFO = 2;
 
         private final int type;
         private final String title;
-        private final String hint;
         private final String key;
         private final Runnable click;
         private final Runnable onChanged;
 
-        private Row(int type, String title, String key, String hint, Runnable click, Runnable onChanged) {
+        private Row(int type, String title, String key, Runnable click, Runnable onChanged) {
             this.type = type;
             this.title = title;
             this.key = key;
-            this.hint = hint;
             this.click = click;
             this.onChanged = onChanged;
         }
 
-        static Row toggle(final Context context, String title, final String key, String hint, final Runnable onChanged) {
-            return new Row(TYPE_TOGGLE, title, key, hint, null, onChanged);
+        static Row toggle(String title, final String key, final Runnable onChanged) {
+            return new Row(TYPE_TOGGLE, title, key, null, onChanged);
         }
 
         static Row action(String title, Runnable click) {
-            return new Row(TYPE_ACTION, title, null, null, click, null);
-        }
-
-        static Row info(String title) {
-            return new Row(TYPE_INFO, title, null, null, null, null);
+            return new Row(TYPE_ACTION, title, null, click, null);
         }
 
         View build(final Context context) {
-            if (type == TYPE_INFO) {
-                final TextView view = new TextView(context);
-                view.setText(title);
-                view.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11.5f);
-                view.setTextColor(ThemeHook.YORU_MUTED);
-                view.setPadding(dp(16), dp(10), dp(16), dp(10));
-                return view;
-            }
-
             final LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(16), dp(13), dp(16), dp(13));
-
-            final LinearLayout texts = new LinearLayout(context);
-            texts.setOrientation(LinearLayout.VERTICAL);
 
             final TextView text = new TextView(context);
             text.setText(title);
             text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             text.setTypeface(AndroidUtilities.bold());
             text.setTextColor(type == TYPE_ACTION ? ThemeHook.YORU_PURPLE : ThemeHook.YORU_TEXT);
-            texts.addView(text, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-            if (hint != null) {
-                final TextView hintView = new TextView(context);
-                hintView.setText(hint);
-                hintView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
-                hintView.setTextColor(ThemeHook.YORU_MUTED);
-                hintView.setPadding(0, dp(3), 0, 0);
-                texts.addView(hintView, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-            }
-
-            final LinearLayout.LayoutParams textsParams =
-                new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            textsParams.rightMargin = dp(10);
-            row.addView(texts, textsParams);
+            row.addView(text, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
             press(row);
 
             if (type == TYPE_TOGGLE) {
+                // «Стикеры», «Премиум-эмодзи» и т.п. хранят ЗАПРЕТ, а переключатель
+                // показывает «включено» — так пользователю понятнее.
+                final boolean invert = invertible(key);
                 final KamiGramUi.Toggle toggle = new KamiGramUi.Toggle(context);
-                toggle.setChecked(KamiGramConfig.value(key), false);
+                toggle.setChecked(invert ? !KamiGramConfig.value(key) : KamiGramConfig.value(key), false);
                 final Runnable apply = () -> {
-                    KamiGramConfig.set(key, toggle.isChecked());
+                    final boolean shown = toggle.isChecked();
+                    KamiGramConfig.set(key, invert ? !shown : shown);
+                    KamiGramGhost.refreshAll();
                     if (onChanged != null) {
                         onChanged.run();
                     }
@@ -557,6 +602,19 @@ public final class KamiGramCenter {
                 });
             }
             return row;
+        }
+
+        private static boolean invertible(String key) {
+            return KamiGramConfig.KEY_NO_STICKERS.equals(key)
+                || KamiGramConfig.KEY_NO_ANIMATED_EMOJI.equals(key)
+                || KamiGramConfig.KEY_NO_PREMIUM_UI.equals(key)
+                || KamiGramConfig.KEY_NO_GIFS.equals(key)
+                || KamiGramConfig.KEY_NO_LINK_PREVIEW.equals(key)
+                || KamiGramConfig.KEY_NO_GIF_SEARCH.equals(key)
+                || KamiGramConfig.KEY_NO_TOP_PEERS.equals(key)
+                || KamiGramConfig.KEY_NO_STORIES.equals(key)
+                || KamiGramConfig.KEY_NO_ADS.equals(key)
+                || KamiGramConfig.KEY_ADS_FILTER.equals(key);
         }
     }
 }

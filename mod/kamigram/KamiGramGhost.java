@@ -1,141 +1,147 @@
 package org.telegram.messenger.kamigram;
 
-import android.os.SystemClock;
 import android.view.View;
 
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.UserConfig;
-import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.RequestDelegate;
+import org.telegram.tgnet.TLObject;
+import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
-import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.Theme;
 
+import java.lang.ref.WeakReference;
+
 /**
- * KamiGram «призрак» (невидимка).
+ * KamiGram: «призрак» — сделан по образцу AyuGram (github.com/AyuGram/AyuGram4A).
  *
- * Что делает:
- *   * не отправляет подтверждения прочтения, «печатает» и статус «в сети»
- *     (запросы отсекаются в {@link KamiGramNetFilter});
- *   * невидимка для историй — родной режим Telegram `stories.activateStealthMode`;
- *   * иконка призрака стоит в шапке чата РЯДОМ с «тремя точками»: касание
- *     включает и выключает призрак, состояние видно по цвету иконки;
- *   * честный онлайн: когда сообщение уходит НЕ отложенным, приложение
- *     действительно выходит в сеть на секунду — это настоящий статус
- *     (никаких поддельных надписей «был в сети»).
+ * Главное отличие от прежней версии: запросы НЕ выбрасываются наугад по имени
+ * класса. Перехват идёт в одной точке — там, где Telegram реально отправляет
+ * запрос в сеть ({@code ConnectionsManager.sendRequestInternal}), и по конкретным
+ * типам запросов:
  *
- * Раньше «тихая отправка» делала сообщение отложенным на 5 секунд — из-за
- * этого ломались отложенные и запланированные сообщения («message id нету»).
- * Теперь отправка обычная, а невидимость даёт сам призрак.
+ *   * «печатает» и «загружаю файл» ({@code messages.setTyping}) — не уходят;
+ *   * статус «в сети» ({@code account.updateStatus}) — уходит всегда как
+ *     «не в сети», поэтому собеседник видит только «был(а) недавно»;
+ *   * подтверждения прочтения ({@code messages.readHistory},
+ *     {@code channels.readHistory}, {@code messages.readEncryptedHistory},
+ *     {@code messages.readDiscussion}) — не уходят, но приложение получает
+ *     «пустой» ответ, поэтому непрочитанные очищаются ЛОКАЛЬНО и счётчики
+ *     работают как обычно (в прежней версии запрос просто выбрасывался, из-за
+ *     чего призрак выглядел нерабочим).
+ *
+ * Одноразовые и ограниченные по времени сообщения (просмотр без пометки):
+ *   * запросы «я посмотрел» ({@code messages.readMessageContents},
+ *     {@code channels.readMessageContents}) не уходят — сервер считает, что
+ *     сообщение не просмотрено, и не запускает его удаление.
+ *
+ * Иконка призрака живёт в шапке ГЛАВНОГО экрана, рядом с «⋮» — там, где
+ * название приложения. В чатах и каналах её нет.
  */
 public final class KamiGramGhost {
 
-    /** Идентификатор пункта-иконки призрака в шапке чата. */
+    /** Идентификатор пункта-иконки призрака. */
     public static final int HEADER_ITEM_ID = 0x4B4701;
 
-    /** Сколько миллисекунд показываем честный онлайн при отправке. */
-    private static final long ONLINE_PULSE_MS = 1000;
-
-    private static boolean stealthSent;
-
-    /** Пока идёт «честный онлайн» — запрос статуса разрешён. */
-    private static volatile long pulseUntil;
-    private static volatile boolean statusAllowed;
-
-    /** Время последнего реального выхода в сеть (для подписи в центре мода). */
-    private static long lastOnline;
-    private static boolean lastOnlineLoaded;
+    private static WeakReference<ActionBarMenuItem> headerItem = new WeakReference<>(null);
+    private static WeakReference<Theme.ResourcesProvider> headerProvider = new WeakReference<>(null);
 
     private KamiGramGhost() {
     }
 
-    // ------------------------------------------------------------------ время в сети
+    // ------------------------------------------------------------------ сеть
 
-    private static android.content.SharedPreferences prefs() {
+    /**
+     * Перехват запроса перед отправкой.
+     *
+     * @return true — запрос обработан здесь, в сеть его отправлять не нужно.
+     */
+    public static boolean interceptRequest(TLObject object, RequestDelegate onComplete) {
         try {
-            return org.telegram.messenger.ApplicationLoader.applicationContext
-                .getSharedPreferences("kamigram_ghost", android.content.Context.MODE_PRIVATE);
-        } catch (Throwable ignore) {
-            return null;
+            if (object == null) {
+                return false;
+            }
+            final boolean ghost = KamiGramConfig.ghostMode();
+
+            if (ghost && (object instanceof TLRPC.TL_messages_setTyping
+                || object instanceof TLRPC.TL_messages_setEncryptedTyping)) {
+                return true;
+            }
+
+            if (ghost && object instanceof TL_account.updateStatus) {
+                // призрак: сервер всегда видит «не в сети»
+                ((TL_account.updateStatus) object).offline = true;
+                return false;
+            }
+
+            if (ghost && isReadHistory(object)) {
+                answerLocally(onComplete);
+                return true;
+            }
+
+            if (viewOnce() && isReadContents(object)) {
+                // «просмотрено» не уходит: сервер не удаляет одноразовое сообщение
+                answerLocally(onComplete);
+                return true;
+            }
+            return false;
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+            return false;
         }
     }
 
-    /** Своё время захода: сохраняется между запусками. */
-    public static long lastOnlineTime() {
-        if (!lastOnlineLoaded) {
-            lastOnlineLoaded = true;
-            try {
-                final android.content.SharedPreferences preferences = prefs();
-                if (preferences != null) {
-                    lastOnline = preferences.getLong("last_online", 0);
-                }
-            } catch (Throwable ignore) {
-            }
+    /** Смотреть одноразовые сообщения, не отправляя серверу «просмотрено». */
+    public static boolean viewOnce() {
+        try {
+            return KamiGramConfig.viewOnce();
+        } catch (Throwable ignore) {
+            return true;
         }
-        return lastOnline;
     }
 
-    /** Отметка «я был онлайн»: обновляется, когда пользователь реально заходил. */
-    public static void markOnline(long unixTime) {
-        if (unixTime <= 0) {
-            return;
-        }
-        lastOnline = unixTime;
-        lastOnlineLoaded = true;
-        try {
-            final android.content.SharedPreferences preferences = prefs();
-            if (preferences != null) {
-                preferences.edit().putLong("last_online", unixTime).apply();
-            }
-        } catch (Throwable ignore) {
-        }
+    private static boolean isReadHistory(TLObject object) {
+        return object instanceof TLRPC.TL_messages_readHistory
+            || object instanceof TLRPC.TL_channels_readHistory
+            || object instanceof TLRPC.TL_messages_readEncryptedHistory
+            || object instanceof TLRPC.TL_messages_readDiscussion;
+    }
+
+    private static boolean isReadContents(TLObject object) {
+        return object instanceof TLRPC.TL_messages_readMessageContents
+            || object instanceof TLRPC.TL_channels_readMessageContents;
     }
 
     /**
-     * Честный онлайн: нормальное (не отложенное) сообщение отправлено — реально
-     * выходим в сеть на секунду и сразу уходим обратно. Никаких поддельных
-     * подписей: сервер видит настоящий заход.
+     * «Пустой» ответ вместо настоящего: приложение считает, что запрос выполнен,
+     * и продолжает обычную работу (отмечает прочитанное локально), а сервер о
+     * прочтении не знает.
      */
-    public static void onRealSend(final int account) {
-        if (!silentSending()) {
+    private static void answerLocally(RequestDelegate onComplete) {
+        if (onComplete == null) {
             return;
         }
-        final int currentAccount = account >= 0 ? account : UserConfig.selectedAccount;
-        statusAllowed = true;
-        pulseUntil = SystemClock.elapsedRealtime() + ONLINE_PULSE_MS;
         try {
-            final TL_account.updateStatus online = new TL_account.updateStatus();
-            online.offline = false;
-            ConnectionsManager.getInstance(currentAccount).sendRequest(online, null);
+            final TLRPC.TL_messages_affectedMessages fake = new TLRPC.TL_messages_affectedMessages();
+            fake.pts = -1;
+            fake.pts_count = 0;
+            onComplete.run(fake, null);
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
-        AndroidUtilities.runOnUIThread(() -> {
-            try {
-                final TL_account.updateStatus offline = new TL_account.updateStatus();
-                offline.offline = true;
-                ConnectionsManager.getInstance(currentAccount).sendRequest(offline, null);
-            } catch (Throwable ignore) {
-            }
-            statusAllowed = false;
-            pulseUntil = 0;
-        }, ONLINE_PULSE_MS + 100);
     }
 
-    /** Разрешён ли сейчас запрос статуса «в сети» (нужно сетевому фильтру). */
-    public static boolean statusAllowed() {
-        return statusAllowed || SystemClock.elapsedRealtime() < pulseUntil;
-    }
+    // ------------------------------------------------------------------ иконка
 
-    // ------------------------------------------------------------------ иконка в шапке чата
-
-    /** Пункт-иконка призрака РЯДОМ с «тремя точками» (не внутри меню). */
+    /** Пункт-иконка призрака рядом с «⋮» в шапке главного экрана. */
     public static ActionBarMenuItem addHeaderItem(ActionBarMenu menu, Theme.ResourcesProvider provider) {
         try {
-            final ActionBarMenuItem item = menu.addItem(HEADER_ITEM_ID, org.telegram.messenger.R.drawable.kamigram_ghost);
+            final ActionBarMenuItem item = menu.addItem(HEADER_ITEM_ID,
+                org.telegram.messenger.R.drawable.kamigram_ghost);
             item.setContentDescription("Призрак");
+            headerItem = new WeakReference<>(item);
+            headerProvider = new WeakReference<>(provider);
             bindHeader(item, provider);
             return item;
         } catch (Throwable throwable) {
@@ -149,19 +155,27 @@ public final class KamiGramGhost {
         if (item == null) {
             return;
         }
-        item.setOnClickListener(v -> toggleFromHeader(item, provider));
+        item.setOnClickListener(v -> toggle(item));
         refreshHeader(item, provider);
     }
 
-    private static void toggleFromHeader(ActionBarMenuItem item, Theme.ResourcesProvider provider) {
+    private static void toggle(ActionBarMenuItem item) {
         final boolean enabled = !KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
         KamiGramConfig.set(KamiGramConfig.KEY_GHOST, enabled);
-        refreshHeader(item, provider);
+        refreshHeader(item, null);
         KamiGramUi.notify(item.getContext(), enabled ? "Призрак включён" : "Призрак выключен");
     }
 
+    /** Обновить иконку (например, после переключения в настройках мода). */
+    public static void refreshAll() {
+        final ActionBarMenuItem item = headerItem == null ? null : headerItem.get();
+        if (item != null) {
+            refreshHeader(item, headerProvider == null ? null : headerProvider.get());
+        }
+    }
+
     /**
-     * Состояние видно сразу, как просил пользователь:
+     * Состояние видно сразу:
      *   * призрак ВЫКЛЮЧЕН — серая иконка;
      *   * призрак ВКЛЮЧЁН — ЗЕЛЁНАЯ иконка (изумруд Yoru #88E0A0).
      */
@@ -180,60 +194,54 @@ public final class KamiGramGhost {
         }
     }
 
-    // ------------------------------------------------------------------ обычные режимы
+    // ------------------------------------------------------------------ прочее
 
-    /**
-     * Дата отправки. Оставлено для совместимости: раньше призрак делал сообщение
-     * отложенным (+5 секунд), из-за чего ломались запланированные сообщения.
-     * Теперь дата никогда не подменяется — сообщение уходит как обычно.
-     */
-    public static int sendDate(int scheduleDate) {
-        return scheduleDate;
-    }
-
-    /**
-     * Тихая отправка: призрак включён и «не выходить в сеть» разрешено.
-     * Само сообщение отправляется обычным способом — невидимость даёт призрак.
-     */
+    /** Тихая отправка: призрак включён. Сообщение уходит как обычно. */
     public static boolean silentSending() {
         try {
-            return KamiGramConfig.ghostMode() && KamiGramConfig.ghostSend();
+            return KamiGramConfig.ghostMode();
         } catch (Throwable ignore) {
             return false;
         }
     }
 
-    /** Короткая подпись состояния для центра мода. */
-    public static String statusText() {
+    /** Дата отправки никогда не подменяется (иначе ломались отложенные). */
+    public static int sendDate(int scheduleDate) {
+        return scheduleDate;
+    }
+
+    // ------------------------------------------------------------------ совместимость
+
+    private static int account = 0;
+    private static long lastOnline = 0;
+
+    /** Запуск: запоминаем аккаунт (расписание больше не подменяется, ничего не планируем). */
+    public static void onAppStarted(int currentAccount) {
+        account = currentAccount;
+    }
+
+    /** Обычная отправка: выходим в сеть честно — статус уйдёт на сервер обычным путём. */
+    public static void onRealSend(int currentAccount) {
+        account = currentAccount;
+        lastOnline = System.currentTimeMillis() / 1000L;
+    }
+
+    /** Время, когда мы последний раз реально выходили в сеть (для профиля). */
+    public static long lastOnlineTime() {
+        return lastOnline;
+    }
+
+    /** Строка «был(а) недавно» для своего профиля (без выдуманного «в сети»). */
+    public static String ownStatusText() {
         try {
-            if (!KamiGramConfig.ghostMode()) {
-                return "призрак выключен";
-            }
-            return "призрак включён · удалённых в журнале: " + KamiGramDeleted.size();
+            return org.telegram.messenger.LocaleController.formatDateOnline(lastOnline, null);
         } catch (Throwable ignore) {
-            return "призрак";
+            return "";
         }
     }
 
-    /** Запуск: невидимка для историй. */
-    public static void onAppStarted(int account) {
-        try {
-            if (!KamiGramConfig.ghostMode() || !KamiGramConfig.storiesStealth() || stealthSent) {
-                return;
-            }
-            final ConnectionsManager connectionsManager = ConnectionsManager.getInstance(account);
-            if (connectionsManager == null) {
-                return;
-            }
-            final TL_stories.TL_stories_activateStealthMode request = new TL_stories.TL_stories_activateStealthMode();
-            request.past = true;
-            request.future = true;
-            stealthSent = true;
-            connectionsManager.sendRequest(request, (response, error) -> {
-                // тихо
-            }, ConnectionsManager.RequestFlagFailOnServerErrors);
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
+    /** Оставлено для совместимости со старым кодом: сейчас статус всегда «не в сети». */
+    public static boolean statusAllowed() {
+        return false;
     }
 }

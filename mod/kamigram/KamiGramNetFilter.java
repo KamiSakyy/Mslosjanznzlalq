@@ -123,14 +123,10 @@ public final class KamiGramNetFilter {
             }
             final String simple = names[0];
             final String full = names[1];
-            if (KamiGramConfig.ghostMode() && (hit(GHOST, simple) || hit(GHOST, full))) {
-                // честный онлайн: во время секунды после отправки статус уходит на сервер
-                if (("TL_account_updateStatus".equals(full) || "TL_account_updateStatus".equals(simple))
-                    && KamiGramGhost.statusAllowed()) {
-                    return false;
-                }
-                return deny();
-            }
+            /* Призрак здесь БОЛЬШЕ НЕ РАБОТАЕТ: с r54 он перехватывается в одной точке —
+               KamiGramGhost.interceptRequest() в ConnectionsManager.sendRequestInternal.
+               Прежняя схема («выбросить запрос по имени класса») не срабатывала и ломала
+               локальные счётчики непрочитанного. */
             if (KamiGramConfig.noStickers() && isStickerRequest(full, simple)) {
                 return deny();
             }
@@ -160,6 +156,15 @@ public final class KamiGramNetFilter {
             FileLog.e(e);
         }
         return false;
+    }
+
+    /** Тумблер «Стикеры» в центре мода: выключен — наборы не грузятся вообще. */
+    public static boolean stickersBlocked() {
+        try {
+            return KamiGramConfig.value(KamiGramConfig.KEY_NO_STICKERS);
+        } catch (Throwable ignore) {
+            return false;
+        }
     }
 
     /**

@@ -3,10 +3,20 @@ package org.telegram.messenger.kamigram;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.database.Cursor;
+import android.text.TextPaint;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.IdentityHashMap;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -208,6 +218,8 @@ public final class KamiGramFont {
     public static void apply() {
         try {
             AndroidUtilities.mediumTypeface = null;
+            PAINT_STYLE.clear();
+            applyToTheme();
             ThemeHook.notifyAccentChanged();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
@@ -229,6 +241,142 @@ public final class KamiGramFont {
         } catch (Throwable ignore) {
             return "выбранный .ttf";
         }
+    }
+
+    // ------------------------------------------------------------------ шрифт ВЕЗДЕ
+
+    /** Стиль (полужирный/курсив), который был у «краски» до подмены шрифта. */
+    private static final IdentityHashMap<Paint, Integer> PAINT_STYLE = new IdentityHashMap<>();
+
+    /**
+     * Подменить шрифт во ВСЕХ текстовых «красках» Telegram (сообщения, список
+     * чатов, профиль, подписи) — это те места, где текст рисуется кодом, а не
+     * обычным TextView. Начертание каждого шрифта запоминается: заголовки
+     * остаются полужирными, курсив — курсивом.
+     */
+    public static void applyToTheme() {
+        final Typeface base = regular();
+        if (base == null) {
+            return;
+        }
+        try {
+            applyToPaints(org.telegram.ui.ActionBar.Theme.class);
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
+    private static void applyToPaints(Class<?> clazz) {
+        if (clazz == null) {
+            return;
+        }
+        final Field[] fields = clazz.getDeclaredFields();
+        for (int a = 0; a < fields.length; a++) {
+            final Field field = fields[a];
+            if (!Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            final String name = field.getName().toLowerCase();
+            if (name.contains("code") || name.contains("mono")) {
+                // код и моноширинный текст должны остаться моноширинными
+                continue;
+            }
+            final Class<?> type = field.getType();
+            try {
+                if (type == TextPaint.class || type == Paint.class) {
+                    field.setAccessible(true);
+                    final Object value = field.get(null);
+                    if (value instanceof Paint) {
+                        stylePaint((Paint) value, false);
+                    }
+                } else if (type.isArray()) {
+                    final Class<?> component = type.getComponentType();
+                    if (component == TextPaint.class || component == Paint.class) {
+                        field.setAccessible(true);
+                        final Object array = field.get(null);
+                        if (array != null) {
+                            final int size = Array.getLength(array);
+                            for (int b = 0; b < size; b++) {
+                                final Object value = Array.get(array, b);
+                                if (value instanceof Paint) {
+                                    stylePaint((Paint) value, false);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+        }
+    }
+
+    private static void stylePaint(Paint paint, boolean forceBold) {
+        final Typeface base = regular();
+        if (paint == null || base == null) {
+            return;
+        }
+        try {
+            Integer style = PAINT_STYLE.get(paint);
+            if (style == null) {
+                int value = Typeface.NORMAL;
+                final Typeface current = paint.getTypeface();
+                if (current != null) {
+                    if (current.isBold()) {
+                        value |= Typeface.BOLD;
+                    }
+                    if (current.isItalic()) {
+                        value |= Typeface.ITALIC;
+                    }
+                }
+                style = value;
+                PAINT_STYLE.put(paint, style);
+            }
+            final int finalStyle = forceBold ? (style | Typeface.BOLD) : style;
+            paint.setTypeface(Typeface.create(base, finalStyle));
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /**
+     * Подменить шрифт во всех надписях экрана (обычные TextView: настройки,
+     * профили, меню, подписи). Вызывается при каждом показе экрана, поэтому
+     * новый шрифт подхватывается сразу после выбора.
+     */
+    public static void applyToView(View view) {
+        if (view == null || regular() == null) {
+            return;
+        }
+        try {
+            if (view instanceof TextView) {
+                final TextView textView = (TextView) view;
+                int style = Typeface.NORMAL;
+                final Typeface current = textView.getTypeface();
+                if (current != null) {
+                    if (current.isBold()) {
+                        style |= Typeface.BOLD;
+                    }
+                    if (current.isItalic()) {
+                        style |= Typeface.ITALIC;
+                    }
+                }
+                textView.setTypeface(Typeface.create(regular(), style));
+            } else if (view instanceof ViewGroup) {
+                final ViewGroup group = (ViewGroup) view;
+                for (int a = 0; a < group.getChildCount(); a++) {
+                    applyToView(group.getChildAt(a));
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** Полное применение: и «краски» Telegram, и надписи текущего экрана. */
+    public static void applyToScreen(View view) {
+        if (regular() == null) {
+            return;
+        }
+        applyToTheme();
+        applyToView(view);
     }
 
     private static String displayName(Context context, Uri uri) {

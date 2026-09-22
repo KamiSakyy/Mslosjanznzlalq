@@ -100,21 +100,9 @@ def replace_all(file_name, marker, old, new, what):
 
 def ghost_icon():
     chat = 'ui/ChatActivity.java'
-    # 1) ссылка на пункт-иконку
-    patch(chat, 'KAMIGRAM_GHOST_HEADER_FIELD',
-          '    private ComposeDrawable otherIcon;\n',
-          '    private ActionBarMenuItem ghostHeaderItem; /* KAMIGRAM_GHOST_HEADER_FIELD */\n',
-          'призрак: пункт-иконка в шапке чата')
-
-    # 2) сама иконка: ставится ПЕРЕД «тремя точками», значит стоит рядом с ними
-    patch(chat, 'KAMIGRAM_GHOST_ICON',
-          '            headerItem = menu.addItem(chat_menu_options, otherIcon);\n',
-          '            /* KAMIGRAM_GHOST_ICON: иконка призрака стоит РЯДОМ с «тремя точками»\n'
-          '               и ТОЛЬКО в обычных чатах — в «Избранном» её нет */\n'
-          '            if (currentUser == null || !currentUser.self) {\n'
-          '                ghostHeaderItem = ' + GHOST + '.addHeaderItem(menu, themeDelegate);\n'
-          '            }\n',
-          'призрак: иконка рядом с «тремя точками» (в «Избранном» её нет)', before=True)
+    # ВАЖНО (r54): иконка призрака в шапке ЧАТА больше не создаётся вообще —
+    # пользователь просил видеть её только в верхней панели главного экрана
+    # (там, где название, рядом с «⋮»). В чатах и каналах её нет.
 
     # 3) в «Избранном» — только три точки, без скрепки
     replace_all(chat, 'KAMIGRAM_SAVED_NO_ATTACH',

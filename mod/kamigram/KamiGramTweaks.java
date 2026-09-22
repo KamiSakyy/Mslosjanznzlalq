@@ -26,22 +26,19 @@ public final class KamiGramTweaks {
         applyFontSize();
         applyEnterToSend();
         applyNotificationPreview();
+        KamiGramFont.apply();
         KamiGramTraffic.restore();
         KamiGramTraffic.init();
         markOwnOnline();
         applyBackground();
     }
 
-    /** Размер текста сообщений: 16 + выбранная надбавка. */
+    /** Размер текста: полоска в центре мода задаёт значение от 12 до 24sp. */
     public static void applyFontSize() {
         try {
-            final int boost = KamiGramConfig.fontBoost();
-            if (boost > 0) {
-                SharedConfig.fontSize = 16 + boost;
-                SharedConfig.fontSizeIsDefault = false;
-            } else if (SharedConfig.fontSizeIsDefault) {
-                SharedConfig.fontSize = 16;
-            }
+            final int size = KamiGramConfig.fontSize();
+            SharedConfig.fontSize = size;
+            SharedConfig.fontSizeIsDefault = size == KamiGramConfig.FONT_SIZE_DEFAULT;
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }

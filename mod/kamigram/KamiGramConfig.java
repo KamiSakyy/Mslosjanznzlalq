@@ -28,8 +28,10 @@ public final class KamiGramConfig {
     public static final String KEY_NO_RESTRICTIONS = "kamigram_no_restrictions";
     /** Показывать ID чатов и пользователей. */
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
-    /** Сохранять текст удалённых сообщений в журнал. */
+    /** Удалённые сообщения остаются в чате (как в AyuGram). */
     public static final String KEY_KEEP_DELETED = "kamigram_keep_deleted";
+    /** Смотреть одноразовые и ограниченные по времени сообщения без пометки «просмотрено». */
+    public static final String KEY_VIEW_ONCE = "kamigram_view_once";
     /** Не спрашивать разрешения (контакты, телефон, уведомления). */
     public static final String KEY_NO_PERMISSION_NAGS = "kamigram_no_permission_nags";
     /** Запрет скриншотов во всём приложении (FLAG_SECURE). */
@@ -149,6 +151,7 @@ public final class KamiGramConfig {
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
             || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
+            || KEY_NO_PREMIUM_UI.equals(key)
             || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)) {
             return false;
         }
@@ -219,9 +222,14 @@ public final class KamiGramConfig {
         return value(KEY_SHOW_IDS);
     }
 
-    /** Журнал удалённых сообщений. */
+    /** Удалённые сообщения остаются в чате. */
     public static boolean keepDeleted() {
         return value(KEY_KEEP_DELETED);
+    }
+
+    /** Одноразовые сообщения смотрим без пометки «просмотрено» (сервер не удаляет). */
+    public static boolean viewOnce() {
+        return value(KEY_VIEW_ONCE);
     }
 
     public static boolean noPermissionNags() {
@@ -406,9 +414,24 @@ public final class KamiGramConfig {
         setInt(KEY_CHAT_BACKGROUND, index);
     }
 
-    /** Насколько крупнее шрифт сообщений (0..4). */
+    /** Границы размера текста (sp) и значение по умолчанию — как в Telegram. */
+    public static final int FONT_SIZE_MIN = 12;
+    public static final int FONT_SIZE_MAX = 24;
+    public static final int FONT_SIZE_DEFAULT = 16;
+
+    /** Шаг полоски размера текста: 0 — самый мелкий (12sp), максимум — 24sp. */
     public static int fontBoost() {
-        return Math.max(0, Math.min(4, getInt(KEY_FONT_BOOST, 0)));
+        return Math.max(0, Math.min(FONT_SIZE_MAX - FONT_SIZE_MIN, getInt(KEY_FONT_BOOST, FONT_SIZE_DEFAULT - FONT_SIZE_MIN)));
+    }
+
+    /** Итоговый размер текста в sp. */
+    public static int fontSize() {
+        return FONT_SIZE_MIN + fontBoost();
+    }
+
+    /** Полоска в центре мода: тянешь — текст меньше или больше. */
+    public static void setFontBoost(int boost) {
+        setInt(KEY_FONT_BOOST, Math.max(0, Math.min(FONT_SIZE_MAX - FONT_SIZE_MIN, boost)));
     }
 
     /** Служебное: чтобы не спрашивать простой SMS-код дважды. */

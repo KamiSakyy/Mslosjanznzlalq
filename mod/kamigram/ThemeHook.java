@@ -82,28 +82,21 @@ public final class ThemeHook {
 
     // ------------------------------------------------------------------ акценты
 
-    /** Акцент из настроек мода (по умолчанию iOS-синий #0A84FF). */
+    /** Акцент мода — фиолетовый Yoru (#C8A7FF). Выбора цвета нет: палитра одна. */
     public static int accent() {
-        try {
-            return KamiGramConfig.accentColor();
-        } catch (Throwable ignore) {
-            return 0xFF0A84FF;
-        }
+        return YORU_PURPLE;
     }
 
     /**
-     * Применить акцент пользователя к акцентным ключам Telegram.
-     * Тут НЕТ ни одного ключа фона/текста — только «цветные» элементы,
-     * поэтому читаемость не может пострадать.
+     * Довести акценты до палитры Yoru. Ни одного ключа фона или основного
+     * текста здесь нет, поэтому читаемость не может пострадать: трогаем только
+     * «цветные» элементы (ссылки, галочки, переключатели, прогресс).
      */
     public static void applyAccent() {
-        // 0 = «как в Telegram»: ничего не переопределяем, цвета родные
-        if (KamiGramConfig.accentIndex() == 0) {
-            return;
-        }
-        final int accent = accent();
+        final int accent = YORU_PURPLE;
         final int soft = (accent & 0x00FFFFFF) | 0x33000000;
         final int soft22 = (accent & 0x00FFFFFF) | 0x22000000;
+        final int dark = 0xFF21152F;
 
         set(Theme.key_dialogTextBlue, accent);
         set(Theme.key_dialogTextBlue2, accent);
@@ -120,7 +113,7 @@ public final class ThemeHook {
         set(Theme.key_windowBackgroundWhiteBlueText4, accent);
         set(Theme.key_windowBackgroundWhiteBlueText5, accent);
         set(Theme.key_chat_messageLinkIn, accent);
-        set(Theme.key_chat_messageLinkOut, 0xFFA8D4FF);
+        set(Theme.key_chat_messageLinkOut, YORU_PURPLE_SOFT);
         set(Theme.key_chat_messagePanelSend, accent);
         set(Theme.key_chat_inLoader, accent);
         set(Theme.key_chat_outLoader, accent);
@@ -138,12 +131,20 @@ public final class ThemeHook {
         set(Theme.key_featuredStickers_addedIcon, accent);
         set(Theme.key_chat_recordedVoiceProgress, accent);
         set(Theme.key_contextProgressOuter1, accent);
-        set(Theme.key_switchTrackChecked, 0xFF34C759);
-        set(Theme.key_switchTrackBlueChecked, 0xFF34C759);
-        set(Theme.key_windowBackgroundChecked, 0xFF34C759);
         set(Theme.key_radioBackgroundChecked, accent);
         set(Theme.key_checkboxSquareBackground, accent);
-        set(Theme.key_chat_messagePanelVoicePressed, 0xFFFF453A);
+        set(Theme.key_switchTrackChecked, accent);
+        set(Theme.key_switchTrackBlueChecked, accent);
+        set(Theme.key_windowBackgroundChecked, accent);
+        // стрелка отправки и микрофон: тёмный текст на светлой кнопке (не красный!)
+        set(Theme.key_chat_messagePanelVoicePressed, dark);
+        set(Theme.key_chat_messagePanelVoiceDuration, dark);
+        set(Theme.key_chat_messagePanelVoiceDelete, dark);
+        // запись голосового — красный только там, где он и должен быть
+        set(Theme.key_chat_recordTime, 0xFFFF8F9F);
+        set(Theme.key_chat_recordedVoiceDot, 0xFFFF8F9F);
+        set(Theme.key_chat_recordVoiceCancel, 0xFFFF8F9F);
+        set(Theme.key_chat_recordVoiceCancelSelected, 0xFFFF8F9F);
     }
 
     private static void set(int key, int color) {
