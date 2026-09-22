@@ -1998,12 +1998,12 @@ log "MOD_INFO.txt: $TG_DIR/MOD_INFO.txt"
 log "Готово. Дальше: cd $TG_DIR && ./gradlew :TMessagesProj_App:assembleAfatRelease"
 
 # =============================================================================
-# P33. r54: призрак (иконка только в шапке главного экрана), имя KamiGram,
+# P34. r54: призрак (иконка только в шапке главного экрана), имя KamiGram,
 #      видимая иконка родного менеджера загрузок, удалённые сообщения остаются
 #      в чате, свой шрифт — везде (сообщения, каналы, настройки).
 # =============================================================================
-python3 "$KAMIGRAM_SRC/apply_r54_patches.py" "$TG_DIR" "$APP_NAME" || die "P33: патчи r54 не применились"
-grep -q 'KAMIGRAM_GHOST_HEADER' "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" || die "P33: иконка призрака не встала в шапку главного экрана"
-grep -q 'KAMIGRAM_KEEP_DELETED_STORAGE' "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P33: защита удалённых в базе не встала"
-grep -q 'KAMIGRAM_FONT' "$JAVA_ROOT/org/telegram/ui/ActionBar/BaseFragment.java" || die "P33: шрифт не применяется ко всему экрану"
-ok "P33 r54: призрак в шапке главного экрана, имя KamiGram, загрузки всегда видны, удалённые остаются в чате, шрифт везде"
+python3 "$KAMIGRAM_SRC/apply_r54_patches.py" "$TG_DIR" "$APP_NAME" || die "P34: патчи r54 не применились"
+grep -q 'KAMIGRAM_GHOST_HEADER' "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" || die "P34: иконка призрака не встала в шапку главного экрана"
+grep -q 'KAMIGRAM_KEEP_DELETED_STORAGE' "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P34: защита удалённых в базе не встала"
+grep -q 'KAMIGRAM_FONT' "$JAVA_ROOT/org/telegram/ui/ActionBar/BaseFragment.java" || die "P34: шрифт не применяется ко всему экрану"
+ok "P34 r54: призрак в шапке главного экрана, имя KamiGram, загрузки всегда видны, удалённые остаются в чате, шрифт везде"
