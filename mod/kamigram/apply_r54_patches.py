@@ -201,13 +201,14 @@ def keep_deleted():
     patch('messenger/MessagesStorage.java', 'KAMIGRAM_KEEP_DELETED_STORAGE',
           '    public ArrayList<Long> markMessagesAsDeleted(long dialogId, ArrayList<Integer> messages, boolean useQueue, boolean deleteFiles, int mode, int topicId) {\n',
           '        /* KAMIGRAM_KEEP_DELETED_STORAGE: строки «оставить» не удаляются из базы ни при каком пути */\n'
-          '        ArrayList<Integer> kamigramMessages = messages;\n'
-          '        try {\n'
-          '            if (kamigramMessages != null && !kamigramMessages.isEmpty()) {\n'
-          '                kamigramMessages = ' + DEL + '.filterKept(dialogId, kamigramMessages);\n'
+          '        ArrayList<Integer> kamigramRaw = messages;\n'
+          '        if (kamigramRaw != null && !kamigramRaw.isEmpty()) {\n'
+          '            try {\n'
+          '                kamigramRaw = ' + DEL + '.filterKept(dialogId, kamigramRaw);\n'
+          '            } catch (Throwable kamigramIgnore) {\n'
           '            }\n'
-          '        } catch (Throwable kamigramIgnore) {\n'
-          '        }\n',
+          '        }\n'
+          '        final ArrayList<Integer> kamigramMessages = kamigramRaw;\n',
           'удалённые: защита на уровне базы Telegram')
 
     replace('messenger/MessagesStorage.java', 'KAMIGRAM_KEEP_DELETED_STORAGE_USE',
