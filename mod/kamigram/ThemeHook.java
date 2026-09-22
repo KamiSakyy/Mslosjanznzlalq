@@ -144,7 +144,6 @@ public final class ThemeHook {
         set(Theme.key_chat_recordTime, 0xFFFF8F9F);
         set(Theme.key_chat_recordedVoiceDot, 0xFFFF8F9F);
         set(Theme.key_chat_recordVoiceCancel, 0xFFFF8F9F);
-        set(Theme.key_chat_recordVoiceCancelSelected, 0xFFFF8F9F);
     }
 
     private static void set(int key, int color) {
