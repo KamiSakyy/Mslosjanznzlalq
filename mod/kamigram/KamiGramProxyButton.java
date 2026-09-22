@@ -187,7 +187,6 @@ public final class KamiGramProxyButton {
 
             final AlertDialog dialog = new AlertDialog.Builder(context)
                 .setTitle("Ссылка на прокси")
-                .setMessage("Вставь ссылку — подключу моментально, без похода в настройки.")
                 .setView(input)
                 .setPositiveButton("Подключить", null)
                 .setNegativeButton("Отмена", null)
