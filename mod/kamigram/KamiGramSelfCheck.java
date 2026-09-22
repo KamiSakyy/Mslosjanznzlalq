@@ -78,6 +78,7 @@ public final class KamiGramSelfCheck {
             final SharedPreferences.Editor editor = preferences.edit().putInt(KEY_BOOT_COUNT, boots);
             if (boots >= BOOT_LIMIT) {
                 editor.putBoolean(KEY_SAFE_MODE, true);
+                editor.putInt(KEY_GOOD_RUNS, 0);
             }
             editor.apply();
             safeMode = preferences.getBoolean(KEY_SAFE_MODE, false);
@@ -102,13 +103,36 @@ public final class KamiGramSelfCheck {
         return safeMode;
     }
 
-    /** Приложение дожило до рабочего экрана — счётчик неудач сбрасываем. */
+    private static final String KEY_GOOD_RUNS = "kamigram_good_runs";
+    private static boolean marked;
+
+    /**
+     * Приложение дожило до рабочего экрана: сбрасываем счётчик неудач.
+     *
+     * Раньше аварийный режим, включившись один раз, оставался НАВСЕГДА — из-за
+     * этого оформление и прокси могли больше не применяться. Теперь после двух
+     * подряд удачных запусков он выключается сам.
+     */
     public static void markBooted() {
         try {
-            final SharedPreferences preferences = prefs();
-            if (preferences != null) {
-                preferences.edit().putInt(KEY_BOOT_COUNT, 0).apply();
+            if (marked) {
+                return;
             }
+            marked = true;
+            final SharedPreferences preferences = prefs();
+            if (preferences == null) {
+                return;
+            }
+            final SharedPreferences.Editor editor = preferences.edit();
+            editor.putInt(KEY_BOOT_COUNT, 0);
+            final int good = preferences.getInt(KEY_GOOD_RUNS, 0) + 1;
+            editor.putInt(KEY_GOOD_RUNS, good);
+            if (good >= 2) {
+                editor.putBoolean(KEY_SAFE_MODE, false);
+                safeMode = false;
+                loaded = true;
+            }
+            editor.apply();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }

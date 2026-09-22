@@ -52,8 +52,19 @@ public final class ThemeHook {
      */
     private static boolean darkThemeApplied;
 
+    private static String lastThemeName;
+
     public static void keepDarkTheme() {
         try {
+            /* Пользователь сменил тему — наши акценты нужно поставить заново
+               (но только по этому поводу, а не на каждом экране). */
+            final Theme.ThemeInfo active = Theme.getActiveTheme();
+            final String activeName = active == null ? null : active.getKey();
+            if (activeName != null && !activeName.equals(lastThemeName)) {
+                lastThemeName = activeName;
+                accentApplied = false;
+                applyAccentsOnce();
+            }
             if (darkThemeApplied && Theme.isCurrentThemeDark()) {
                 return;
             }
@@ -204,21 +215,48 @@ public final class ThemeHook {
 
     // ------------------------------------------------------------------ экраны
 
-    /** Вызывать после создания окна экрана: тема, полосы, акценты. */
+    /** Что уже сделано для конкретного экрана (повторов не допускаем). */
+    private static final java.util.WeakHashMap<Activity, Boolean> APPLIED = new java.util.WeakHashMap<>();
+    private static boolean accentApplied;
+
+    /**
+     * Вызывать после создания окна экрана. Для каждого экрана работа делается
+     * РОВНО ОДИН раз: раньше это выполнялось на каждом onActivityCreated/Started/
+     * Resumed, то есть многократно при каждом переходе — интерфейс дёргался.
+     */
     public static void apply(Activity activity) {
         if (activity == null) {
             return;
         }
         try {
             register(activity);
+            if (APPLIED.containsKey(activity)) {
+                return;
+            }
+            APPLIED.put(activity, Boolean.TRUE);
             keepDarkTheme();
-            applyAccent();
+            applyAccentsOnce();
             tintSystemBars(activity);
             applySecureFlag(activity);
             KamiGramTweaks.apply();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
+    }
+
+    /** Акценты ставим один раз за запуск (или по явному запросу из настроек). */
+    private static void applyAccentsOnce() {
+        if (accentApplied) {
+            return;
+        }
+        accentApplied = true;
+        applyAccent();
+    }
+
+    /** Настройки изменились — пересчитать акценты при следующем же экране. */
+    public static void requestAccentRefresh() {
+        accentApplied = false;
+        applyAccentsOnce();
     }
 
     public static void forget(Activity activity) {

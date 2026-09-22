@@ -145,6 +145,6 @@ public final class KamiGramTweaks {
     public static void applyAndRefresh() {
         applied = false;
         apply();
-        ThemeHook.applyAccent();
+        ThemeHook.requestAccentRefresh();
     }
 }

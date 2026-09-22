@@ -64,7 +64,12 @@ public final class KamiGramProxyStatus {
             if (actionBar == null || base == null) {
                 return;
             }
-            // имя приложения без каких-либо приписок
+            // имя приложения без каких-либо приписок; ставим только если оно реально другое
+            // (повторная установка того же заголовка заставляла шапку переразмечаться и мигать)
+            final CharSequence current = actionBar.getTitle();
+            if (current != null && current.toString().contentEquals(base)) {
+                return;
+            }
             actionBar.setTitle(base instanceof SpannableStringBuilder ? base : new SpannableStringBuilder(base),
                 rightDrawableRef.get());
         } catch (Throwable throwable) {

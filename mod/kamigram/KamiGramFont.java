@@ -439,12 +439,24 @@ public final class KamiGramFont {
         }
     }
 
-    /** Полное применение: и «краски» Telegram (если менялись), и надписи экрана. */
+    /** Какой экран уже прошёлся по нашим рукам (и на каком поколении шрифта). */
+    private static final java.util.WeakHashMap<View, Integer> VIEW_GENERATION = new java.util.WeakHashMap<>();
+
+    /**
+     * Полное применение: и «краски» Telegram (если менялись), и надписи экрана.
+     * Для каждого экрана — один раз на поколение шрифта: раньше обход всех
+     * надписей шёл при каждом показе экрана, из-за этого вьюхи переразмечались.
+     */
     public static void applyToScreen(View view) {
-        if (regular() == null) {
+        if (view == null || regular() == null) {
             return;
         }
         applyToThemeIfNeeded();
+        final Integer done = VIEW_GENERATION.get(view);
+        if (done != null && done == generation) {
+            return;
+        }
+        VIEW_GENERATION.put(view, generation);
         applyToView(view);
     }
 
