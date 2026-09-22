@@ -168,7 +168,7 @@ public final class KamiGramUi {
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            setMeasuredDimension(AndroidUtilities.dp(40), AndroidUtilities.dp(24));
+            setMeasuredDimension(AndroidUtilities.dp(42), AndroidUtilities.dp(25));
         }
 
         @Override
@@ -177,12 +177,11 @@ public final class KamiGramUi {
             final float w = getMeasuredWidth();
             final float radius = h / 2f;
 
-            // дорожка
+            // дорожка: включено — фиолетовый Yoru, выключено — приглушённая #352A43
             paint.setStyle(Paint.Style.FILL);
-            int track = checked ? colorOf(Theme.key_switchTrackChecked, 0xFF34C759)
-                : colorOf(Theme.key_switchTrack, 0xFF39393D);
+            int track = checked ? ThemeHook.YORU_PURPLE : ThemeHook.YORU_LINE;
             if (!isEnabled()) {
-                track = colorOf(Theme.key_switchTrack, 0xFF2C2C2E);
+                track = ThemeHook.YORU_SURFACE;
             }
             paint.setColor(track);
             rect.set(0, 0, w, h);
@@ -191,7 +190,7 @@ public final class KamiGramUi {
             // ручка
             final float knobSize = h - AndroidUtilities.dp(4);
             final float left = checked ? w - knobSize - AndroidUtilities.dp(2) : AndroidUtilities.dp(2);
-            paint.setColor(isEnabled() ? 0xFFFFFFFF : 0xFF8E8E93);
+            paint.setColor(isEnabled() ? ThemeHook.YORU_TEXT : ThemeHook.YORU_MUTED);
             rect.set(left, AndroidUtilities.dp(2), left + knobSize, AndroidUtilities.dp(2) + knobSize);
             canvas.drawRoundRect(rect, knobSize / 2f, knobSize / 2f, paint);
         }

@@ -548,15 +548,16 @@ else
 fi
 
 # =============================================================================
-# P16. iOS-ТЕМА 2026 (правильная). Берём РОДНУЮ тёмную тему Telegram
-#      (assets/night.attheme — там автор Telegram согласовал каждый текст со
-#      своим фоном) и переписываем ТОЛЬКО цвета из mod/kamigram/apply_theme_pro.py:
-#      поверхности #000000 / #1C1C1E / #2C2C2E, текст #FFFFFF и #8E8E93,
-#      облака #262628 (вход) и #2B5278 (исход, как в iOS-теме Telegram),
-#      акцент iOS-синий #0A84FF, переключатели iOS-зелёный #34C759.
-#      Никакого фиолетового #5E5CE6, никакого «стекла», никаких градиентов.
+# P16. ТЕМА YORU (2026). Берём РОДНУЮ тёмную тему Telegram (assets/night.attheme
+#      — там автор Telegram согласовал каждый текст со своим фоном) и переписываем
+#      ТОЛЬКО цвета из mod/kamigram/apply_theme_pro.py на палитру приложения Yoru
+#      (yoru-android: Ui.BG/CARD/SURFACE/PURPLE/TEXT/MUTED/LINE):
+#      фон #0D0B12, карточки #1C1724, поверхности #15111C, обводки #352A43,
+#      текст #F7F0FF и приглушённый #A99BB8, облака #1C1724 (вход) и #2A2138 (исход),
+#      акцент и переключатели — фиолетовый Yoru #C8A7FF.
+#      Никакого чёрного #000000, никакого «стекла», никаких градиентов.
 #      Тот же набор уходит в bluebubbles.attheme и darkblue.attheme, поэтому
-#      даже светлая системная тема приложения выглядит тёмно-iOS — чёрный
+#      даже светлая системная тема приложения выглядит тёмной — чёрный
 #      текст на чёрном фоне физически невозможен.
 # =============================================================================
 if [ "$IOS_THEME" = "1" ]; then
@@ -565,17 +566,17 @@ if [ "$IOS_THEME" = "1" ]; then
         || die "P16: не удалось применить iOS-палитру"
     for theme_name in bluebubbles.attheme darkblue.attheme night.attheme; do
         theme_file="$TG_DIR/TMessagesProj/src/main/assets/$theme_name"
-        grep -q '^windowBackgroundWhiteBlackText=-1' "$theme_file" || die "P16: $theme_name — основной текст не белый"
-        grep -q '^windowBackgroundWhite=-14935010' "$theme_file"  || die "P16: $theme_name — поверхность не #1C1C1E"
-        grep -q '^windowBackgroundGray=-16777216' "$theme_file"   || die "P16: $theme_name — фон не чёрный"
-        grep -q '^actionBarDefaultTitle=-1' "$theme_file"         || die "P16: $theme_name — заголовок шапки не белый"
-        grep -q '^chat_outBubble=-13938056' "$theme_file"         || die "P16: $theme_name — исходящее облако не #2B5278"
-        grep -q '^switchTrackChecked=-13318311' "$theme_file"     || die "P16: $theme_name — переключатель не iOS-зелёный"
-        grep -q '5E5CE6' "$theme_file" && die "P16: $theme_name — остался фиолетовый акцент"
+        grep -q '^windowBackgroundWhiteBlackText=-528129' "$theme_file" || die "P16: $theme_name — основной текст не #F7F0FF"
+        grep -q '^windowBackgroundWhite=-14936284' "$theme_file"  || die "P16: $theme_name — поверхность не #1C1724 (Yoru CARD)"
+        grep -q '^windowBackgroundGray=-15922414' "$theme_file"   || die "P16: $theme_name — фон не #0D0B12 (Yoru BG)"
+        grep -q '^actionBarDefaultTitle=-528129' "$theme_file"    || die "P16: $theme_name — заголовок шапки не #F7F0FF"
+        grep -q '^chat_outBubble=-14016200' "$theme_file"         || die "P16: $theme_name — исходящее облако не #2A2138"
+        grep -q '^switchTrackChecked=-3627009' "$theme_file"      || die "P16: $theme_name — переключатель не #C8A7FF"
+        grep -qE '^windowBackgroundGray=-16777216' "$theme_file" && die "P16: $theme_name — остался чёрный фон #000000"
     done
-    ok "P16 iOS-тема 2026: чёрный фон, графит #1C1C1E, белый текст, iOS-акцент #0A84FF, iOS-зелёный свитч"
+    ok "P16 ТЕМА YORU: фон #0D0B12, карточки #1C1724, текст #F7F0FF, акцент #C8A7FF (из yoru-android)"
 else
-    skip "P16 iOS-тема не применяется (IOS_THEME=0)"
+    skip "P16 тема Yoru не применяется (IOS_THEME=0)"
 fi
 # =============================================================================
 # P17. ПЛОСКИЙ ДИЗАЙН: тяжёлый узор чата (496 КБ) заменяем минимальным SVG
@@ -1529,7 +1530,7 @@ if mark not in src:
         sys.stderr.write('P28: не найдена строка настроек языка\n')
         sys.exit(1)
     row = (row_anchor +
-           '        items.add(SettingCell.Factory.of(90, 0xFF636366, 0xFF48484A, R.drawable.kamigram_ic_ios_settings, "KamiGram: функции мода", org.telegram.messenger.kamigram.KamiGramConfig.summary())); /* ' + mark + ' */\n')
+           '        items.add(SettingCell.Factory.of(90, 0xFFC8A7FF, 0xFF7C5CFF, R.drawable.kamigram_ic_ios_settings, "KamiGram", org.telegram.messenger.kamigram.KamiGramConfig.summary())); /* ' + mark + ' */\n')
     src = src.replace(row_anchor, row, 1)
 
 case_anchor = '            case 17:\n                showDialog(AlertsCreator.createSupportAlert(this, resourceProvider));\n'

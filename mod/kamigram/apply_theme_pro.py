@@ -24,25 +24,28 @@ import re
 import sys
 
 # ---------------------------------------------------------------------------
-# iOS-значения (hex)
+# Палитра Yoru (взята из кода приложения Yoru: Ui.BG/CARD/SURFACE/PURPLE/TEXT/MUTED/LINE)
+#   BG #0D0B12 · SURFACE #15111C · CARD #1C1724 · PURPLE #C8A7FF
+#   TEXT #F7F0FF · MUTED #A99BB8 · LINE #352A43 · EMERALD #88E0A0 · AMBER #FFCF70
 # ---------------------------------------------------------------------------
-BLACK = '000000'
-CARD = '1C1C1E'         # карточки/строки (iOS secondary background)
-CARD2 = '2C2C2E'        # вложенные поверхности
-LINE = '38383A'         # разделители iOS
-GRAY_TEXT = '8E8E93'    # iOS secondary label
-WHITE = 'FFFFFF'
-ACCENT = '0A84FF'       # iOS system blue
-ACCENT_SOFT = '330A84FF'
-GREEN = '34C759'        # iOS switch
-RED = 'FF453A'          # iOS destructive / запись
-BLUE_TEXT = 'A8C7E8'    # время в исходящих (как в iOS-теме Telegram)
+BLACK = '0D0B12'        # фон приложения (Yoru BG)
+CARD = '1C1724'         # карточки и строки (Yoru CARD)
+CARD2 = '15111C'        # вложенные поверхности (Yoru SURFACE)
+LINE = '352A43'         # разделители (Yoru LINE)
+GRAY_TEXT = 'A99BB8'    # приглушённый текст (Yoru MUTED)
+WHITE = 'F7F0FF'        # основной текст (Yoru TEXT)
+ACCENT = 'C8A7FF'       # акцент (Yoru PURPLE)
+ACCENT_SOFT = '33C8A7FF'
+GREEN = '88E0A0'        # Yoru EMERALD
+AMBER = 'FFCF70'        # Yoru AMBER
+RED = 'FF8F9F'          # мягкий красный в тон палитре (удаление/запись)
+BLUE_TEXT = 'C8A7FF'    # время и галочки в исходящих — акцент Yoru
 
 PALETTE = {
     # ---------------- поверхности ----------------
-    'windowBackgroundGray': BLACK,          # фон экранов
-    'windowBackgroundWhite': CARD,          # строки и карточки
-    'actionBarDefault': BLACK,              # шапка — чёрная, как в iOS
+    'windowBackgroundGray': BLACK,          # фон экранов (Yoru BG)
+    'windowBackgroundWhite': CARD,          # строки и карточки (Yoru CARD)
+    'actionBarDefault': BLACK,              # шапка — фон Yoru (BG), без чёрной полосы
     'actionBarDefaultSelector': '22FFFFFF',
     'actionBarDefaultSubmenuBackground': CARD,
     'actionBarDefaultSubmenuSeparator': LINE,
@@ -52,7 +55,7 @@ PALETTE = {
     'divider': LINE,
     'dialogGrayLine': LINE,
     'dialogShadowLine': '00000000',
-    'dialogLineProgressBackground': '3A3A3C',
+    'dialogLineProgressBackground': LINE,
     'chat_wallpaper': BLACK,
     'chat_topPanelBackground': CARD,
     'chat_topPanelLine': LINE,
@@ -69,7 +72,7 @@ PALETTE = {
     'player_background': CARD,
     'sharedMedia_linkPlaceholder': CARD,
     'chat_attachButtonBackground': CARD2,
-    'chat_attachButtonBackgroundPressed': '3A3A3C',
+    'chat_attachButtonBackgroundPressed': '2A2138',
     'profile_actionBackground': '00000000',
     'profile_actionPressedBackground': '00000000',
 
@@ -108,7 +111,7 @@ PALETTE = {
     'profile_status': GRAY_TEXT,
     'avatar_subtitleInProfileBlue': GRAY_TEXT,
     'emptyListPlaceholder': GRAY_TEXT,
-    'fastScrollInactive': '3A3A3C',
+    'fastScrollInactive': LINE,
     'chat_messageTextIn': WHITE,
     'chat_messageTextOut': WHITE,
     'chat_status': GRAY_TEXT,
@@ -123,9 +126,9 @@ PALETTE = {
     'chat_outSentCheckSelected': WHITE,
     'chats_sentClock': GRAY_TEXT,
     'chat_serviceText': WHITE,
-    'chat_serviceBackground': 'CC1C1C1E',
-    'chat_serviceBackgroundSelected': 'CC2C2C2E',
-    'chat_selectedBackground': '14FFFFFF',
+    'chat_serviceBackground': 'CC1C1724',
+    'chat_serviceBackgroundSelected': 'CC2A2138',
+    'chat_selectedBackground': '22C8A7FF',
     'chat_messagePanelText': WHITE,
     'chat_messagePanelHint': GRAY_TEXT,
     'chat_messagePanelIcons': GRAY_TEXT,
@@ -144,12 +147,12 @@ PALETTE = {
     'calls_callReceivedGreenIcon': GREEN,
 
     # ---------------- облака и связи ----------------
-    'chat_inBubble': '262628',
-    'chat_inBubbleSelected': CARD2,
-    'chat_outBubble': '2B5278',
-    'chat_outBubbleSelected': '33608A',
-    'chat_outBubbleGradient': '2B5278',
-    'chat_outBubbleGradientSelectedOverlay': '33FFFFFF',
+    'chat_inBubble': '1C1724',
+    'chat_inBubbleSelected': '241D30',
+    'chat_outBubble': '2A2138',
+    'chat_outBubbleSelected': '332745',
+    'chat_outBubbleGradient': '2A2138',
+    'chat_outBubbleGradientSelectedOverlay': '33C8A7FF',
     'chat_inBubbleShadow': '00000000',
     'chat_outBubbleShadow': '00000000',
     'chat_messageLinkIn': ACCENT,
@@ -183,7 +186,7 @@ PALETTE = {
     'progressCircle': ACCENT,
     'player_progress': ACCENT,
     'player_buttonActive': ACCENT,
-    'switchTrackChecked': GREEN,          # переключатели как в iOS
+    'switchTrackChecked': ACCENT,         # переключатели — фиолетовый Yoru
     'switchTrackBlue': '39393D',
     'switchTrackBlueSelector': '48484A',
     'switch2Track': '39393D',

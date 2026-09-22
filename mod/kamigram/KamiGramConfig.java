@@ -188,133 +188,127 @@ public final class KamiGramConfig {
         return getInt(key, fallback);
     }
 
-    /** Сводка состояния для строки в настройках. */
+    /**
+     * Подпись строки в настройках. Коротко и без служебной информации:
+     * пользователю не нужно видеть ID, вход и прочие технические детали.
+     */
     public static String summary() {
-        return "прокси " + onOff(smartProxy())
-            + " · стикеры " + onOff(!noStickers())
-            + " · gif " + onOff(!noGifs())
-            + " · истории " + onOff(!noStories())
-            + " · призрак " + onOff(ghostMode())
-            + " · тема " + accentName();
-    }
-
-    private static String onOff(boolean value) {
-        return value ? "вкл" : "выкл";
+        return "Связь, приватность, вид, память";
     }
 
     // ------------------------------------------------------------------ геттеры
 
     public static boolean ghostMode() {
-        return get(KEY_GHOST, true);
+        return value(KEY_GHOST);
     }
 
     /** Тихая отправка при призраке. */
     public static boolean ghostSend() {
-        return get(KEY_GHOST_SEND, true);
+        return value(KEY_GHOST_SEND);
     }
 
     public static boolean storiesStealth() {
-        return get(KEY_STORIES_STEALTH, true);
+        return value(KEY_STORIES_STEALTH);
     }
 
     public static boolean noRestrictions() {
-        return get(KEY_NO_RESTRICTIONS, true);
+        return value(KEY_NO_RESTRICTIONS);
     }
 
     public static boolean showIds() {
-        return get(KEY_SHOW_IDS, true);
+        return value(KEY_SHOW_IDS);
     }
 
     /** Журнал удалённых сообщений. */
     public static boolean keepDeleted() {
-        return get(KEY_KEEP_DELETED, true);
+        return value(KEY_KEEP_DELETED);
     }
 
     public static boolean noPermissionNags() {
-        return get(KEY_NO_PERMISSION_NAGS, true);
+        return value(KEY_NO_PERMISSION_NAGS);
     }
 
     public static boolean noScreenshots() {
-        return get(KEY_NO_SCREENSHOTS, false);
+        return value(KEY_NO_SCREENSHOTS);
     }
 
     public static boolean hideNotificationText() {
-        return get(KEY_HIDE_NOTIFICATION_TEXT, false);
+        return value(KEY_HIDE_NOTIFICATION_TEXT);
     }
 
     public static boolean smartProxy() {
-        return get(KEY_SMART_PROXY, true);
+        return value(KEY_SMART_PROXY);
     }
 
     public static boolean proxyFallback() {
-        return get(KEY_PROXY_FALLBACK, true);
+        return value(KEY_PROXY_FALLBACK);
     }
 
     public static boolean autoProxyFromClipboard() {
-        return get(KEY_AUTO_PROXY_CLIPBOARD, true);
+        return value(KEY_AUTO_PROXY_CLIPBOARD);
     }
 
     public static boolean fastNet() {
-        return get(KEY_FAST_NET, true);
+        return value(KEY_FAST_NET);
     }
 
     /** Режим «только текст»: максимальная экономия трафика. */
     public static boolean textOnly() {
-        return get(KEY_TEXT_ONLY, false);
+        return value(KEY_TEXT_ONLY);
     }
 
     /** Скрывать сообщения с метками рекламы. */
     public static boolean adsFilter() {
-        return get(KEY_ADS_FILTER, true);
+        return value(KEY_ADS_FILTER);
     }
 
     /** Встроенные прокси сборки (KamiProxy) с моментальным авто-роутингом. */
     public static boolean builtinProxy() {
-        return get(KEY_BUILTIN_PROXY, true);
+        return value(KEY_BUILTIN_PROXY);
     }
 
     public static boolean noStickers() {
-        return get(KEY_NO_STICKERS, true);
+        return value(KEY_NO_STICKERS);
     }
 
     public static boolean noStories() {
-        return get(KEY_NO_STORIES, true);
+        return value(KEY_NO_STORIES);
     }
 
     public static boolean noAnimatedEmoji() {
-        return get(KEY_NO_ANIMATED_EMOJI, true);
+        return value(KEY_NO_ANIMATED_EMOJI);
     }
 
     public static boolean noGifs() {
-        return get(KEY_NO_GIFS, true);
+        return value(KEY_NO_GIFS);
     }
 
     public static boolean noLinkPreview() {
-        return get(KEY_NO_LINK_PREVIEW, true);
+        return value(KEY_NO_LINK_PREVIEW);
     }
 
     public static boolean noGifSearch() {
-        return get(KEY_NO_GIF_SEARCH, true);
+        return value(KEY_NO_GIF_SEARCH);
     }
 
     public static boolean noTopPeers() {
-        return get(KEY_NO_TOP_PEERS, true);
+        return value(KEY_NO_TOP_PEERS);
     }
 
     public static boolean noAds() {
-        return get(KEY_NO_ADS, true);
+        return value(KEY_NO_ADS);
     }
 
     public static boolean noPremiumUi() {
-        return get(KEY_NO_PREMIUM_UI, true);
+        return value(KEY_NO_PREMIUM_UI);
     }
 
     public static boolean keepDownloads() {
-        return get(KEY_KEEP_DOWNLOADS, false);
+        return value(KEY_KEEP_DOWNLOADS);
     }
 
     public static boolean iosDesign() {
-        return get(KEY_IOS_DESIGN, true);
+        return value(KEY_IOS_DESIGN);
     }
 
 
@@ -329,7 +323,7 @@ public final class KamiGramConfig {
     }
 
     public static boolean iosBubbles() {
-        return get(KEY_IOS_BUBBLES, true);
+        return value(KEY_IOS_BUBBLES);
     }
 
     public static boolean material3() {
@@ -337,33 +331,34 @@ public final class KamiGramConfig {
     }
 
     public static boolean compactChats() {
-        return get(KEY_COMPACT_CHATS, false);
+        return value(KEY_COMPACT_CHATS);
     }
 
     public static boolean enterToSend() {
-        return get(KEY_ENTER_TO_SEND, false);
+        return value(KEY_ENTER_TO_SEND);
     }
 
     public static boolean silentSend() {
-        return get(KEY_SILENT_SEND, false);
+        return value(KEY_SILENT_SEND);
     }
 
     public static boolean forceSmsLogin() {
-        return get(KEY_FORCE_SMS, true);
+        return value(KEY_FORCE_SMS);
     }
 
     public static boolean fastLogin() {
-        return get(KEY_FAST_LOGIN, true);
+        return value(KEY_FAST_LOGIN);
     }
 
     // ------------------------------------------------------------------ акцент
 
+    /** Акценты: первый — фиолетовый Yoru (#C8A7FF), остальные в той же гамме. */
     private static final String[] ACCENT_NAMES = {
-        "iOS-синий", "бирюзовый", "зелёный", "оранжевый", "красный", "графит", "розовый"
+        "Yoru фиолетовый", "лаванда", "изумруд", "янтарь", "виноград", "графит", "роза"
     };
 
     private static final int[] ACCENT_COLORS = {
-        0xFF0A84FF, 0xFF32ADE6, 0xFF34C759, 0xFFFF9F0A, 0xFFFF453A, 0xFF8E8E93, 0xFFFF375F
+        0xFFC8A7FF, 0xFFA78BFA, 0xFF88E0A0, 0xFFFFCF70, 0xFF7C5CFF, 0xFFA99BB8, 0xFFFF8F9F
     };
 
     public static int accentIndex() {

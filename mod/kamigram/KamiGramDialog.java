@@ -146,7 +146,7 @@ public final class KamiGramDialog {
                 final LinearLayout card = new LinearLayout(context);
                 card.setOrientation(LinearLayout.VERTICAL);
                 card.setBackground(cardBackground());
-                card.setPadding(dp(20), dp(20), dp(20), dp(positiveText == null && negativeText == null ? 20 : 8));
+                card.setPadding(dp(18), dp(18), dp(18), dp(positiveText == null && negativeText == null ? 18 : 10));
 
                 if (icon != ICON_NONE) {
                     final IconView iconView = new IconView(context, icon);
@@ -159,7 +159,7 @@ public final class KamiGramDialog {
                 if (title != null && title.length() > 0) {
                     final TextView heading = new TextView(context);
                     heading.setText(title);
-                    heading.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17f);
+                    heading.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20f);
                     heading.setTypeface(AndroidUtilities.bold());
                     heading.setTextColor(KamiGramUi.primaryText());
                     heading.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -222,10 +222,10 @@ public final class KamiGramDialog {
                 dialog.setContentView(scroll);
                 final Window window = dialog.getWindow();
                 if (window != null) {
-                    window.setBackgroundDrawable(new ColorDrawable(0x99000000));
+                    window.setBackgroundDrawable(new ColorDrawable(0x00000000));
                     window.setLayout((int) (Math.min(AndroidUtilities.displaySize.x, dp(360))),
                         ViewGroup.LayoutParams.WRAP_CONTENT);
-                    window.setDimAmount(0.45f);
+                    window.setDimAmount(0.6f);
                     window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
                 }
                 dialog.setCanceledOnTouchOutside(true);
@@ -258,12 +258,29 @@ public final class KamiGramDialog {
 
         /** Кнопка-строка: акцентная иконка + подпись. */
         private View row(CharSequence text, int color, int iconRes, final Runnable action) {
+            final boolean primary = color == KamiGramUi.accent();
             final LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER);
-            row.setBackground(rounded(KamiGramUi.pressed(), 12));
+            row.setBackground(primary
+                ? gradient(ThemeHook.YORU_PURPLE_SOFT, ThemeHook.YORU_PURPLE, 16)
+                : stroke(ThemeHook.YORU_SURFACE, 16));
             row.setClickable(true);
             row.setFocusable(true);
+            row.setOnTouchListener((v, event) -> {
+                switch (event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        v.animate().scaleX(0.97f).scaleY(0.97f).alpha(0.9f).setDuration(60).start();
+                        break;
+                    case android.view.MotionEvent.ACTION_UP:
+                    case android.view.MotionEvent.ACTION_CANCEL:
+                        v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(80).start();
+                        break;
+                    default:
+                        break;
+                }
+                return false;
+            });
 
             final int useIcon = iconRes;
             if (useIcon != ICON_NONE) {
@@ -278,7 +295,9 @@ public final class KamiGramDialog {
             label.setText(text == null ? "" : text.toString().toUpperCase());
             label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14f);
             label.setTypeface(AndroidUtilities.bold());
-            label.setTextColor(color);
+            label.setTextColor(primary ? 0xFF21152F : ThemeHook.YORU_TEXT);
+            label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             row.addView(label, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -304,11 +323,30 @@ public final class KamiGramDialog {
             return ICON_NONE;
         }
 
+        /**
+         * Карточка диалога в стиле Yoru: фон #1F1829, радиус 24,
+         * тонкая обводка #352A43 (как Ui.custom() в Yoru).
+         */
         private GradientDrawable cardBackground() {
             final GradientDrawable drawable = new GradientDrawable();
-            drawable.setColor(KamiGramUi.surface());
-            drawable.setCornerRadius(dp(18));
-            drawable.setStroke(dp(1), KamiGramUi.separator());
+            drawable.setColor(0xFF1F1829);
+            drawable.setCornerRadius(dp(24));
+            drawable.setStroke(Math.max(1, dp(1)), ThemeHook.YORU_LINE);
+            return drawable;
+        }
+
+        private GradientDrawable gradient(int start, int end, int radius) {
+            final GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR, new int[]{start, end});
+            drawable.setCornerRadius(dp(radius));
+            return drawable;
+        }
+
+        private GradientDrawable stroke(int color, int radius) {
+            final GradientDrawable drawable = new GradientDrawable();
+            drawable.setColor(color);
+            drawable.setCornerRadius(dp(radius));
+            drawable.setStroke(Math.max(1, dp(1)), ThemeHook.YORU_LINE);
             return drawable;
         }
 

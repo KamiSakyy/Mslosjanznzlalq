@@ -160,27 +160,23 @@ public final class KamiGramGhost {
         KamiGramUi.notify(item.getContext(), enabled ? "Призрак включён" : "Призрак выключен");
     }
 
-    /** Состояние видно сразу: включён — акцентный цвет, выключен — приглушённая иконка. */
+    /**
+     * Состояние видно сразу, как просил пользователь:
+     *   * призрак ВЫКЛЮЧЕН — серая иконка;
+     *   * призрак ВКЛЮЧЁН — ЗЕЛЁНАЯ иконка (изумруд Yoru #88E0A0).
+     */
     public static void refreshHeader(ActionBarMenuItem item, Theme.ResourcesProvider provider) {
         if (item == null) {
             return;
         }
         final boolean enabled = KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
         try {
-            int color;
-            if (enabled) {
-                color = KamiGramUi.accent();
-            } else if (provider != null) {
-                color = provider.getColor(Theme.key_actionBarDefaultIcon);
-            } else {
-                color = Theme.getColor(Theme.key_actionBarDefaultIcon);
-            }
-            item.setIconColor(color);
+            item.setIconColor(enabled ? ThemeHook.YORU_EMERALD : ThemeHook.YORU_MUTED);
         } catch (Throwable ignore) {
         }
         final View icon = item.getIconView();
         if (icon != null) {
-            icon.setAlpha(enabled ? 1f : 0.6f);
+            icon.setAlpha(enabled ? 1f : 0.75f);
         }
     }
 

@@ -209,7 +209,14 @@ public final class ThemeHook {
         ACTIVITIES.add(new WeakReference<>(activity));
     }
 
-    /** Прозрачный статус-бар, тёмная навигация, светлые иконки — как в iOS. */
+    /**
+     * Системные полосы — как в Telegram: статус-бар прозрачный, нижняя
+     * навигационная панель ПРОЗРАЧНАЯ (никакой чёрной полосы снизу).
+     *
+     * Раньше мод красил её в чёрный и сбрасывал системные флаги
+     * (setSystemUiVisibility(0)), из-за чего приложение перестало рисовать
+     * контент под панелью — панель становилась чёрной полосой.
+     */
     public static void tintSystemBars(Activity activity) {
         try {
             final Window window = activity.getWindow();
@@ -219,11 +226,7 @@ public final class ThemeHook {
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.setStatusBarColor(Color.TRANSPARENT);
-            window.setNavigationBarColor(0xFF000000);
-            final View decor = window.getDecorView();
-            if (Build.VERSION.SDK_INT >= 23) {
-                decor.setSystemUiVisibility(0); // светлые иконки в тёмных полосах
-            }
+            window.setNavigationBarColor(Color.TRANSPARENT);
             if (Build.VERSION.SDK_INT >= 29) {
                 window.setNavigationBarContrastEnforced(false);
                 window.setNavigationBarDividerColor(0x00000000);
@@ -249,12 +252,29 @@ public final class ThemeHook {
 
     // ------------------------------------------------------------------ цвета для вьюх мода
 
+    /*
+     * Палитра Yoru (yoru-android): BG #0D0B12, SURFACE #15111C, CARD #1C1724,
+     * PURPLE #C8A7FF, TEXT #F7F0FF, MUTED #A99BB8, LINE #352A43.
+     * Взята из кода Yoru (Ui.BG/CARD/SURFACE/PURPLE/TEXT/MUTED/LINE).
+     */
+    public static final int YORU_BG = 0xFF0D0B12;
+    public static final int YORU_SURFACE = 0xFF15111C;
+    public static final int YORU_CARD = 0xFF1C1724;
+    public static final int YORU_CARD_HIGH = 0xFF21192E;
+    public static final int YORU_PURPLE = 0xFFC8A7FF;
+    public static final int YORU_PURPLE_SOFT = 0xFFE2CCFF;
+    public static final int YORU_TEXT = 0xFFF7F0FF;
+    public static final int YORU_MUTED = 0xFFA99BB8;
+    public static final int YORU_LINE = 0xFF352A43;
+    public static final int YORU_AMBER = 0xFFFFCF70;
+    public static final int YORU_EMERALD = 0xFF88E0A0;
+
     public static int surface() {
-        return 0xFF1C1C1E;
+        return YORU_CARD;
     }
 
     public static int surfaceNested() {
-        return 0xFF2C2C2E;
+        return YORU_SURFACE;
     }
 
     public static int background() {
@@ -262,19 +282,19 @@ public final class ThemeHook {
     }
 
     public static int primaryText() {
-        return 0xFFFFFFFF;
+        return YORU_TEXT;
     }
 
     public static int secondaryText() {
-        return 0xFF8E8E93;
+        return YORU_MUTED;
     }
 
     public static int separator() {
-        return 0xFF38383A;
+        return YORU_LINE;
     }
 
     public static int green() {
-        return 0xFF34C759;
+        return YORU_EMERALD;
     }
 
     public static int red() {

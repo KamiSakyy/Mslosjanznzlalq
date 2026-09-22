@@ -109,9 +109,12 @@ def ghost_icon():
     # 2) сама иконка: ставится ПЕРЕД «тремя точками», значит стоит рядом с ними
     patch(chat, 'KAMIGRAM_GHOST_ICON',
           '            headerItem = menu.addItem(chat_menu_options, otherIcon);\n',
-          '            ghostHeaderItem = ' + GHOST + '.addHeaderItem(menu, themeDelegate);\n'
-          '            /* KAMIGRAM_GHOST_ICON: иконка призрака рядом с «тремя точками» */\n',
-          'призрак: касание иконки включает и выключает призрак', before=True)
+          '            /* KAMIGRAM_GHOST_ICON: иконка призрака стоит РЯДОМ с «тремя точками»\n'
+          '               и ТОЛЬКО в обычных чатах — в «Избранном» её нет */\n'
+          '            if (currentUser == null || !currentUser.self) {\n'
+          '                ghostHeaderItem = ' + GHOST + '.addHeaderItem(menu, themeDelegate);\n'
+          '            }\n',
+          'призрак: иконка рядом с «тремя точками» (в «Избранном» её нет)', before=True)
 
     # 3) в «Избранном» — только три точки, без скрепки
     replace_all(chat, 'KAMIGRAM_SAVED_NO_ATTACH',
@@ -120,8 +123,10 @@ def ghost_icon():
                 '            context.getResources().getDrawable(R.drawable.mini_attach).mutate()\n'
                 '        );\n'
                 '        otherIcon.setIconTranslate(-dp(6), dp(6.66f));\n',
-                '        /* KAMIGRAM_SAVED_NO_ATTACH: в «Избранном» в шапке только «три точки», скрепки нет */\n'
-                '        if (chatMode == MODE_SAVED) {\n'
+                '        /* KAMIGRAM_SAVED_NO_ATTACH: «Избранное» (свой чат) — в шапке ТОЛЬКО «три точки»,\n'
+                '           без мини-скрепки. Скрепка не создаётся вообще, поэтому её не покажут\n'
+                '           и служебные вызовы setIconVisible() при жестах. */\n'
+                '        if (currentUser != null && currentUser.self) {\n'
                 '            otherIcon = new ComposeDrawable(\n'
                 '                context.getResources().getDrawable(R.drawable.ic_ab_other).mutate(),\n'
                 '                new android.graphics.drawable.ColorDrawable(0)\n'
@@ -133,7 +138,7 @@ def ghost_icon():
                 '            );\n'
                 '            otherIcon.setIconTranslate(-dp(6), dp(6.66f));\n'
                 '        }\n',
-                'в «Избранном» в шапке только «три точки» (скрепка убрана)')
+                'в «Избранном» в шапке только «три точки» (скрепки нет вообще)')
 
 
 # =============================================================================
@@ -172,23 +177,12 @@ def title_proxy_status():
     launch = 'ui/LaunchActivity.java'
     replace_all(launch, 'KAMIGRAM_PROXY_TITLE_OVERLAY',
                 '        actionBarLayout.setTitleOverlayText(title, titleId, action);\n',
-                '        /* KAMIGRAM_PROXY_TITLE_OVERLAY: родной оверлей больше не прячет имя\n'
-                '           приложения — состояние связи видно РЯДОМ с названием. */\n'
-                '        if (titleId == R.string.Updating) {\n'
-                '            actionBarLayout.setTitleOverlayText(title, titleId, action);\n'
-                '        } else {\n'
-                '            actionBarLayout.setTitleOverlayText(null, 0, null);\n'
-                '            if (titleId == R.string.WaitingForNetwork) {\n'
-                '                ' + STATUS + '.setHint("нет сети");\n'
-                '            } else if (titleId == R.string.ConnectingToProxyWithDots) {\n'
-                '                ' + STATUS + '.setHint("подключение к прокси…");\n'
-                '            } else if (titleId == R.string.Connecting) {\n'
-                '                ' + STATUS + '.setHint("подключение…");\n'
-                '            } else {\n'
-                '                ' + STATUS + '.setHint(null);\n'
-                '            }\n'
-                '        }\n',
-                'состояние связи показывается рядом с именем, а не вместо него')
+                '        /* KAMIGRAM_PROXY_TITLE_OVERLAY: убираем надписи «Подключение…» полностью.\n'
+                '           Раньше Telegram подменял название приложения строкой «Подключение к прокси…»,\n'
+                '           и она висела даже после подключения. Теперь название всегда на месте,\n'
+                '           никакого текста состояния рядом нет. */\n'
+                '        actionBarLayout.setTitleOverlayText(null, 0, null);\n',
+                'надпись «Подключение…» убрана, имя приложения не подменяется')
 
 
 # =============================================================================
