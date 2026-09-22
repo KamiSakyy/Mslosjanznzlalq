@@ -112,7 +112,6 @@ public final class KamiGramProxyButton {
             /* Подсказок и своих строк про прокси в меню БОЛЬШЕ НЕТ: прокси живёт
                там же, где в обычном Telegram — в «Настройках → Данные и память → Прокси»,
                а из центра мода открывается родной экран прокси. */
-            menuItem.setSubtext(null);
         } catch (Throwable e) {
             FileLog.e(e);
         }
