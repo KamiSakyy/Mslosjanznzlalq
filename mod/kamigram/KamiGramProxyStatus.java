@@ -24,8 +24,9 @@ import java.lang.ref.WeakReference;
  */
 public final class KamiGramProxyStatus {
 
-    /** Базовая строка заголовка («KamiGram» + логотип). */
+    /** Базовая строка заголовка («KamiGram»). Храним и текст: строку нельзя «терять». */
     private static WeakReference<CharSequence> baseTitle = new WeakReference<>(null);
+    private static String baseText = null;
     private static WeakReference<ActionBar> actionBarRef = new WeakReference<>(null);
     private static WeakReference<Drawable> rightDrawableRef = new WeakReference<>(null);
 
@@ -37,6 +38,10 @@ public final class KamiGramProxyStatus {
         try {
             if (base != null) {
                 baseTitle = new WeakReference<>(base);
+                final String text = base.toString();
+                if (text != null && text.length() > 0) {
+                    baseText = text;
+                }
             }
             if (actionBar != null) {
                 actionBarRef = new WeakReference<>(actionBar);
@@ -60,16 +65,22 @@ public final class KamiGramProxyStatus {
     private static void apply() {
         try {
             final ActionBar actionBar = actionBarRef.get();
-            final CharSequence base = baseTitle.get();
-            if (actionBar == null || base == null) {
+            CharSequence base = baseTitle.get();
+            if (base == null || base.length() == 0) {
+                // строку могло унести сборщиком мусора — восстанавливаем из текста
+                base = baseText != null ? baseText : "KamiGram";
+            }
+            if (actionBar == null) {
                 return;
             }
             // имя приложения без каких-либо приписок; ставим только если оно реально другое
             // (повторная установка того же заголовка заставляла шапку переразмечаться и мигать)
             final CharSequence current = actionBar.getTitle();
-            if (current != null && current.toString().contentEquals(base)) {
+            if (current != null && current.length() > 0 && current.toString().contentEquals(base)) {
                 return;
             }
+            /* KAMIGRAM_TITLE_BACK: заголовок главного экрана всегда возвращаем на место —
+               если его подменило состояние соединения (прокси), имя KamiGram возвращается. */
             actionBar.setTitle(base instanceof SpannableStringBuilder ? base : new SpannableStringBuilder(base),
                 rightDrawableRef.get());
         } catch (Throwable throwable) {

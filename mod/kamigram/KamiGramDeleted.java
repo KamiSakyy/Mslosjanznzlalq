@@ -30,12 +30,15 @@ public final class KamiGramDeleted {
 
     private static final String PREFS = "kamigram_deleted_ids";
     private static final String KEY_IDS = "ids";
+    /** Номера сообщений, удалённых сервером БЕЗ id чата (личные чаты). */
+    private static final String KEY_MIDS = "mids";
     private static final int MAX_IDS = 4000;
 
     /** Отметка удалённого сообщения в чеке времени. */
     public static final String MARK = "удалено";
 
     private static HashSet<String> ids;
+    private static HashSet<Integer> unknownIds;
     private static boolean loaded;
 
     private KamiGramDeleted() {
@@ -75,6 +78,35 @@ public final class KamiGramDeleted {
         return ids;
     }
 
+    /**
+     * Номера сообщений, про удаление которых сервер не сказал, в каком они чате
+     * (личные чаты: updateDeleteMessages приходит без id чата). В личных чатах
+     * номера уникальны для всего аккаунта, поэтому храним их отдельно от пар
+     * «чат + номер».
+     */
+    private static synchronized HashSet<Integer> unknown() {
+        if (unknownIds == null) {
+            unknownIds = new HashSet<>();
+            try {
+                final SharedPreferences preferences = preferences();
+                if (preferences != null) {
+                    final Set<String> stored = preferences.getStringSet(KEY_MIDS, null);
+                    if (stored != null) {
+                        for (String value : stored) {
+                            try {
+                                unknownIds.add(Integer.parseInt(value));
+                            } catch (Throwable ignore) {
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable throwable) {
+                FileLog.e(throwable);
+            }
+        }
+        return unknownIds;
+    }
+
     private static SharedPreferences preferences() {
         try {
             return ApplicationLoader.applicationContext
@@ -88,7 +120,14 @@ public final class KamiGramDeleted {
         try {
             final SharedPreferences preferences = preferences();
             if (preferences != null) {
-                preferences.edit().putStringSet(KEY_IDS, new HashSet<>(set())).apply();
+                android.content.SharedPreferences.Editor editor = preferences.edit();
+                editor.putStringSet(KEY_IDS, new HashSet<>(set()));
+                final HashSet<String> midsToSave = new HashSet<>();
+                for (Integer mid : unknown()) {
+                    midsToSave.add(String.valueOf(mid));
+                }
+                editor.putStringSet(KEY_MIDS, midsToSave);
+                editor.apply();
             }
         } catch (Throwable throwable) {
             FileLog.e(throwable);
@@ -112,6 +151,7 @@ public final class KamiGramDeleted {
             if (mid == null || mid <= 0) {
                 continue;
             }
+            unknown().remove(mid);
             final String id = key(dialogId, mid);
             if (current.contains(id)) {
                 current.remove(id);
@@ -152,6 +192,58 @@ public final class KamiGramDeleted {
         }
     }
 
+    /**
+     * Сервер удалил сообщения, но не сказал, в каком они чате (личные чаты).
+     * Запоминаем номера — сообщения останутся в чате.
+     */
+    public static void rememberUnknown(ArrayList<Integer> mids) {
+        if (!enabled() || mids == null || mids.isEmpty()) {
+            return;
+        }
+        try {
+            final HashSet<Integer> current = unknown();
+            boolean changed = false;
+            for (int a = 0; a < mids.size(); a++) {
+                final Integer mid = mids.get(a);
+                if (mid != null && mid > 0 && current.add(mid)) {
+                    changed = true;
+                }
+            }
+            if (changed) {
+                trimUnknown(current);
+                persist();
+            }
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
+    /** Номер помечен как «оставить» без знания чата? */
+    public static boolean shouldKeepUnknown(int mid) {
+        if (!enabled() || mid <= 0) {
+            return false;
+        }
+        try {
+            return unknown().contains(mid);
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /**
+     * Оставляем сообщение? Чат может быть неизвестен (0) — тогда сверяем по номеру:
+     * каналы приходят со своим id, а личные чаты — без него.
+     */
+    public static boolean shouldKeepAny(long dialogId, int mid) {
+        if (shouldKeep(dialogId, mid)) {
+            return true;
+        }
+        if (dialogId <= 0) {
+            return shouldKeepUnknown(mid);
+        }
+        return false;
+    }
+
     /** Оставляем сообщение в чате? */
     public static boolean shouldKeep(long dialogId, int mid) {
         if (!enabled() || dialogId == 0 || mid <= 0) {
@@ -167,7 +259,11 @@ public final class KamiGramDeleted {
     /** Убрать из списка (сообщение удалено приложением Telegram). */
     public static synchronized void forget(long dialogId, int mid) {
         try {
-            if (set().remove(key(dialogId, mid))) {
+            boolean changed = set().remove(key(dialogId, mid));
+            if (unknown().remove(mid)) {
+                changed = true;
+            }
+            if (changed) {
                 persist();
             }
         } catch (Throwable ignore) {
@@ -186,7 +282,7 @@ public final class KamiGramDeleted {
             final ArrayList<Integer> kept = new ArrayList<>(messages.size());
             for (int a = 0; a < messages.size(); a++) {
                 final Integer mid = messages.get(a);
-                if (mid != null && shouldKeep(dialogId, mid)) {
+                if (mid != null && shouldKeepAny(dialogId, mid)) {
                     continue;
                 }
                 kept.add(mid);
@@ -211,8 +307,22 @@ public final class KamiGramDeleted {
     public static synchronized void clear() {
         try {
             set().clear();
+            unknown().clear();
             persist();
         } catch (Throwable ignore) {
+        }
+    }
+
+    private static void trimUnknown(HashSet<Integer> values) {
+        if (values.size() <= MAX_IDS) {
+            return;
+        }
+        int remove = values.size() - MAX_IDS;
+        final java.util.Iterator<Integer> iterator = values.iterator();
+        while (iterator.hasNext() && remove > 0) {
+            iterator.next();
+            iterator.remove();
+            remove--;
         }
     }
 

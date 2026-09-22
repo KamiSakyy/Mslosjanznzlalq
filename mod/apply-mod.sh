@@ -2012,3 +2012,25 @@ grep -q 'KAMIGRAM_GHOST_HEADER' "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java
 grep -q 'KAMIGRAM_KEEP_DELETED_STORAGE' "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P34: защита удалённых в базе не встала"
 grep -q 'KAMIGRAM_FONT' "$JAVA_ROOT/org/telegram/ui/ActionBar/BaseFragment.java" || die "P34: шрифт не применяется ко всему экрану"
 ok "P34 r54: призрак в шапке главного экрана, имя KamiGram, загрузки всегда видны, удалённые остаются в чате, шрифт везде"
+
+# =============================================================================
+# P98. r66 — по жалобам пользователя:
+#      1) имя KamiGram в шапке не пропадает при подключённом прокси (оверлей
+#         состояния соединения на главном экране запрещён, имя — настоящий текст);
+#      2) нет ложной анимации «что-то скачивается», когда загрузок нет;
+#      3) одноразовые и «исчезающие» фото не удаляются и не стираются из базы;
+#      4) удалённые в ЛИЧНЫХ чатах тоже остаются (раньше только в каналах);
+#      5) текст папок («Все», «Личные»…) — белый (раньше сливался с фоном).
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    python3 "$KAMIGRAM_SRC/apply_r66_patches.py" "$TG_DIR" "$APP_NAME" || die "P98: патчи r66 не применились"
+    has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK" || die "P98: защита заголовка (прокси) не встала"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_TITLE_TEXT" || die "P98: имя KamiGram текстом не встало"
+    has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_UPDATE" || die "P98: ложная анимация загрузки не убрана"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_KEEP_VIEWONCE_DELETE" || die "P98: одноразовые фото не защищены"
+    has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA" || die "P98: медиа одноразовых не защищено в базе"
+    ok "P98 r66: имя KamiGram в шапке не пропадает, нет ложной анимации загрузки, одноразовые фото остаются, папки — белый текст"
+else
+    skip "P98 отключено (ZERO_TRAFFIC=0)"
+fi
+
