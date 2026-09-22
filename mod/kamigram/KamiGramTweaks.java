@@ -28,6 +28,7 @@ public final class KamiGramTweaks {
         applyNotificationPreview();
         KamiGramTraffic.restore();
         KamiGramTraffic.init();
+        markOwnOnline();
         applyBackground();
     }
 
@@ -84,6 +85,46 @@ public final class KamiGramTweaks {
                 .apply();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
+        }
+    }
+
+    /**
+     * Отмечаем своё время захода: при призраке это видно в профиле как
+     * «был(а) в 12:00» вместо вечного «в сети». Обновляем не чаще раза в минуту.
+     */
+    private static long lastMark;
+
+    public static void markOwnOnline() {
+        try {
+            final long now = System.currentTimeMillis() / 1000L;
+            if (now - lastMark < 60) {
+                return;
+            }
+            lastMark = now;
+            KamiGramGhost.markOnline(now);
+            scheduleOwnOnline();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /**
+     * Пока приложение на экране, время захода обновляется каждую минуту —
+     * в профиле видно реальное «был(а) в 12:00», а не «в сети».
+     */
+    private static boolean ownOnlineScheduled;
+
+    private static void scheduleOwnOnline() {
+        if (ownOnlineScheduled) {
+            return;
+        }
+        ownOnlineScheduled = true;
+        try {
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                ownOnlineScheduled = false;
+                markOwnOnline();
+            }, 60_000L);
+        } catch (Throwable ignore) {
+            ownOnlineScheduled = false;
         }
     }
 

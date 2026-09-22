@@ -9,11 +9,9 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLoader;
@@ -23,42 +21,30 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.CacheControlActivity;
-import org.telegram.ui.Components.Switch;
+import org.telegram.ui.ProxyListActivity;
 
 /**
- * KamiGram: центр настроек мода — «Material 3 / iOS 2026».
+ * KamiGram: центр настроек (Material 3 / iOS, тёмная тема).
  *
- * Почему отдельный центр, а не строки в настройках Telegram: так видно весь мод
- * сразу и всё работает (в прошлой сборке переключатели были, а часть из них
- * ничего не делала — например «Показывать ID» и очистка кэша).
+ * Главное отличие от прошлой версии: КАЖДАЯ строка нажимается целиком —
+ * по строке, а не только по маленькому переключателю. Поэтому «не работает
+ * ползунок» больше невозможно: тап в любом месте строки меняет значение и
+ * сохраняет его сразу.
  *
- * Экран сделан карточками, как в iOS: заголовок группы, карточка с ровными
- * строками, серые пояснения, акцентные действия, переключатели в стиле iOS.
- * Цвета берутся из темы (ThemeHook), поэтому экран читается и в тёмной, и в
- * светлой теме — чёрного текста на чёрном здесь быть не может.
+ * Тексты короткие и по делу, без «подсказок для разработчиков».
  */
 public final class KamiGramCenter {
-
-    private static final int SECTION_PROXY = 0;
-    private static final int SECTION_TRAFFIC = 1;
-    private static final int SECTION_CACHE = 2;
-    private static final int SECTION_IDS = 3;
-    private static final int SECTION_PRIVACY = 4;
-    private static final int SECTION_DESIGN = 5;
-    private static final int SECTION_LOGIN = 6;
-    private static final int SECTION_ABOUT = 7;
 
     private KamiGramCenter() {
     }
 
-    // ------------------------------------------------------------------ экран
-
     public static void show(final Context context) {
         show(context, null);
     }
+
+    // ------------------------------------------------------------------ экран
 
     public static void show(final Context context, final Runnable onChanged) {
         if (context == null) {
@@ -67,265 +53,179 @@ public final class KamiGramCenter {
         try {
             final LinearLayout root = new LinearLayout(context);
             root.setOrientation(LinearLayout.VERTICAL);
-            root.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(6), AndroidUtilities.dp(14), AndroidUtilities.dp(18));
+            root.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(4), AndroidUtilities.dp(14), AndroidUtilities.dp(18));
 
-            section(root, context, "ПРОКСИ И СЕТЬ");
-            card(root, context, new Row[]{
-                Row.switchRow("Мощный прокси: моментальное переключение на живой", KamiGramConfig.KEY_SMART_PROXY, onChanged),
-                Row.switchRow("Нерабочий прокси выключается сам", KamiGramConfig.KEY_PROXY_FALLBACK, onChanged),
-                Row.switchRow("Прокси из буфера включается сам", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged),
-                Row.switchRow("Ускорение загрузок и потоков (слабый интернет)", KamiGramConfig.KEY_FAST_NET, onChanged),
-                Row.action("Прокси и список живых (ссылка, проверка)", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramProxyButton.showPanel(context);
-                    }
-                }),
-                Row.action("Вставить ссылку на прокси", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramProxyButton.showLinkDialog(context, onChanged);
-                    }
-                }),
-                Row.action("Открыть прокси-экран Telegram", new Runnable() {
-                    @Override
-                    public void run() {
-                        openProxyScreen(context);
-                    }
-                }),
-                Row.action("Проверить сейчас и переключиться на лучший", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramProxyPower.pingAll();
-                        KamiGramProxyPower.refreshNow(context);
-                        toast(context, KamiGramProxyPower.statusText());
-                    }
-                }),
-                Row.info(KamiGramProxyPower.statusText()),
-                Row.info("Сеть: " + KamiGramSpeed.describe() + " · " + KamiGramSpeed.networkName())
-            });
-
-            section(root, context, "ТРАФИК И ЭКОНОМИЯ");
-            card(root, context, new Row[]{
-                Row.switchRow("Не грузить стикеры и наборы (0 байт)", KamiGramConfig.KEY_NO_STICKERS, onChanged),
-                Row.switchRow("Не грузить GIF и анимации (0 байт)", KamiGramConfig.KEY_NO_GIFS, onChanged),
-                Row.switchRow("Не грузить истории и их медиа (0 байт)", KamiGramConfig.KEY_NO_STORIES, onChanged),
-                Row.switchRow("Премиум-эмодзи показывать обычным эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
-                Row.switchRow("Не грузить превью ссылок и страницы", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged),
-                Row.switchRow("Не искать GIF и стикеры при вводе", KamiGramConfig.KEY_NO_GIF_SEARCH, onChanged),
-                Row.switchRow("Не грузить «часто используемые»", KamiGramConfig.KEY_NO_TOP_PEERS, onChanged),
-                Row.switchRow("Убрать рекламу и рекомендации", KamiGramConfig.KEY_NO_ADS, onChanged),
-                Row.switchRow("Убрать Premium / Stars / TON", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
-                Row.info("Автоскачивание медиа выключено, авто-проигрывание выключено, "
-                    + "экономия трафика в звонках включена — это уже в сборке."),
+            // ---------------------------------------------------------- ЭКОНОМИЯ
+            section(root, context, "ЭКОНОМИЯ ТРАФИКА");
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Только текст: без картинок и медиа", KamiGramConfig.KEY_TEXT_ONLY,
+                    "Ни одной картинки, фото и видео — только по нажатию. Самая жёсткая экономия.", onChanged),
+                Row.toggle(context, "Не грузить стикеры и наборы", KamiGramConfig.KEY_NO_STICKERS, null, onChanged),
+                Row.toggle(context, "Не грузить GIF и анимации", KamiGramConfig.KEY_NO_GIFS, null, onChanged),
+                Row.toggle(context, "Не грузить истории", KamiGramConfig.KEY_NO_STORIES, null, onChanged),
+                Row.toggle(context, "Премиум-эмодзи как обычные эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, null, onChanged),
+                Row.toggle(context, "Без превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, null, onChanged),
+                Row.toggle(context, "Без поиска GIF и стикеров", KamiGramConfig.KEY_NO_GIF_SEARCH, null, onChanged),
+                Row.toggle(context, "Без «часто используемых»", KamiGramConfig.KEY_NO_TOP_PEERS, null, onChanged),
+                Row.toggle(context, "Без рекламы и рекомендаций", KamiGramConfig.KEY_NO_ADS, null, onChanged),
+                Row.toggle(context, "Без Premium / Stars / TON", KamiGramConfig.KEY_NO_PREMIUM_UI, null, onChanged),
+                Row.toggle(context, "Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, null, onChanged),
                 Row.info("Трафик: " + KamiGramTraffic.describe()),
                 Row.info(KamiGramTraffic.economyText()),
-                Row.action("Обнулить счётчик экономии", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramTraffic.reset();
-                        toast(context, "Счётчик обнулён");
-                    }
+                Row.action("Обнулить счётчик экономии", () -> {
+                    KamiGramTraffic.reset();
+                    KamiGramUi.notify(context, "Счётчик сброшен");
                 })
             });
 
+            // ---------------------------------------------------------- ФИЛЬТРЫ
+            section(root, context, "ФИЛЬТРЫ");
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Скрывать рекламные посты", KamiGramConfig.KEY_ADS_FILTER,
+                    "Сообщения с метками «реклама», «#реклама», «erid», «промокод» не показываются.", onChanged),
+                Row.action("Показать скрытые рекламные сообщения", () -> {
+                    KamiGramAds.showHiddenReport(context);
+                }),
+                Row.info(KamiGramAds.describe())
+            });
+
+            // ---------------------------------------------------------- ПРОКСИ
+            section(root, context, "KAMIPROXY (ВСТРОЕННЫЕ ПРОКСИ)");
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "KamiProxy включён", KamiGramConfig.KEY_BUILTIN_PROXY,
+                    "Встроенные прокси подключаются сами и переключаются на самый быстрый.", onChanged),
+                Row.info(KamiGramBuiltinProxy.statusText()),
+                Row.info("Прокси в сборке: " + KamiGramBuiltinProxy.count()
+                    + " · живых сейчас: " + KamiGramBuiltinProxy.aliveCount()),
+                Row.action("Проверить и подключить лучший", () -> {
+                    KamiGramBuiltinProxy.refreshNow(context);
+                    KamiGramUi.notify(context, KamiGramBuiltinProxy.statusText());
+                }),
+                Row.action("Открыть прокси Telegram", () -> openProxyScreen(context)),
+                Row.toggle(context, "Прокси из буфера подключать сам", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, null, onChanged),
+                Row.toggle(context, "Мощное переключение (своё)", KamiGramConfig.KEY_SMART_PROXY, null, onChanged)
+            });
+
+            // ---------------------------------------------------------- КЭШ
             section(root, context, "КЭШ И ФАЙЛЫ");
-            card(root, context, new Row[]{
-                Row.switchRow("Скачанное вручную не удалять", KamiGramConfig.KEY_KEEP_DOWNLOADS, onChanged),
-                Row.info(KamiGramCache.modeText()),
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Скачанное вручную не удалять", KamiGramConfig.KEY_KEEP_DOWNLOADS,
+                    "Очистка кэша работает всегда — эта галочка только защищает ваши файлы.", onChanged),
                 Row.info(KamiGramCache.describe()),
-                Row.action("Очистить ВЕСЬ кэш сейчас", new Runnable() {
-                    @Override
-                    public void run() {
-                        confirm(context, "Очистить весь кэш?", "Скачанное вручную останется, если включена защита.", new Runnable() {
-                            @Override
-                            public void run() {
-                                KamiGramCache.clearAll();
-                                toast(context, "Кэш очищен. " + KamiGramCache.describe());
-                            }
-                        });
-                    }
+                Row.action("Очистить весь кэш", () -> confirm(context, "Очистить весь кэш?",
+                    "Файлы, скачанные вручную, останутся, если включена защита.", () -> {
+                        KamiGramCache.clearAll();
+                        KamiGramUi.notify(context, "Кэш очищен");
+                    })),
+                Row.action("Освободить память", () -> {
+                    KamiGramCache.freeMemory();
+                    KamiGramUi.notify(context, "Память освобождена");
                 }),
-                Row.action("Освободить память (без удаления файлов)", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramCache.freeMemory();
-                        toast(context, "Память освобождена");
-                    }
-                })
+                Row.action("Менеджер загрузок", () -> openDownloads(context))
             });
-            categoryRows(root, context);
-            card(root, context, new Row[]{
-                Row.action("Забыть защищённые файлы (" + KamiGramCache.protectedCount() + ")", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramCache.forget();
-                        toast(context, "Список защиты очищен");
-                    }
-                }),
-                Row.action("Открыть менеджер загрузок Telegram", new Runnable() {
-                    @Override
-                    public void run() {
-                        openDownloads(context);
-                    }
-                }),
-                Row.action("Отменить все активные загрузки", new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            FileLoader.getInstance(UserConfig.selectedAccount).cancelLoadAllFiles();
-                            toast(context, "Все загрузки остановлены");
-                        } catch (Throwable e) {
-                            FileLog.e(e);
-                        }
-                    }
-                })
-            });
+            cacheCategories(root, context);
 
-            section(root, context, "ID И ССЫЛКИ (как в MdGram / Nekogram)");
-            card(root, context, new Row[]{
-                Row.switchRow("Показывать ID в шапке чата и в меню", KamiGramConfig.KEY_SHOW_IDS, onChanged),
+            // ---------------------------------------------------------- ID
+            section(root, context, "ID И ССЫЛКИ");
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Показывать ID под @username в профиле", KamiGramConfig.KEY_SHOW_IDS, null, onChanged),
                 Row.info("Мой ID: " + myId()),
-                Row.action("Копировать мой ID", new Runnable() {
-                    @Override
-                    public void run() {
-                        copy(context, "KamiGram ID", myId());
-                    }
-                }),
-                Row.action("Копировать мой @username", new Runnable() {
-                    @Override
-                    public void run() {
-                        copy(context, "KamiGram username", "@" + myUsername());
-                    }
-                }),
-                Row.action("Копировать ссылку на меня", new Runnable() {
-                    @Override
-                    public void run() {
-                        copy(context, "KamiGram link", "https://t.me/" + myUsername());
-                    }
-                }),
-                Row.info("ID чата видно в шапке чата и в меню «три точки» — нажатие копирует")
+                Row.action("Копировать мой ID", () -> copy(context, "ID", myId())),
+                Row.action("Копировать @username", () -> copy(context, "@", "@" + myUsername())),
+                Row.action("Копировать ссылку на меня", () -> copy(context, "Ссылка", "https://t.me/" + myUsername()))
             });
 
+            // ---------------------------------------------------------- ПРИВАТНОСТЬ
             section(root, context, "ПРИВАТНОСТЬ");
-            card(root, context, new Row[]{
-                Row.switchRow("Призрак: нет чтения, «печатает», «в сети»", KamiGramConfig.KEY_GHOST, onChanged),
-                Row.switchRow("Призрак для историй (просмотры не пишутся)", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
-                Row.switchRow("Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged),
-                Row.switchRow("Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, onChanged),
-                Row.switchRow("Запретить скриншоты во всём приложении", KamiGramConfig.KEY_NO_SCREENSHOTS, onChanged),
-                Row.switchRow("Не спрашивать разрешения (контакты, телефон)", KamiGramConfig.KEY_NO_PERMISSION_NAGS, onChanged)
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Призрак: нет чтения, «печатает», «в сети»", KamiGramConfig.KEY_GHOST, null, onChanged),
+                Row.toggle(context, "Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, null, onChanged),
+                Row.toggle(context, "Отправлять тихо (без выхода в сеть)", KamiGramConfig.KEY_GHOST_SEND,
+                    "Сообщение уходит отложенным, поэтому «в сети» не появляется.", onChanged),
+                Row.toggle(context, "Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, null, onChanged),
+                Row.toggle(context, "Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, null, onChanged),
+                Row.toggle(context, "Запретить скриншоты", KamiGramConfig.KEY_NO_SCREENSHOTS, null, onChanged),
+                Row.toggle(context, "Не спрашивать разрешения", KamiGramConfig.KEY_NO_PERMISSION_NAGS, null, onChanged),
+                Row.info(KamiGramGhost.statusText())
             });
 
-            section(root, context, "ДИЗАЙН И ТЕМА (iOS 2026)");
-            card(root, context, new Row[]{
-                Row.switchRow("iOS-дизайн: графит, плоские панели, без «стекла»", KamiGramConfig.KEY_IOS_DESIGN, onChanged),
-                Row.switchRow("Скругления облаков и меню как в iOS", KamiGramConfig.KEY_IOS_BUBBLES, onChanged),
-                Row.switchRow("Material 3 (2026): карточки и мягкие формы", KamiGramConfig.KEY_MATERIAL3, onChanged),
-                Row.switchRow("Компактный список чатов", KamiGramConfig.KEY_COMPACT_CHATS, onChanged),
-                Row.switchRow("Отправлять по Enter", KamiGramConfig.KEY_ENTER_TO_SEND, onChanged),
-                Row.switchRow("Тихая отправка (без звука)", KamiGramConfig.KEY_SILENT_SEND, onChanged),
-                Row.action("Применить настройки Telegram сейчас", new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramTweaks.applyAndRefresh();
-                        toast(context, "Применено: размер текста, Enter, уведомления");
-                    }
+            // ---------------------------------------------------------- ЖУРНАЛ
+            section(root, context, "УДАЛЁННЫЕ СООБЩЕНИЯ");
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Сохранять текст удалённых", KamiGramConfig.KEY_KEEP_DELETED, null, onChanged),
+                Row.action("Открыть журнал (" + KamiGramDeleted.size() + ")", () -> KamiGramDeleted.show(context)),
+                Row.action("Очистить журнал", () -> {
+                    KamiGramDeleted.clear();
+                    KamiGramUi.notify(context, "Журнал очищен");
                 })
+            });
+
+            // ---------------------------------------------------------- МОИ КАНАЛЫ
+            section(root, context, "МОИ КАНАЛЫ");
+            card(root, context, onChanged, new Row[]{
+                Row.info("Галочка как в Telegram: " + KamiGramVerified.describe()),
+                Row.info("Видно только у тебя: права выдаются на этом устройстве."),
+                Row.toggle(context, "Режим «только текст»", KamiGramConfig.KEY_TEXT_ONLY, null, onChanged)
+            });
+
+            // ---------------------------------------------------------- ДИЗАЙН
+            section(root, context, "ОФОРМЛЕНИЕ");
+            card(root, context, onChanged, new Row[]{
+                Row.toggle(context, "Отправлять по Enter", KamiGramConfig.KEY_ENTER_TO_SEND, null, onChanged),
+                Row.toggle(context, "Компактный список чатов", KamiGramConfig.KEY_COMPACT_CHATS, null, onChanged)
             });
             accentPicker(root, context, onChanged);
-            backgroundPicker(root, context);
             fontPicker(root, context, onChanged);
-            card(root, context, new Row[]{
-                Row.action("Применить тему и акценты заново", new Runnable() {
-                    @Override
-                    public void run() {
-                        ThemeHook.keepDarkTheme();
-                        ThemeHook.notifyAccentChanged();
-                        toast(context, "Тема: " + ThemeHook.designVersion());
-                    }
-                }),
-                Row.info("Тема: " + KamiGramCache.themeText() + " · акцент: " + KamiGramConfig.accentName())
-            });
 
-            section(root, context, "ВХОД В АККАУНТ");
-            card(root, context, new Row[]{
-                Row.switchRow("Всегда простой SMS-код (без Google-проверки)", KamiGramConfig.KEY_FORCE_SMS, onChanged),
-                Row.switchRow("Быстрый вход без лишних вопросов", KamiGramConfig.KEY_FAST_LOGIN, onChanged),
-                Row.info("Сборка с официальными app id/hash Telegram, прокси при входе не включается.")
-            });
-
-            section(root, context, "О МОДЕ");
-            card(root, context, new Row[]{
-                Row.info("KamiGram " + versionName() + " · " + ThemeHook.designVersion()),
-                Row.info("Экономия: " + (KamiGramSpeed.enabled() ? "включена" : "базовая")
-                    + " · прокси: " + KamiGramProxyPower.proxyCount() + " шт."),
-                Row.action("Сбросить настройки мода к заводским", new Runnable() {
-                    @Override
-                    public void run() {
-                        confirm(context, "Сбросить настройки мода?", "Telegram и твои чаты не пострадают.", new Runnable() {
-                            @Override
-                            public void run() {
-                                resetAll();
-                                ThemeHook.notifyAccentChanged();
-                                toast(context, "Настройки сброшены");
-                            }
-                        });
-                    }
-                }),
-                Row.action("Закрыть", new Runnable() {
-                    @Override
-                    public void run() {
-                    }
-                })
+            // ---------------------------------------------------------- АККАУНТЫ
+            section(root, context, "АККАУНТЫ");
+            card(root, context, onChanged, new Row[]{
+                Row.info("Лимит аккаунтов: " + UserConfig.MAX_ACCOUNT_COUNT + " (в модe расширено)"),
+                Row.toggle(context, "Всегда простой SMS-код", KamiGramConfig.KEY_FORCE_SMS, null, onChanged),
+                Row.toggle(context, "Быстрый вход", KamiGramConfig.KEY_FAST_LOGIN, null, onChanged)
             });
 
             final ScrollView scroll = new ScrollView(context);
             scroll.addView(root, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-            final AlertDialog dialog = new AlertDialog.Builder(context)
-                .setTitle("KamiGram: центр настроек")
-                .setView(scroll)
-                .setPositiveButton("Готово", null)
-                .create();
-            dialog.show();
+            KamiGramDialog.create(context)
+                .title("KamiGram")
+                .content(scroll)
+                .positive("Готово", null)
+                .show();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
     }
 
-    // ------------------------------------------------------------------ группы кэша
+    // ------------------------------------------------------------------ кэш по категориям
 
-    /** Строка на каждую категорию кэша: размер + «Очистить». */
-    private static void categoryRows(LinearLayout root, final Context context) {
+    private static void cacheCategories(LinearLayout root, final Context context) {
         final Row[] rows = new Row[KamiGramCache.TYPE_COUNT + 1];
         for (int i = 0; i < KamiGramCache.TYPE_COUNT; i++) {
             final int type = i;
-            rows[i] = Row.action(KamiGramCache.nameOf(type) + " — " + KamiGramCache.human(KamiGramCache.sizeOf(type))
-                + " · очистить", new Runnable() {
-                @Override
-                public void run() {
+            rows[i] = Row.action(KamiGramCache.nameOf(type) + " · " + KamiGramCache.human(KamiGramCache.sizeOf(type)),
+                () -> {
                     KamiGramCache.clear(type);
-                    toast(context, KamiGramCache.nameOf(type) + ": " + KamiGramCache.human(KamiGramCache.sizeOf(type)));
-                }
-            });
+                    KamiGramUi.notify(context, KamiGramCache.nameOf(type) + " очищено");
+                });
         }
         rows[KamiGramCache.TYPE_COUNT] = Row.info("Всего занято: " + KamiGramCache.human(KamiGramCache.total()));
-        card(root, context, rows);
+        card(root, context, null, rows);
     }
 
-    // ------------------------------------------------------------------ акценты
+    // ------------------------------------------------------------------ акцент
 
     private static void accentPicker(LinearLayout root, final Context context, final Runnable onChanged) {
         final LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(10), AndroidUtilities.dp(12), AndroidUtilities.dp(10));
-        row.setBackground(cardBackground(context));
+        row.setBackground(cardBackground());
 
         final TextView title = new TextView(context);
-        title.setText("Акцентный цвет");
+        title.setText("Акцент");
         title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         title.setTextColor(ThemeHook.primaryText());
         row.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -341,112 +241,61 @@ public final class KamiGramCenter {
                 shape.setStroke(AndroidUtilities.dp(2), 0xFFFFFFFF);
             }
             dot.setBackground(shape);
-            dot.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    KamiGramConfig.setAccent(index);
-                    ThemeHook.notifyAccentChanged();
-                    toast(context, "Акцент: " + KamiGramConfig.accentName());
-                    if (onChanged != null) {
-                        onChanged.run();
-                    }
+            dot.setOnClickListener(v -> {
+                KamiGramConfig.setAccent(index);
+                ThemeHook.notifyAccentChanged();
+                KamiGramUi.notify(context, "Акцент: " + KamiGramConfig.accentName());
+                if (onChanged != null) {
+                    onChanged.run();
                 }
             });
-            final LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(AndroidUtilities.dp(22), AndroidUtilities.dp(22));
+            final LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(AndroidUtilities.dp(22), AndroidUtilities.dp(22));
             params.leftMargin = AndroidUtilities.dp(6);
             row.addView(dot, params);
         }
         root.addView(row, new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        spacing(root, 8);
-    }
-
-    private static void backgroundPicker(LinearLayout root, final Context context) {
-        final Row[] rows = new Row[3];
-        final String[] names = {"Чёрный (AMOLED, как iOS)", "Графит #1C1C1E", "Узор Telegram"};
-        for (int i = 0; i < names.length; i++) {
-            final int index = i;
-            rows[i] = Row.action((KamiGramConfig.chatBackgroundIndex() == i ? "● " : "○ ") + names[i],
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramConfig.setChatBackground(index);
-                        applyBackground(index);
-                        toast(context, "Фон чата: " + KamiGramConfig.chatBackgroundName());
-                    }
-                });
-        }
-        card(root, context, rows);
+        spacing(root, 10);
     }
 
     private static void fontPicker(LinearLayout root, final Context context, final Runnable onChanged) {
         final Row[] rows = new Row[5];
         for (int i = 0; i < 5; i++) {
             final int boost = i;
-            rows[i] = Row.action((KamiGramConfig.fontBoost() == i ? "● " : "○ ")
-                + (i == 0 ? "Размер текста как в Telegram (16)" : "Текст крупнее: 16 + " + i),
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        KamiGramConfig.setInt(KamiGramConfig.KEY_FONT_BOOST, boost);
-                        SharedConfig.fontSize = 16 + boost;
-                        toast(context, "Размер текста: " + (16 + boost));
-                        if (onChanged != null) {
-                            onChanged.run();
-                        }
+            rows[i] = Row.action((KamiGramConfig.fontBoost() == i ? "Размер текста — " : "")
+                + (i == 0 ? "как в Telegram" : "крупнее на " + i),
+                () -> {
+                    KamiGramConfig.setInt(KamiGramConfig.KEY_FONT_BOOST, boost);
+                    SharedConfig.fontSize = 16 + boost;
+                    KamiGramUi.notify(context, "Размер текста: " + (16 + boost));
+                    if (onChanged != null) {
+                        onChanged.run();
                     }
                 });
         }
-        card(root, context, rows);
-    }
-
-    /** Меняет фон чата (это осознанный выбор пользователя, не «насильный» цвет). */
-    public static void applyBackground(int index) {
-        try {
-            if (index == 1) {
-                Theme.setColor(Theme.key_chat_wallpaper, 0xFF1C1C1E, false);
-            } else if (index == 0) {
-                Theme.setColor(Theme.key_chat_wallpaper, 0xFF000000, false);
-            }
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-        }
+        card(root, context, null, rows);
     }
 
     // ------------------------------------------------------------------ переходы
 
-    /** Родной экран прокси Telegram (дизайн и функционал как в самом ТГ). */
     public static void openProxyScreen(Context context) {
-        openFragment(context, "org.telegram.ui.ProxyListActivity");
-    }
-
-    /** Родной менеджер загрузок Telegram. */
-    public static void openDownloads(Context context) {
         try {
             if (context instanceof org.telegram.ui.LaunchActivity) {
-                ((org.telegram.ui.LaunchActivity) context).presentFragment(new CacheControlActivity());
-                return;
+                ((org.telegram.ui.LaunchActivity) context).presentFragment(new ProxyListActivity());
             }
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
-        openFragment(context, "org.telegram.ui.CacheControlActivity");
     }
 
-    private static void openFragment(Context context, String className) {
+    public static void openDownloads(Context context) {
         try {
-            if (!(context instanceof org.telegram.ui.LaunchActivity)) {
-                return;
-            }
-            final Class<?> clazz = Class.forName(className);
-            final Object fragment = clazz.newInstance();
-            if (fragment instanceof org.telegram.ui.ActionBar.BaseFragment) {
-                ((org.telegram.ui.LaunchActivity) context)
-                    .presentFragment((org.telegram.ui.ActionBar.BaseFragment) fragment);
+            if (context instanceof org.telegram.ui.LaunchActivity) {
+                ((org.telegram.ui.LaunchActivity) context).presentFragment(new CacheControlActivity());
             }
         } catch (Throwable throwable) {
             FileLog.e(throwable);
-            toast(context, "Не удалось открыть экран Telegram");
         }
     }
 
@@ -466,7 +315,8 @@ public final class KamiGramCenter {
             if (user == null) {
                 return "me";
             }
-            return UserObject.getPublicUsername(user) != null ? UserObject.getPublicUsername(user) : "me";
+            final String username = UserObject.getPublicUsername(user);
+            return username != null ? username : "me";
         } catch (Throwable ignore) {
             return "me";
         }
@@ -477,7 +327,7 @@ public final class KamiGramCenter {
             final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
             if (manager != null) {
                 manager.setPrimaryClip(ClipData.newPlainText(label, value));
-                toast(context, "Скопировано: " + value);
+                KamiGramUi.notify(context, value + " — скопировано");
             }
         } catch (Throwable throwable) {
             FileLog.e(throwable);
@@ -485,62 +335,24 @@ public final class KamiGramCenter {
     }
 
     private static void confirm(final Context context, String title, String message, final Runnable onYes) {
-        try {
-            final AlertDialog dialog = new AlertDialog.Builder(context)
-                .setTitle(title)
-                .setMessage(message)
-                .setPositiveButton("Да", null)
-                .setNegativeButton("Отмена", null)
-                .create();
-            dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(v -> {
-                    dialog.dismiss();
-                    onYes.run();
-                }));
-            dialog.show();
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-        }
-    }
-
-    private static void toast(Context context, String text) {
-        try {
-            Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
-        } catch (Throwable ignore) {
-        }
-    }
-
-    private static void resetAll() {
-        final String[] keys = {
-            KamiGramConfig.KEY_GHOST, KamiGramConfig.KEY_STORIES_STEALTH, KamiGramConfig.KEY_NO_RESTRICTIONS,
-            KamiGramConfig.KEY_SHOW_IDS, KamiGramConfig.KEY_NO_PERMISSION_NAGS, KamiGramConfig.KEY_NO_SCREENSHOTS,
-            KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, KamiGramConfig.KEY_SMART_PROXY, KamiGramConfig.KEY_PROXY_FALLBACK,
-            KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, KamiGramConfig.KEY_FAST_NET, KamiGramConfig.KEY_NO_STICKERS,
-            KamiGramConfig.KEY_NO_STORIES, KamiGramConfig.KEY_NO_ANIMATED_EMOJI, KamiGramConfig.KEY_NO_GIFS,
-            KamiGramConfig.KEY_NO_LINK_PREVIEW, KamiGramConfig.KEY_NO_GIF_SEARCH, KamiGramConfig.KEY_NO_TOP_PEERS,
-            KamiGramConfig.KEY_NO_ADS, KamiGramConfig.KEY_NO_PREMIUM_UI, KamiGramConfig.KEY_KEEP_DOWNLOADS,
-            KamiGramConfig.KEY_IOS_DESIGN, KamiGramConfig.KEY_IOS_BUBBLES, KamiGramConfig.KEY_MATERIAL3,
-            KamiGramConfig.KEY_COMPACT_CHATS, KamiGramConfig.KEY_ENTER_TO_SEND, KamiGramConfig.KEY_SILENT_SEND,
-            KamiGramConfig.KEY_FORCE_SMS, KamiGramConfig.KEY_FAST_LOGIN
-        };
-        for (String key : keys) {
-            KamiGramConfig.set(key, KamiGramConfig.defaultValue(key));
-        }
-        KamiGramConfig.setAccent(0);
-        KamiGramConfig.setInt(KamiGramConfig.KEY_FONT_BOOST, 0);
-        KamiGramConfig.setInt(KamiGramConfig.KEY_CHAT_BACKGROUND, 0);
+        KamiGramDialog.create(context)
+            .title(title)
+            .message(message)
+            .icon(KamiGramDialog.ICON_CHECK)
+            .positive("Да", onYes)
+            .negative("Отмена", null)
+            .show();
     }
 
     // ------------------------------------------------------------------ вид
 
-    /** Карточка с заголовком-пояснением и строками. */
-    private static void card(LinearLayout root, Context context, Row[] rows) {
+    private static void card(LinearLayout root, Context context, Runnable onChanged, Row[] rows) {
         if (rows == null || rows.length == 0) {
             return;
         }
         final LinearLayout container = new LinearLayout(context);
         container.setOrientation(LinearLayout.VERTICAL);
-        container.setBackground(cardBackground(context));
+        container.setBackground(cardBackground());
         for (int i = 0; i < rows.length; i++) {
             container.addView(rows[i].build(context), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -558,11 +370,11 @@ public final class KamiGramCenter {
         spacing(root, 10);
     }
 
-    private static GradientDrawable cardBackground(Context context) {
+    private static GradientDrawable cardBackground() {
         final GradientDrawable shape = new GradientDrawable();
         shape.setShape(GradientDrawable.RECTANGLE);
         shape.setColor(ThemeHook.surface());
-        shape.setCornerRadius(AndroidUtilities.dp(KamiGramConfig.material3() ? 18 : 12));
+        shape.setCornerRadius(AndroidUtilities.dp(16));
         return shape;
     }
 
@@ -587,34 +399,43 @@ public final class KamiGramCenter {
     /** Строка карточки: переключатель, действие или пояснение. */
     private static final class Row {
 
-        private static final int TYPE_SWITCH = 0;
+        private static final int TYPE_TOGGLE = 0;
         private static final int TYPE_ACTION = 1;
         private static final int TYPE_INFO = 2;
 
         private final int type;
         private final String title;
+        private final String hint;
         private final String key;
         private final Runnable click;
-        private final Runnable refresh;
+        private final Runnable onChanged;
 
-        private Row(int type, String title, String key, Runnable click, Runnable refresh) {
+        private Row(int type, String title, String key, String hint, Runnable click, Runnable onChanged) {
             this.type = type;
             this.title = title;
             this.key = key;
+            this.hint = hint;
             this.click = click;
-            this.refresh = refresh;
+            this.onChanged = onChanged;
         }
 
-        static Row switchRow(String title, String key, Runnable refresh) {
-            return new Row(TYPE_SWITCH, title, key, null, refresh);
+        /**
+         * Строка-переключатель. Нажимается ВСЯ строка (а не только ползунок),
+         * поэтому «не работает» исключено.
+         */
+        static Row toggle(final Context context, String title, final String key, String hint, final Runnable onChanged) {
+            // ВАЖНО: значение переключателя записывается ровно в одном месте ниже —
+            // в обработчике самого переключателя. Раньше здесь был ещё один обработчик,
+            // который переворачивал значение обратно, и ползунок «не включался».
+            return new Row(TYPE_TOGGLE, title, key, hint, null, onChanged);
         }
 
         static Row action(String title, Runnable click) {
-            return new Row(TYPE_ACTION, title, null, click, null);
+            return new Row(TYPE_ACTION, title, null, null, click, null);
         }
 
         static Row info(String title) {
-            return new Row(TYPE_INFO, title, null, null, null);
+            return new Row(TYPE_INFO, title, null, null, null, null);
         }
 
         View build(final Context context) {
@@ -626,49 +447,69 @@ public final class KamiGramCenter {
                 view.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(9), AndroidUtilities.dp(12), AndroidUtilities.dp(9));
                 return view;
             }
+
             final LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(11), AndroidUtilities.dp(12), AndroidUtilities.dp(11));
 
+            final LinearLayout texts = new LinearLayout(context);
+            texts.setOrientation(LinearLayout.VERTICAL);
             final TextView text = new TextView(context);
             text.setText(title);
             text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
             text.setTextColor(type == TYPE_ACTION ? ThemeHook.accent() : ThemeHook.primaryText());
-            final LinearLayout.LayoutParams params =
+            texts.addView(text, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            if (hint != null) {
+                final TextView hintView = new TextView(context);
+                hintView.setText(hint);
+                hintView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+                hintView.setTextColor(ThemeHook.secondaryText());
+                hintView.setPadding(0, AndroidUtilities.dp(2), 0, 0);
+                texts.addView(hintView, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
+            final LinearLayout.LayoutParams textsParams =
                 new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            params.rightMargin = AndroidUtilities.dp(10);
-            row.addView(text, params);
+            textsParams.rightMargin = AndroidUtilities.dp(10);
+            row.addView(texts, textsParams);
 
-            if (type == TYPE_SWITCH) {
-                final Switch toggle = new Switch(context);
+            if (type == TYPE_TOGGLE) {
+                final KamiGramUi.Toggle toggle = new KamiGramUi.Toggle(context);
                 toggle.setChecked(KamiGramConfig.value(key), false);
-                toggle.setOnCheckedChangeListener((view, checked) -> {
-                    KamiGramConfig.set(key, checked);
-                    if (refresh != null) {
-                        refresh.run();
+                // значение пишется ровно один раз на каждое действие пользователя:
+                // apply() вызывается и когда тронули ползунок, и когда нажали строку
+                final Runnable apply = () -> {
+                    KamiGramConfig.set(key, toggle.isChecked());
+                    if (onChanged != null) {
+                        onChanged.run();
                     }
+                };
+                toggle.setOnToggleListener(checked -> {
+                    toggle.setChecked(checked, false);
+                    apply.run();
                 });
-                row.addView(toggle, new LinearLayout.LayoutParams(
-                    AndroidUtilities.dp(37), AndroidUtilities.dp(40)));
-            } else if (type == TYPE_ACTION) {
+                final LinearLayout.LayoutParams toggleParams =
+                    new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(24));
+                row.addView(toggle, toggleParams);
+                // тап по всей строке переключает — «не работает» исключено
+                row.setOnClickListener(v -> {
+                    toggle.setChecked(!toggle.isChecked(), true);
+                    apply.run();
+                });
+            } else {
                 row.setOnClickListener(v -> {
                     try {
-                        click.run();
+                        if (click != null) {
+                            click.run();
+                        }
                     } catch (Throwable throwable) {
                         FileLog.e(throwable);
                     }
                 });
             }
             return row;
-        }
-    }
-
-    private static String versionName() {
-        try {
-            return MessagesController.getGlobalMainSettings().getString("kamigram_version", "12.10.3 mod");
-        } catch (Throwable ignore) {
-            return "12.10.3 mod";
         }
     }
 }

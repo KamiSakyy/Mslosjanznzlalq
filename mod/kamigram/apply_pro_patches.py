@@ -159,60 +159,41 @@ def proxy_engine():
 # =============================================================================
 
 def proxy_button():
-    # 2.1 главный экран: кнопка в шапке
-    dlg = 'ui/DialogsActivity.java'
-    replace_once(dlg, 'KAMIGRAM_PROXY_BUTTON',
-                 '            optionsItem = menu.addItem(4, R.drawable.ic_ab_other);\n',
-                 '            optionsItem = menu.addItem(4, R.drawable.ic_ab_other);\n'
-                 '            /* KAMIGRAM_PROXY_BUTTON: кнопка прокси рядом с «тремя точками» */\n'
-                 '            ' + BUTTON + '.add(actionBar, getParentActivity(), () -> ' + BUTTON + '.showPanel(getParentActivity()));\n',
-                 'Прокси', 'кнопка прокси видна в шапке главного экрана постоянно')
+    # ПРОКСИ: НИКАКИХ САМОДЕЛЬНЫХ КНОПОК.
+    #
+    # Пользователь просил вернуть родные элементы Telegram: кнопка прокси у «трёх
+    # точек» — это родной пункт меню Telegram (со своей иконкой ProxyDrawable и
+    # подписью «Подключено» / «Отключено»), он открывает родной экран настроек
+    # прокси. Раньше мод добавлял в шапку свои кнопки и свои строки в меню —
+    # всё это убрано. Единственная правка ниже — показывать родной пункт всегда,
+    # чтобы он был под рукой с первого запуска (а не только после подключения).
+    patch('ui/DialogsActivity.java', 'KAMIGRAM_NATIVE_PROXY_ITEM',
+          '            final boolean proxyVisible = proxyEnabled && !TextUtils.isEmpty(proxyAddress)\n'
+          '                    || getMessagesController().blockedCountry && !SharedConfig.proxyList.isEmpty();\n',
+          '            /* KAMIGRAM_NATIVE_PROXY_ITEM: родной пункт «Прокси» у трёх точек виден всегда */\n'
+          '            final boolean proxyVisible = proxyEnabled && !TextUtils.isEmpty(proxyAddress)\n'
+          '                    || getMessagesController().blockedCountry && !SharedConfig.proxyList.isEmpty()\n'
+          '                    || org.telegram.messenger.kamigram.KamiGramBuiltinProxy.enabled();\n',
+          'Прокси', 'родной пункт «Прокси» у трёх точек главного экрана (иконка и состояние — от Telegram)')
 
-    # 2.3 строки прокси в меню «три точки» главного экрана (ItemOptions)
-    replace_once(dlg, 'KAMIGRAM_PROXY_MENU_ITEMS',
-                 '        io.setDimAlpha(0x08);\n',
-                 '        io.setDimAlpha(0x08);\n'
-                 '        /* KAMIGRAM_PROXY_MENU_ITEMS: прокси в меню «три точки» */\n'
-                 '        try {\n'
-                 '            io.add(0, "Прокси: " + ' + POWER + '.statusText(), () -> ' + BUTTON + '.showPanel(getParentActivity()));\n'
-                 '            io.add(0, "Вставить ссылку на прокси", () -> ' + BUTTON + '.showLinkDialog(getParentActivity(), null));\n'
-                 '            io.add(0, "Подобрать лучший прокси", () -> {\n'
-                 '                ' + POWER + '.refreshNow(getParentActivity());\n'
-                 '                android.widget.Toast.makeText(getParentActivity(), ' + POWER + '.statusText(), android.widget.Toast.LENGTH_LONG).show();\n'
-                 '            });\n'
-                 '        } catch (Throwable ignore) {\n'
-                 '        }\n',
-                 'Прокси', 'в меню «три точки» главного экрана есть прокси, ссылка и автоподбор')
-
-    # 2.4 чат: кнопка в шапке
+    # чат: в меню «три точки» только ID этого чата (одна аккуратная строка)
     chat = 'ui/ChatActivity.java'
-    patch(chat, 'KAMIGRAM_PROXY_BUTTON_CHAT',
-          '        if (((chatMode == 0 && (threadMessageId == 0 || isTopic)) || chatMode == MODE_SUGGESTIONS) && !UserObject.isReplyUser(currentUser) && !isReport()) {\n',
-          '            /* KAMIGRAM_PROXY_BUTTON_CHAT: прокси всегда под рукой и в чате */\n'
-          '            ' + BUTTON + '.add(actionBar, getParentActivity(), () -> ' + BUTTON + '.showPanel(getParentActivity()));\n',
-          'Прокси', 'кнопка прокси видна в шапке чата, рядом с «тремя точками»', before=True)
-
-    # 2.5 чат: строки в меню
-    replace_once(chat, 'KAMIGRAM_PROXY_MENU_CHAT',
+    replace_once(chat, 'KAMIGRAM_MENU_CHAT_ID',
                  '            headerItem = menu.addItem(chat_menu_options, otherIcon);\n',
                  '            headerItem = menu.addItem(chat_menu_options, otherIcon);\n'
-                 '            /* KAMIGRAM_PROXY_MENU_CHAT */\n'
-                 '            ' + BUTTON + '.addToMenu(headerItem, getParentActivity(), null);\n'
+                 '            /* KAMIGRAM_MENU_CHAT_ID */\n'
                  '            ' + IDS + '.addRow(headerItem, getDialogId());\n',
-                 'Прокси', 'в меню чата появились прокси и ID этого чата')
+                 'ID', 'ID чата виден в меню «три точки» этого чата')
 
-    # 2.6 обработка нажатий в чате
+    # обработка нажатия на ID
     replace_once(chat, 'KAMIGRAM_MENU_CLICK_CHAT',
                  '            public void onItemClick(final int id) {\n',
                  '            public void onItemClick(final int id) {\n'
                  '                /* KAMIGRAM_MENU_CLICK_CHAT */\n'
-                 '                if (' + BUTTON + '.handleClick(id, getParentActivity())) {\n'
-                 '                    return;\n'
-                 '                }\n'
                  '                if (' + IDS + '.handleClick(id, getDialogId(), getParentActivity())) {\n'
                  '                    return;\n'
                  '                }\n',
-                 'Прокси', 'нажатия в меню чата (прокси, ID) обрабатываются')
+                 'ID', 'нажатие «ID» в меню чата копирует его')
 
 
 # =============================================================================
@@ -240,7 +221,7 @@ def ids():
                  '        /* KAMIGRAM_ID_PROFILE: ID в меню профиля (нажатие копирует) */\n'
                  '        try {\n'
                  '            if (' + CFG + '.showIds()) {\n'
-                 '                otherItem.addSubItem(' + IDS + '.ID_COPY, 0, "ID: " + getDialogId() + "  (нажмите, чтобы скопировать)");\n'
+                 '                otherItem.addSubItem(' + IDS + '.ID_COPY, 0, "ID: " + getDialogId());\n'
                  '            }\n'
                  '        } catch (Throwable ignore) {\n'
                  '        }\n',
@@ -400,26 +381,12 @@ def permissions():
 # =============================================================================
 
 def design():
-    # 8.1 иконка настроек как в iOS.
-    # ВАЖНО (это была прошлая ошибка): меню принимает ИД РЕСУРСА (int), а не
-    # Drawable, поэтому подставляем собственный вектор R.drawable.kamigram_ic_ios_settings
-    # (лежит в mod/kamigram/res/drawable и копируется в res при сборке).
-    for f in ['ui/DialogsActivity.java', 'ui/web/WebActionBar.java']:
-        replace_once(f, 'KAMIGRAM_IOS_SETTINGS_ICON',
-                     'R.drawable.msg_settings_old',
-                     '/* KAMIGRAM_IOS_SETTINGS_ICON */ R.drawable.kamigram_ic_ios_settings',
-                     'Дизайн', 'иконка настроек — iOS-шестерёнка (меню и веб-экраны)')
-    # иконка шестерёнки в подменю бота в чате
-    replace_once('ui/ChatActivity.java', 'KAMIGRAM_IOS_SETTINGS_ICON2',
-                 'headerItem.lazilyAddSubItem(bot_settings, R.drawable.msg_settings_old',
-                 'headerItem.lazilyAddSubItem(bot_settings, /* KAMIGRAM_IOS_SETTINGS_ICON2 */ R.drawable.kamigram_ic_ios_settings',
-                 'Дизайн', 'иконка настроек бота — iOS-шестерёнка')
-    # иконка в настройках истории
-    replace_once('ui/Stories/PeerStoriesView.java', 'KAMIGRAM_IOS_SETTINGS_ICON3',
-                 'ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_settings_old',
-                 'ActionBarMenuItem.addItem(popupLayout, /* KAMIGRAM_IOS_SETTINGS_ICON3 */ R.drawable.kamigram_ic_ios_settings',
-                 'Дизайн', 'иконка настроек истории — iOS-шестерёнка')
-
+    # 8.1 ИКОНКИ НАСТРОЕК — РОДНЫЕ TELEGRAM.
+    #     Раньше мод подменял родную иконку настроек (R.drawable.msg_settings_old)
+    #     своей нарисованной шестерёнкой — в меню, в подменю бота и в историях.
+    #     Пользователь просил вернуть иконки Telegram: подмена убрана полностью.
+    #     Наша шестерёнка осталась только на строке «KamiGram» в настройках —
+    #     это собственный раздел мода, и там она уместна.
     # 8.2 меню «три точки» — iOS-скругление 14 вместо 12
     replace_once('ui/ActionBar/ActionBarMenuItem.java', 'KAMIGRAM_IOS_POPUP',
                  '                    .setRadius(dp(12))\n',
@@ -507,22 +474,9 @@ def traffic_extra():
 # =============================================================================
 
 IOS_COLORS = [
-    # Только акценты и переключатели. Фоны, разделители и текст НЕ трогаем:
-    # их задаёт тема P16 (родная тёмная тема Telegram с iOS-палитрой).
-    ('Theme.key_chat_messagePanelVoicePressed', 0xFFFF453A, 'кнопка записи голосового — iOS-красный'),
-    ('Theme.key_chat_recordTime', 0xFFFF453A, 'таймер записи — iOS-красный'),
-    ('Theme.key_chat_recordedVoiceDot', 0xFFFF453A, 'точка записи — iOS-красный'),
-    ('Theme.key_featuredStickers_addButton', 0xFF0A84FF, 'кнопка добавления набора — iOS-синий'),
-    ('Theme.key_featuredStickers_addedIcon', 0xFF0A84FF, 'галочка набора — iOS-синий'),
-    ('Theme.key_profile_creatorIcon', 0xFF0A84FF, 'иконка автора канала — iOS-синий'),
-    ('Theme.key_player_buttonActive', 0xFF0A84FF, 'активная кнопка плеера — iOS-синий'),
-    ('Theme.key_player_progress', 0xFF0A84FF, 'прогресс плеера — iOS-синий'),
-    ('Theme.key_voipgroup_mutedIcon', 0xFFFF453A, 'микрофон выключен — iOS-красный'),
-    ('Theme.key_switchTrack', 0xFF39393D, 'выключенный переключатель — графит iOS'),
-    ('Theme.key_switchTrackBlue', 0xFF39393D, 'переключатель (выкл) — графит iOS'),
-    ('Theme.key_switchTrackBlueSelector', 0xFF48484A, 'нажатие переключателя — графит iOS'),
-    ('Theme.key_switch2Track', 0xFF39393D, 'второй переключатель (выкл) — графит iOS'),
-    ('Theme.key_actionBarDefaultSelector', 0x22FFFFFF, 'нажатие в шапке — мягкое свечение'),
+    # ЦВЕТА КАК В TELEGRAM (список намеренно пуст). Все цвета задаёт тема P16,
+    # а не код: так интерфейс выглядит как настоящий Telegram и не появляется
+    # «непонятно откуда красное и оранжевое».
 ]
 
 

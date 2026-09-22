@@ -97,6 +97,10 @@ public final class ThemeHook {
      * поэтому читаемость не может пострадать.
      */
     public static void applyAccent() {
+        // 0 = «как в Telegram»: ничего не переопределяем, цвета родные
+        if (KamiGramConfig.accentIndex() == 0) {
+            return;
+        }
         final int accent = accent();
         final int soft = (accent & 0x00FFFFFF) | 0x33000000;
         final int soft22 = (accent & 0x00FFFFFF) | 0x22000000;

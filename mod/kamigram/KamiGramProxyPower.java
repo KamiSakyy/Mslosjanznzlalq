@@ -156,8 +156,8 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             INSTANCE.singleProxyDropped = false;
 
             if (!silent && context != null) {
-                Toast.makeText(context, info.settings.getAddress() + ":" + info.settings.getPort()
-                    + " — подключено", Toast.LENGTH_SHORT).show();
+                KamiGramUi.notify(context, info.settings.getAddress() + ":" + info.settings.getPort()
+                    + " — подключено");
             }
             return true;
         } catch (Throwable e) {
@@ -173,7 +173,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
                 org.telegram.proxy.ProxySettings.fromUri(android.net.Uri.parse(link));
             if (settings == null || !settings.isValid()) {
                 if (context != null) {
-                    Toast.makeText(context, "Ссылка на прокси не распознана", Toast.LENGTH_SHORT).show();
+                    KamiGramUi.notify(context, "Ссылка на прокси не распознана");
                 }
                 return false;
             }
@@ -271,7 +271,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             ConnectionsManager.setProxySettings(false, null);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
             if (context != null) {
-                Toast.makeText(context, "Прокси не отвечает — включено прямое подключение, мод сам вернёт прокси, когда он оживёт", Toast.LENGTH_LONG).show();
+                KamiGramUi.notify(context, "Прокси не отвечает — включено прямое подключение, мод сам вернёт прокси, когда он оживёт");
             }
         } catch (Throwable e) {
             FileLog.e(e);

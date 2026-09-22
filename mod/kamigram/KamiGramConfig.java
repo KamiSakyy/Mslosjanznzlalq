@@ -20,12 +20,16 @@ public final class KamiGramConfig {
     // ------------------------------------------------------------- приватность
     /** Призрак: не видно чтение, «печатает», «в сети». */
     public static final String KEY_GHOST = "kamigram_ghost";
+    /** При призраке отправлять сообщения тихо (через отложку) — без отметки «в сети». */
+    public static final String KEY_GHOST_SEND = "kamigram_ghost_send";
     /** Не записывать просмотры историй (серверная невидимка). */
     public static final String KEY_STORIES_STEALTH = "kamigram_stories_stealth";
     /** Снять запреты защищённого контента. */
     public static final String KEY_NO_RESTRICTIONS = "kamigram_no_restrictions";
     /** Показывать ID чатов и пользователей. */
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
+    /** Сохранять текст удалённых сообщений в журнал. */
+    public static final String KEY_KEEP_DELETED = "kamigram_keep_deleted";
     /** Не спрашивать разрешения (контакты, телефон, уведомления). */
     public static final String KEY_NO_PERMISSION_NAGS = "kamigram_no_permission_nags";
     /** Запрет скриншотов во всём приложении (FLAG_SECURE). */
@@ -44,6 +48,12 @@ public final class KamiGramConfig {
     public static final String KEY_FAST_NET = "kamigram_fast_net";
 
     // ------------------------------------------------------------- трафик
+    /** РЕЖИМ «ТОЛЬКО ТЕКСТ»: ни одной картинки, медиа — по нажатию. */
+    public static final String KEY_TEXT_ONLY = "kamigram_text_only";
+    /** Умный фильтр рекламы в сообщениях. */
+    public static final String KEY_ADS_FILTER = "kamigram_ads_filter";
+    /** Встроенные прокси сборки с авто-роутингом (KamiProxy). */
+    public static final String KEY_BUILTIN_PROXY = "kamigram_builtin_proxy";
     /** Не грузить стикеры и наборы эмодзи. */
     public static final String KEY_NO_STICKERS = "kamigram_no_stickers";
     /** Не грузить истории и их медиа. */
@@ -126,7 +136,10 @@ public final class KamiGramConfig {
         // выключено по умолчанию: то, что меняет обычное поведение Telegram
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
-            || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)) {
+            || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
+            || KEY_TEXT_ONLY.equals(key)) {
+            // «только текст» по умолчанию выключен: это самый жёсткий режим,
+            // его включает пользователь сам, когда нужна максимальная экономия
             return false;
         }
         return true;
@@ -137,6 +150,15 @@ public final class KamiGramConfig {
             final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
             if (preferences != null) {
                 preferences.edit().putBoolean(key, value).apply();
+            }
+        } catch (Throwable ignore) {
+        }
+        // выключатель KamiProxy должен не только сохраниться, но и сразу
+        // применить себя: выключение снимает встроенный прокси, включение —
+        // тут же подбирает лучший живой
+        try {
+            if (KEY_BUILTIN_PROXY.equals(key)) {
+                KamiGramBuiltinProxy.onEnabledChanged(value);
             }
         } catch (Throwable ignore) {
         }
@@ -176,6 +198,11 @@ public final class KamiGramConfig {
         return get(KEY_GHOST, true);
     }
 
+    /** Тихая отправка при призраке. */
+    public static boolean ghostSend() {
+        return get(KEY_GHOST_SEND, true);
+    }
+
     public static boolean storiesStealth() {
         return get(KEY_STORIES_STEALTH, true);
     }
@@ -186,6 +213,11 @@ public final class KamiGramConfig {
 
     public static boolean showIds() {
         return get(KEY_SHOW_IDS, true);
+    }
+
+    /** Журнал удалённых сообщений. */
+    public static boolean keepDeleted() {
+        return get(KEY_KEEP_DELETED, true);
     }
 
     public static boolean noPermissionNags() {
@@ -214,6 +246,21 @@ public final class KamiGramConfig {
 
     public static boolean fastNet() {
         return get(KEY_FAST_NET, true);
+    }
+
+    /** Режим «только текст»: максимальная экономия трафика. */
+    public static boolean textOnly() {
+        return get(KEY_TEXT_ONLY, false);
+    }
+
+    /** Скрывать сообщения с метками рекламы. */
+    public static boolean adsFilter() {
+        return get(KEY_ADS_FILTER, true);
+    }
+
+    /** Встроенные прокси сборки (KamiProxy) с моментальным авто-роутингом. */
+    public static boolean builtinProxy() {
+        return get(KEY_BUILTIN_PROXY, true);
     }
 
     public static boolean noStickers() {

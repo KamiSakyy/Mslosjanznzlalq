@@ -627,7 +627,7 @@ new = (
     "                            editor.commit();\n"
     "                            ConnectionsManager.setProxySettings(true, proxySettings);\n"
     "                            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);\n"
-    "                            Toast.makeText(activity, proxySettings.getAddress() + \":\" + proxySettings.getPort() + \" \\u2014 \\u043f\\u0440\\u043e\\u043a\\u0441\\u0438 \\u0432\\u043a\\u043b\\u044e\\u0447\\u0451\\u043d\", Toast.LENGTH_SHORT).show();\n"
+    "                            org.telegram.messenger.kamigram.KamiGramUi.notify(activity, proxySettings.getAddress() + \":\" + proxySettings.getPort() + \" \\u2014 KamiProxy\");\\n"
     "                        } catch (Exception e) {\n"
     "                            FileLog.e(e);\n"
     "                            showProxyAlert(activity, proxySettings);\n"
@@ -713,14 +713,9 @@ if [ "$IOS_UI" = "1" ]; then
         cp -f "$KAMIGRAM_SRC/res/drawable/$icon.xml" "$RES_ROOT/drawable/$icon.xml"
     done
 
-    # 2) iOS-шеврон вместо стрелки «назад»: убираем webp во всех плотностях, кладём вектор
+    # 2) стрелка «назад» остаётся РОДНОЙ Telegram (самодельный шеврон убран:
+    #    пользователь просил вернуть иконки Telegram)
     removed_back=0
-    while IFS= read -r f; do
-        [ -n "$f" ] || continue
-        rm -f "$f"; removed_back=$((removed_back+1))
-    done < <(find "$RES_ROOT" -name 'ic_ab_back.webp' 2>/dev/null)
-    cp -f "$KAMIGRAM_SRC/res/drawable/ic_ab_back.xml" "$RES_ROOT/drawable/ic_ab_back.xml"
-
     # 3) фабрика iOS-табов внутри GlassTabView (там есть доступ к приватным полям таба)
     GTV="$JAVA_ROOT/org/telegram/ui/Components/glass/GlassTabView.java"
     python3 - "$GTV" <<'PY' || die "P20: не удалось добавить iOS-фабрику таба"
@@ -839,16 +834,11 @@ if 'import org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;' not i
                           'import org.telegram.ui.Components.FolderDrawable;\nimport org.telegram.ui.Components.kamigram.KamiGramIOSTabBarDrawable;\n', 1)
     changed += 1
 
-repl = [
-    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CHATS, R.string.MainTabsChats)',
-     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_chats, R.string.MainTabsChats)'),
-    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CONTACTS, R.string.MainTabsContacts)',
-     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_contacts, R.string.MainTabsContacts)'),
-    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.SETTINGS, R.string.Settings)',
-     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_settings, R.string.Settings)'),
-    ('GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CALLS, R.string.MainTabsCalls)',
-     'GlassTabView.createKamiGramIOSTab(context, resourceProvider, R.drawable.kamigram_tab_calls, R.string.MainTabsCalls)'),
-]
+# ИКОНКИ ВКЛАДОК — РОДНЫЕ TELEGRAM (никаких самодельных).
+# Раньше мод подменял иконки нижнего таб-бара на свои векторы, и это выглядело
+# плохо («не поменял иконку настроек», «верни иконки ТГ»). Теперь иконки
+# остаются телеграмовскими (createMainTab), а от мода тут только фон панели.
+repl = []
 for old, new in repl:
     if old in src:
         src = src.replace(old, new, 1)
@@ -870,8 +860,9 @@ if changed == 0:
 io.open(path, 'w', encoding='utf-8').write(src)
 PY
 
-    [ "$(grep -c 'createKamiGramIOSTab' "$MTA")" = "4" ] || die "P20: ожидалось 4 iOS-таба"
-    ok "P20 КОД: свой iOS-интерфейс — плоская панель табов и шапка рисуются кодом KamiGram, свои тонкие иконки, анимация выбора, панель на всю ширину, шеврон «назад» как в iOS (заменено webp-стрелок: $removed_back)"
+    [ "$(grep -c 'createMainTab' "$MTA")" -ge 4 ] || die "P20: родные вкладки Telegram не найдены"
+    grep -q 'createKamiGramIOSTab' "$MTA" && die "P20: самодельные иконки вкладок вернулись"
+    ok "P20 КОД: плоская панель табов рисуется кодом KamiGram, а ИКОНКИ ВКЛАДОК — родные Telegram (самодельные убраны)"
 else
     skip "P20 iOS-интерфейс не применяется (IOS_UI=0)"
 fi
@@ -1538,7 +1529,7 @@ if mark not in src:
         sys.stderr.write('P28: не найдена строка настроек языка\n')
         sys.exit(1)
     row = (row_anchor +
-           '        items.add(SettingCell.Factory.of(90, 0xFF34C759, 0xFF0A84FF, R.drawable.settings_features, "KamiGram: функции мода", org.telegram.messenger.kamigram.KamiGramConfig.summary())); /* ' + mark + ' */\n')
+           '        items.add(SettingCell.Factory.of(90, 0xFF636366, 0xFF48484A, R.drawable.kamigram_ic_ios_settings, "KamiGram: функции мода", org.telegram.messenger.kamigram.KamiGramConfig.summary())); /* ' + mark + ' */\n')
     src = src.replace(row_anchor, row, 1)
 
 case_anchor = '            case 17:\n                showDialog(AlertsCreator.createSupportAlert(this, resourceProvider));\n'
@@ -1931,8 +1922,36 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
         [ -f "$JAVA_ROOT/org/telegram/messenger/kamigram/$f.java" ] || die "P90: не скопирован $f.java"
     done
     ok "P90 классы мода на месте: KamiGramTweaks / KamiGramTraffic"
+
+    # P95: правки по замечаниям пользователя — галочка своим каналам, ID под @,
+    # фильтр рекламы, режим «только текст», журнал удалённых, свой статус в профиле
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r43_patches.py" || die "P95: правки применились не полностью"
+    [ -f "$TG_DIR/MOD_FEATURES_r43.txt" ] || die "P95: нет отчёта MOD_FEATURES_r43.txt"
+    ok "P95 ПРАВКИ 2026: галочка моим каналам, ID под @username, фильтр рекламы, режим «только текст», журнал удалённых"
 else
     skip "P90 второй пакет отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P96. АККАУНТЫ: лимит расширен с 4 до 10 (переключатель аккаунтов в меню
+#      и на экране входа), плюс копирование новых классов мода.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    UC="$JAVA_ROOT/org/telegram/messenger/UserConfig.java"
+    if grep -q 'MAX_ACCOUNT_COUNT = 4;' "$UC"; then
+        sed_i 's/MAX_ACCOUNT_COUNT = 4;/MAX_ACCOUNT_COUNT = 10;/' "$UC"
+    fi
+    grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
+    ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
+
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    ok "P96 новые классы мода на месте: реклама, галочка, «только текст», интерфейс, встроенные прокси"
+else
+    skip "P96 отключено (ZERO_TRAFFIC=0)"
 fi
 
 # =============================================================================

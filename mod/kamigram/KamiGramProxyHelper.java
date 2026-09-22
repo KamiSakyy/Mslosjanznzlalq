@@ -133,7 +133,7 @@ public final class KamiGramProxyHelper {
 
             lastActivatedLink = link;
             if (context != null) {
-                Toast.makeText(context, "KamiGram: " + settings.getAddress() + ":" + settings.getPort()
+                KamiGramUi.notify(context, settings.getAddress() + ":" + settings.getPort()
                     + " - proxy enabled", Toast.LENGTH_SHORT).show();
             }
             return true;
@@ -228,7 +228,7 @@ public final class KamiGramProxyHelper {
     /** Loud, always visible progress of the login: a toast works even when no dialog can be shown. */
     public static void toastLogin(String text) {
         try {
-            Toast.makeText(ApplicationLoader.applicationContext, "KamiGram: " + text, Toast.LENGTH_LONG).show();
+            KamiGramUi.notify(ApplicationLoader.applicationContext, text);
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -244,7 +244,7 @@ public final class KamiGramProxyHelper {
             ConnectionsManager.setProxySettings(false, null);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
             if (context != null) {
-                Toast.makeText(context, "KamiGram: " + reason, Toast.LENGTH_LONG).show();
+                KamiGramUi.notify(context, reason);
             }
         } catch (Throwable e) {
             FileLog.e(e);
@@ -335,7 +335,7 @@ public final class KamiGramProxyHelper {
         try {
             final int account = UserConfig.selectedAccount;
             text.append("Build: ").append(BuildVars.BUILD_VERSION_STRING)
-                .append(", api_id ").append(KamiGramAuthKeys.appId()).append('\n');
+                .append('\n');
             if (context != null) {
                 text.append("Package: ").append(context.getPackageName()).append('\n');
                 text.append("Cert SHA-256: ").append(signatureHash(context)).append("...\n");
@@ -366,7 +366,7 @@ public final class KamiGramProxyHelper {
             final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
             if (manager != null) {
                 manager.setPrimaryClip(ClipData.newPlainText("KamiGram login", text));
-                Toast.makeText(context, "KamiGram: copied", Toast.LENGTH_SHORT).show();
+                KamiGramUi.notify(context, "Скопировано");
             }
         } catch (Throwable e) {
             FileLog.e(e);

@@ -53,28 +53,31 @@ public final class KamiGramProxyButton {
 
     // ------------------------------------------------------------------ кнопка в шапке
 
-    /** Добавляет кнопку прокси в шапку (слева от «трёх точек»). */
+    /**
+     * Добавляет кнопку прокси в шапку (слева от «трёх точек»).
+     *
+     * Иконка — РОДНАЯ иконка Telegram (org.telegram.ui.Components.ProxyDrawable),
+     * та же самая, что Telegram показывает в своём меню прокси. Никаких
+     * самодельных щитов: выглядит один в один как в приложении.
+     */
     public static ActionBarMenuItem add(ActionBar actionBar, final Context context, final Runnable openPanel) {
         try {
             if (actionBar == null) {
                 return null;
             }
             final ActionBarMenu menu = actionBar.createMenu();
-            final IconDrawable icon = new IconDrawable();
+            final org.telegram.ui.Components.ProxyDrawable icon =
+                new org.telegram.ui.Components.ProxyDrawable(context);
             final ActionBarMenuItem item = menu.addItem(ID_PROXY, icon);
-            item.setContentDescription("Прокси KamiGram");
+            item.setContentDescription("Прокси");
             item.setVisibility(View.VISIBLE);
-            ICONS.add(icon);
-            refreshAll();
             item.setOnClickListener(v -> {
-                paint(item);
                 if (openPanel != null) {
                     openPanel.run();
                 } else {
                     showPanel(context);
                 }
             });
-            paint(item);
             return item;
         } catch (Throwable e) {
             FileLog.e(e);
@@ -126,7 +129,7 @@ public final class KamiGramProxyButton {
         }
         if (id == ID_PROXY_BEST) {
             KamiGramProxyPower.refreshNow(context);
-            Toast.makeText(context, KamiGramProxyPower.statusText(), Toast.LENGTH_LONG).show();
+            KamiGramUi.notify(context, KamiGramProxyPower.statusText());
             return true;
         }
         return false;
@@ -223,7 +226,7 @@ public final class KamiGramProxyButton {
                     final String text = input.getText() != null ? input.getText().toString() : "";
                     final String link = KamiGramProxyHelper.extractLink(text);
                     if (link == null) {
-                        Toast.makeText(context, "Это не похоже на ссылку прокси", Toast.LENGTH_SHORT).show();
+                        KamiGramUi.notify(context, "Это не похоже на ссылку прокси");
                         return;
                     }
                     if (KamiGramProxyPower.addAndActivate(link, context)) {
@@ -232,7 +235,7 @@ public final class KamiGramProxyButton {
                 });
                 dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
                     KamiGramProxyPower.pingAll();
-                    Toast.makeText(context, "Проверяю все прокси…", Toast.LENGTH_SHORT).show();
+                    KamiGramUi.notify(context, "Проверяю все прокси…");
                 });
             });
             dialog.show();
@@ -242,7 +245,7 @@ public final class KamiGramProxyButton {
     }
 
     private static void dismissLater(Context context) {
-        Toast.makeText(context, KamiGramProxyPower.statusText(), Toast.LENGTH_SHORT).show();
+        KamiGramUi.notify(context, KamiGramProxyPower.statusText());
     }
 
     /** Диалог «вставь ссылку на прокси» — подключает моментально. */
@@ -282,7 +285,7 @@ public final class KamiGramProxyButton {
                 final String text = input.getText() != null ? input.getText().toString() : "";
                 final String link = KamiGramProxyHelper.extractLink(text);
                 if (link == null) {
-                    Toast.makeText(context, "Ссылка не распознана", Toast.LENGTH_SHORT).show();
+                    KamiGramUi.notify(context, "Ссылка не распознана");
                     return;
                 }
                 if (KamiGramProxyPower.addAndActivate(link, context)) {

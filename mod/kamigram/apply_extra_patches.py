@@ -467,35 +467,12 @@ def main():
     # 5. iOS-ЦВЕТА КОДОМ: переопределяем цвета ключевых элементов.
     # =========================================================================
     theme_colors = [
-        # ВАЖНО: здесь ТОЛЬКО акценты, переключатели и счётчики.
-        # Никаких фонов, облаков и текста — они берутся из родной тёмной темы
-        # Telegram (P16), где автор согласовал каждый цвет. Именно попытка
-        # задать фон кодом (windowBackgroundWhite=#000000, chats_name=#000000)
-        # давала чёрный текст на чёрных карточках в прошлой сборке.
-        ('key_chats_unreadCounter', '0xFFFF453A', 'счётчик непрочитанного — iOS-красный'),
-        ('key_chats_unreadCounterMuted', '0xFF8E8E93', 'счётчик в беззвучных — iOS-серый'),
-        ('key_chats_unreadCounterText', '0xFFFFFFFF', 'текст счётчика — белый'),
-        ('key_chats_onlineCircle', '0xFF30D158', 'кружок «в сети» — iOS-зелёный'),
-        ('key_chats_secretIcon', '0xFF30D158', 'иконка секретного чата — iOS-зелёный'),
-        ('key_switchTrackChecked', '0xFF34C759', 'включённые переключатели — iOS-зелёные'),
-        ('key_checkbox', '0xFF0A84FF', 'галочки выбора — iOS-синий'),
-        ('key_fastScrollActive', '0xFF0A84FF', 'быстрая прокрутка — iOS-синий'),
-        ('key_progressCircle', '0xFF0A84FF', 'круговой прогресс — iOS-синий'),
-        ('key_chat_messageLinkIn', '0xFF0A84FF', 'ссылки во входящих — iOS-синий'),
-        ('key_chat_messageLinkOut', '0xFFA8D4FF', 'ссылки в исходящих — светлые на синем облаке'),
-        ('key_chat_replyPanelName', '0xFF0A84FF', 'имя в ответе — iOS-синий'),
-        ('key_profile_actionIcon', '0xFF0A84FF', 'иконки действий профиля — iOS-синий'),
-        ('key_avatar_backgroundActionBarBlue', '0xFF0A84FF', 'аватар в шапке — iOS-синий'),
-        ('key_chat_inLoader', '0xFF0A84FF', 'кружок загрузки входящих — iOS-синий'),
-        ('key_chat_outLoader', '0xFF0A84FF', 'кружок загрузки исходящих — iOS-синий'),
-        ('key_chat_messagePanelSend', '0xFF0A84FF', 'кнопка отправки — iOS-синий'),
-        ('key_chat_recordedVoiceProgress', '0xFF0A84FF', 'прогресс голосового — iOS-синий'),
-        ('key_chats_actionBackground', '0xFF0A84FF', 'плавающая кнопка списка чатов — iOS-синий'),
-        # иконки в шапке и в поле ввода — БЕЛЫЕ и СЕРЫЕ, как в Telegram (не акцентные!):
-        ('key_actionBarDefaultIcon', '0xFFFFFFFF', 'иконки в шапке — белые, как в Telegram'),
-        ('key_chat_attachIcon', '0xFF8E8E93', 'иконка вложения — серая, как в Telegram'),
-        ('key_chat_messagePanelIcons', '0xFF8E8E93', 'иконки поля ввода — серые, как в Telegram'),
-        ('key_chat_fieldOverlayText', '0xFFFFFFFF', 'подпись в поле ввода — белая'),
+        # ЦВЕТА КАК В TELEGRAM. Здесь намеренно ПУСТО: все цвета берутся из темы
+        # приложения (P16 — тёмная iOS-палитра) и из собственных значений
+        # Telegram. Раньше мод переопределял цвета кодом (красные счётчики,
+        # индиго-акценты) — из-за этого «цвета были не как в ТГ».
+        # Если нужно вернуть какой-то акцент, добавь строку вида
+        # ('key_имя_ключа', '0xFFRRGGBB', 'описание').
     ]
     theme_class = os.path.join(java, 'messenger/kamigram/KamiGramTheme.java')
     sets = ''.join('            set(Theme.%s, %s);\n' % (k, c) for k, c, _d in theme_colors)

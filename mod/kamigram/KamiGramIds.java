@@ -44,7 +44,7 @@ public final class KamiGramIds {
             if (menuItem == null || dialogId == 0 || !KamiGramConfig.showIds()) {
                 return;
             }
-            menuItem.addSubItem(ID_COPY, 0, "ID: " + dialogId + "  (нажмите, чтобы скопировать)");
+            menuItem.addSubItem(ID_COPY, 0, "ID: " + dialogId);
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -60,7 +60,7 @@ public final class KamiGramIds {
                 final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
                 if (manager != null) {
                     manager.setPrimaryClip(ClipData.newPlainText("KamiGram ID", Long.toString(dialogId)));
-                    Toast.makeText(context, "ID скопирован: " + dialogId, Toast.LENGTH_SHORT).show();
+                    KamiGramUi.notify(context, "ID скопирован: " + dialogId);
                 }
             }
         } catch (Throwable e) {

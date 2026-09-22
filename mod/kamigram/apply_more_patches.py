@@ -331,24 +331,11 @@ def defaults():
 # =============================================================================
 
 def quality():
-    # 4.1 кнопка прокси в настройках (шапка)
-    p = os.path.join(JAVA, 'ui/SettingsActivity.java')
-    try:
-        src = io.open(p, encoding='utf-8').read()
-        anchor = '    protected void createActionBarMenu() {\n'
-        if anchor in src and 'KAMIGRAM_PROXY_BUTTON_SETTINGS' not in src:
-            src = src.replace(anchor, anchor +
-                              '        /* KAMIGRAM_PROXY_BUTTON_SETTINGS: прокси и в настройках под рукой */\n'
-                              '        try {\n'
-                              '            org.telegram.messenger.kamigram.KamiGramProxyButton.add(actionBar,\n'
-                              '                getParentActivity(), () -> org.telegram.messenger.kamigram.KamiGramProxyButton.showPanel(getParentActivity()));\n'
-                              '        } catch (Throwable ignore) {\n'
-                              '        }\n', 1)
-            io.open(p, 'w', encoding='utf-8').write(src)
-            DONE.append(('Дизайн', 'кнопка прокси в шапке настроек', 'SettingsActivity'))
-    except Exception as e:
-        FAILED.append('SettingsActivity: %s' % e)
-
+    # 4.1 КНОПКА ПРОКСИ В НАСТРОЙКАХ — УБРАНА.
+    #     Раньше мод добавлял свою кнопку в шапку настроек. Пользователь просил
+    #     не плодить свои кнопки, а использовать родные: прокси открывается
+    #     родным пунктом меню Telegram («три точки» главного экрана) и родным
+    #     экраном настроек прокси. Своя кнопка в шапке настроек больше не нужна.
     # 4.2 длинное нажатие на «KamiGram» в настройках открывает панель прокси
     try:
         src = io.open(p, encoding='utf-8').read()
