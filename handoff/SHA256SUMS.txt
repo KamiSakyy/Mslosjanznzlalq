@@ -29,4 +29,4 @@ b0b5c9703b5b29bdd3f17e4c626345776a8aeaa12209aab0725a8525e11a31f7  KamiGram-12.10
 c5993167bff89a2af87e8c7c6b35e02daab09ce12bcfe93ea600ab69a4727b8f  KamiGram-12.10.3-mod-r65.apk
 a787e5ce648b222b5bd5874efd112fd2c0808a16656002a15e60ea1ed7da5211  KamiGram-12.10.3-mod-r8.apk
 c5993167bff89a2af87e8c7c6b35e02daab09ce12bcfe93ea600ab69a4727b8f  KamiGram-latest.apk
-be6cbb2cadd564c79aecba8e1691891efe943fb9bfe1f16a0f5ae194e9d0c32c  sources/KamiGram-12.10.3-mod-r65-POLNYJ-ISHODNIK.zip
+d4d0b9e5fe103acbd3d8a41e890ba1212c65fc408cddf06b16ba2956270a9807  sources/KamiGram-12.10.3-mod-r66-POLNYJ-ISHODNIK.zip
