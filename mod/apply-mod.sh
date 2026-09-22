@@ -46,6 +46,9 @@
 set -Eeuo pipefail
 
 # ------------------------------ параметры -----------------------------------
+# r66/r67: имя KamiGram в шапке не пропадает при прокси, нет ложной анимации загрузки,
+#         одноразовые фото не удаляются, удалённые в личных чатах остаются, папки — белый текст
+#         (см. kamigram/apply_r66_patches.py, секция P98 ниже)
 TG_DIR=${TG_DIR:-telegram-src}
 APP_NAME=${APP_NAME:-KamiGram}
 APP_PACKAGE=${APP_PACKAGE:-com.kami.gram}
