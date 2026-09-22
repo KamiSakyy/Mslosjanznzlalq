@@ -19,5 +19,6 @@ d2ba58bd997a06758556c1b60e3308aa9e0a4f320847700afe96dd17b176c2f6  KamiGram-12.10
 58a1e73b32cdf3e49e71112cca9ed4a8033afdab71d062fa8fe3e477c62d7913  KamiGram-12.10.3-mod-r42.apk
 b869dbf66cfc8e7ae6db09a6defbeabddc50a3228187ccf475324aafb3c2896b  KamiGram-12.10.3-mod-r45.apk
 ca7dcb456a6c97231d41656b8a0fee13169edda2a4c21a5f439825ddc733bdb2  KamiGram-12.10.3-mod-r48.apk
+74a2700be6c4dc5ce6b25e6fe7a39ae583e921462f7c7794daca884facfdfabb  KamiGram-12.10.3-mod-r49.apk
 a787e5ce648b222b5bd5874efd112fd2c0808a16656002a15e60ea1ed7da5211  KamiGram-12.10.3-mod-r8.apk
-ca7dcb456a6c97231d41656b8a0fee13169edda2a4c21a5f439825ddc733bdb2  KamiGram-latest.apk
+74a2700be6c4dc5ce6b25e6fe7a39ae583e921462f7c7794daca884facfdfabb  KamiGram-latest.apk
