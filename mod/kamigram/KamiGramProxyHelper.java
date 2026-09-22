@@ -132,10 +132,7 @@ public final class KamiGramProxyHelper {
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
 
             lastActivatedLink = link;
-            if (context != null) {
-                KamiGramUi.notify(context,
-                    settings.getAddress() + ":" + settings.getPort() + " — KamiProxy активен");
-            }
+            /* Никаких всплывающих пояснений: прокси включился — и всё. */
             return true;
         } catch (Throwable e) {
             FileLog.e(e);
@@ -227,11 +224,7 @@ public final class KamiGramProxyHelper {
 
     /** Loud, always visible progress of the login: a toast works even when no dialog can be shown. */
     public static void toastLogin(String text) {
-        try {
-            KamiGramUi.notify(ApplicationLoader.applicationContext, text);
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
+        /* Статусы «Подключение…» и прочие всплывающие пояснения убраны: тишина. */
     }
 
     /** Switches the proxy off (direct connection or VPN takes over). */
@@ -243,9 +236,7 @@ public final class KamiGramProxyHelper {
             SharedConfig.currentProxy = null;
             ConnectionsManager.setProxySettings(false, null);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
-            if (context != null) {
-                KamiGramUi.notify(context, reason);
-            }
+            /* Молча: никаких всплывающих пояснений про прокси. */
         } catch (Throwable e) {
             FileLog.e(e);
         }

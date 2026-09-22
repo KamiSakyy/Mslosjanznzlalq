@@ -389,24 +389,16 @@ public final class KamiGramBuiltinProxy {
 
     /** Короткая подпись для центра мода (без адресов — они скрыты). */
     public static String statusText() {
+        /* Никаких пояснений: короткое состояние без адресов и подсказок. */
         try {
             if (!enabled()) {
-                return "KamiProxy выключен";
-            }
-            if (vpnActive()) {
-                return "VPN включён — KamiProxy работает через него";
+                return "KamiProxy";
             }
             final SharedConfig.ProxyInfo info = SharedConfig.currentProxy;
-            if (info == null || info.settings == null || !isBuiltIn(info)) {
-                return "KamiProxy: подбираю лучший (в сборке " + count() + ")";
+            if (info != null && info.available && info.ping > 0) {
+                return "KamiProxy · " + info.ping + " мс";
             }
-            if (info.checking) {
-                return "KamiProxy: проверяю " + count() + " прокси…";
-            }
-            if (info.available && info.ping > 0) {
-                return "KamiProxy: подключён, " + info.ping + " мс · в сборке " + count();
-            }
-            return "KamiProxy: переключаюсь на живой · в сборке " + count();
+            return "KamiProxy";
         } catch (Throwable ignore) {
             return "KamiProxy";
         }

@@ -247,12 +247,26 @@ def font_everywhere():
           'шрифт: применяется ко всему экрану при входе')
 
 
+
+def font_typeface():
+    """Шрифт ВЕЗДЕ: любой запрос шрифта Telegram отдаёт наш шрифт (medium/bold/italic сохраняются)."""
+    patch('messenger/AndroidUtilities.java', 'KAMIGRAM_FONT_TYPEFACE',
+          '    public static Typeface getTypeface(String assetPath) {\n',
+          '        /* KAMIGRAM_FONT_TYPEFACE: свой .ttf вместо родных шрифтов Telegram */\n'
+          '        Typeface kamigramTypeface = ' + FONT + '.forAsset(assetPath);\n'
+          '        if (kamigramTypeface != null) {\n'
+          '            return kamigramTypeface;\n'
+          '        }\n',
+          'шрифт: применяется и там, где Telegram берёт свой шрифт из файла')
+
+
 def main():
     ghost_header()
     app_title()
     downloads()
     keep_deleted()
     font_everywhere()
+    font_typeface()
 
     print('r54: изменений — %d' % len(DONE))
     for what in DONE:

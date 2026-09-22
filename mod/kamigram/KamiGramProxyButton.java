@@ -109,9 +109,10 @@ public final class KamiGramProxyButton {
             if (menuItem == null || context == null) {
                 return;
             }
-            menuItem.addSubItem(ID_PROXY, 0, "Прокси: " + KamiGramProxyPower.statusText());
-            menuItem.addSubItem(ID_PROXY_LINK, 0, "Вставить ссылку на прокси");
-            menuItem.addSubItem(ID_PROXY_BEST, 0, "Подобрать лучший прокси");
+            /* Подсказок и своих строк про прокси в меню БОЛЬШЕ НЕТ: прокси живёт
+               там же, где в обычном Telegram — в «Настройках → Данные и память → Прокси»,
+               а из центра мода открывается родной экран прокси. */
+            menuItem.setSubtext(null);
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -135,113 +136,24 @@ public final class KamiGramProxyButton {
         return false;
     }
 
+    /** Родной экран прокси Telegram — свой дизайн прокси не нужен. */
+    static void openNativeProxyList(final Context context) {
+        try {
+            final android.app.Activity activity = AndroidUtilities.findActivity(context);
+            if (activity instanceof org.telegram.ui.LaunchActivity) {
+                ((org.telegram.ui.LaunchActivity) activity).presentFragment(new org.telegram.ui.ProxyListActivity());
+            }
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
     // ------------------------------------------------------------------ панель прокси
 
     /** Панель прокси: состояние, список с пингом, поле для ссылки. */
     public static void showPanel(final Context context) {
-        if (context == null) {
-            return;
-        }
-        try {
-            final LinearLayout root = new LinearLayout(context);
-            root.setOrientation(LinearLayout.VERTICAL);
-            root.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(6), AndroidUtilities.dp(18), AndroidUtilities.dp(6));
-
-            final TextView status = new TextView(context);
-            status.setText(KamiGramProxyPower.statusText());
-            status.setTextSize(14);
-            status.setTextColor(KamiGramProxyPower.stateColor());
-            root.addView(status, wrap());
-
-            final TextView hint = new TextView(context);
-            hint.setText("Мод держит базу живых прокси и переключается на лучший за секунду. Вставь ссылку — подключу сразу.");
-            hint.setTextSize(12);
-            hint.setTextColor(0xFF8E8E93);
-            hint.setPadding(0, AndroidUtilities.dp(4), 0, AndroidUtilities.dp(10));
-            root.addView(hint, wrap());
-
-            final LinearLayout list = new LinearLayout(context);
-            list.setOrientation(LinearLayout.VERTICAL);
-            final ArrayList<SharedConfig.ProxyInfo> infos = new ArrayList<>(SharedConfig.proxyList);
-            for (int a = 0; a < infos.size(); a++) {
-                final SharedConfig.ProxyInfo info = infos.get(a);
-                final TextView row = new TextView(context);
-                final boolean current = info == SharedConfig.currentProxy;
-                final String ping = info.checking ? "проверяю…"
-                    : info.available && info.ping > 0 ? info.ping + " мс"
-                    : info.availableCheckTime != 0 ? "не отвечает" : "не проверен";
-                row.setText((current ? "● " : "○ ") + info.settings.getAddress() + ":" + info.settings.getPort() + "  ·  " + ping);
-                row.setTextSize(14);
-                row.setTextColor(current ? 0xFF30D158 : (info.availableCheckTime != 0 && !info.available ? 0xFFFF453A : Theme.getColor(Theme.key_dialogTextBlack)));
-                row.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(11), AndroidUtilities.dp(10), AndroidUtilities.dp(11));
-                row.setOnClickListener(v -> {
-                    KamiGramProxyPower.activate(info, context, false);
-                    KamiGramProxyPower.checkOne(info);
-                    dismissLater(context);
-                });
-                list.addView(row, wrap());
-            }
-            if (infos.isEmpty()) {
-                final TextView empty = new TextView(context);
-                empty.setText("Список пуст. Вставь ссылку на прокси ниже.");
-                empty.setTextSize(14);
-                empty.setTextColor(0xFF8E8E93);
-                list.addView(empty, wrap());
-            }
-            root.addView(list, wrap());
-
-            final EditText input = new EditText(context);
-            input.setHint("https://t.me/proxy?server=…");
-            input.setTextSize(14);
-            input.setSingleLine(false);
-            input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-            input.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10));
-            try {
-                final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-                if (manager != null && manager.hasPrimaryClip()) {
-                    final ClipData clip = manager.getPrimaryClip();
-                    if (clip != null && clip.getItemCount() > 0) {
-                        final String link = KamiGramProxyHelper.extractLink(clip.getItemAt(0).coerceToText(context));
-                        if (link != null) {
-                            input.setText(link);
-                        }
-                    }
-                }
-            } catch (Throwable ignore) {
-            }
-            root.addView(input, wrap());
-
-            final ScrollView scroll = new ScrollView(context);
-            scroll.addView(root, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            final AlertDialog dialog = new AlertDialog.Builder(context)
-                .setTitle("Прокси KamiGram")
-                .setView(scroll)
-                .setPositiveButton("Подключить", null)
-                .setNegativeButton("Закрыть", null)
-                .setNeutralButton("Проверить все", null)
-                .create();
-            dialog.setOnShowListener(d -> {
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-                    final String text = input.getText() != null ? input.getText().toString() : "";
-                    final String link = KamiGramProxyHelper.extractLink(text);
-                    if (link == null) {
-                        KamiGramUi.notify(context, "Это не похоже на ссылку прокси");
-                        return;
-                    }
-                    if (KamiGramProxyPower.addAndActivate(link, context)) {
-                        dialog.dismiss();
-                    }
-                });
-                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                    KamiGramProxyPower.pingAll();
-                    KamiGramUi.notify(context, "Проверяю все прокси…");
-                });
-            });
-            dialog.show();
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
+        /* Свой дизайн прокси не нужен: открываем родной экран прокси Telegram. */
+        openNativeProxyList(context);
     }
 
     private static void dismissLater(Context context) {

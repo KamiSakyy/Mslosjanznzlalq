@@ -81,11 +81,12 @@ PALETTE = {
     'actionBarDefaultIcon': WHITE,
     'actionBarDefaultSubtitle': GRAY_TEXT,
     'actionBarDefaultSearchPlaceholder': GRAY_TEXT,
-    'actionBarTabActiveText': WHITE,
     'actionBarTabUnactiveText': GRAY_TEXT,
     # «пилюля» выбранной папки («Все», «Личные»…): раньше бралась из родной
-    # тёмной темы — из-за этого папки выглядели чёрными
-    'actionBarTabLine': '2A2138',
+    # тёмной темы — из-за этого папки выглядели чёрными. Теперь — наш акцент,
+    # как у разделов в центре мода (светлая «пилюля» + тёмный текст)
+    'actionBarTabLine': ACCENT,
+    'actionBarTabActiveText': '21152F',
     'actionBarTabSelector': CARD2,
     # непрочитанные у папок: спокойный наш цвет вместо красного
     'chats_tabUnreadActiveBackground': ACCENT,
