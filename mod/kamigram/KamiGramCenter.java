@@ -412,7 +412,7 @@ public final class KamiGramCenter {
             final org.telegram.ui.ActionBar.INavigationLayout layout =
                 ((LaunchActivity) activity).actionBarLayout;
             if (layout != null) {
-                final java.util.ArrayList<org.telegram.ui.ActionBar.BaseFragment> stack = layout.getFragmentStack();
+                final java.util.List<org.telegram.ui.ActionBar.BaseFragment> stack = layout.getFragmentStack();
                 for (int a = stack.size() - 1; a >= 0; a--) {
                     final org.telegram.ui.ActionBar.BaseFragment fragment = stack.get(a);
                     if (fragment instanceof org.telegram.ui.DialogsActivity) {

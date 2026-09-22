@@ -197,17 +197,38 @@ def keep_deleted():
           '                    arrayList = ' + DEL + '.filterKept(dialogId, arrayList);\n',
           'удалённые: чужие удаления тоже сохраняются', after=False)
 
-    # 4.4 последний рубеж — сама база
+    # 4.4 последний рубеж — сама база (без переприсваивания параметра: он уходит в лямбду)
     patch('messenger/MessagesStorage.java', 'KAMIGRAM_KEEP_DELETED_STORAGE',
           '    public ArrayList<Long> markMessagesAsDeleted(long dialogId, ArrayList<Integer> messages, boolean useQueue, boolean deleteFiles, int mode, int topicId) {\n',
           '        /* KAMIGRAM_KEEP_DELETED_STORAGE: строки «оставить» не удаляются из базы ни при каком пути */\n'
+          '        ArrayList<Integer> kamigramMessages = messages;\n'
           '        try {\n'
-          '            if (messages != null && !messages.isEmpty()) {\n'
-          '                messages = ' + DEL + '.filterKept(dialogId, messages);\n'
+          '            if (kamigramMessages != null && !kamigramMessages.isEmpty()) {\n'
+          '                kamigramMessages = ' + DEL + '.filterKept(dialogId, kamigramMessages);\n'
           '            }\n'
           '        } catch (Throwable kamigramIgnore) {\n'
           '        }\n',
           'удалённые: защита на уровне базы Telegram')
+
+    replace('messenger/MessagesStorage.java', 'KAMIGRAM_KEEP_DELETED_STORAGE_USE',
+            '        if (messages.isEmpty()) {\n'
+            '            return null;\n'
+            '        }\n'
+            '        if (useQueue) {\n'
+            '            storageQueue.postRunnable(() -> markMessagesAsDeletedInternal(dialogId, messages, deleteFiles, mode, topicId));\n'
+            '        } else {\n'
+            '            return markMessagesAsDeletedInternal(dialogId, messages, deleteFiles, mode, topicId);\n'
+            '        }\n',
+            '        /* KAMIGRAM_KEEP_DELETED_STORAGE_USE */\n'
+            '        if (kamigramMessages.isEmpty()) {\n'
+            '            return null;\n'
+            '        }\n'
+            '        if (useQueue) {\n'
+            '            storageQueue.postRunnable(() -> markMessagesAsDeletedInternal(dialogId, kamigramMessages, deleteFiles, mode, topicId));\n'
+            '        } else {\n'
+            '            return markMessagesAsDeletedInternal(dialogId, kamigramMessages, deleteFiles, mode, topicId);\n'
+            '        }\n',
+            'удалённые: защита базы работает и в очереди хранилища')
 
 
 # =============================================================================

@@ -226,6 +226,11 @@ public final class KamiGramGhost {
         lastOnline = System.currentTimeMillis() / 1000L;
     }
 
+    /** Отметка «были в сети» — нужна для честного времени в своём профиле. */
+    public static void markOnline(long when) {
+        lastOnline = when;
+    }
+
     /** Время, когда мы последний раз реально выходили в сеть (для профиля). */
     public static long lastOnlineTime() {
         return lastOnline;
