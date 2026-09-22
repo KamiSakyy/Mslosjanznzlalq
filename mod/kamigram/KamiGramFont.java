@@ -1,0 +1,258 @@
+package org.telegram.messenger.kamigram;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Typeface;
+import android.net.Uri;
+import android.provider.OpenableColumns;
+import android.database.Cursor;
+
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+
+/**
+ * KamiGram: свой шрифт приложения.
+ *
+ * Пользователь выбирает файл .ttf (или .otf) через проводник Google
+ * (системный выбор документа — SAF), файл копируется во внутреннюю папку
+ * приложения, и с этого момента ЛЮБОЙ текст интерфейса рисуется этим шрифтом:
+ * перехватываются обе точки, где Telegram берёт шрифты —
+ * {@link AndroidUtilities#getTypeface(String)} (обычный текст) и
+ * {@link AndroidUtilities#bold()} (полужирный), плюс сбрасывается кэш шрифта.
+ *
+ * Кнопка «Сбросить шрифт» возвращает родные шрифты Telegram.
+ */
+public final class KamiGramFont {
+
+    /** Код запроса для проводника Google (SAF). */
+    public static final int REQUEST_CODE = 0x4B46;
+
+    private static final String FILE_NAME = "kamigram_font.bin";
+
+    private static Typeface cachedRegular;
+    private static Typeface cachedBold;
+    private static boolean loaded;
+    private static String cachedName;
+
+    private KamiGramFont() {
+    }
+
+    private static File file() {
+        try {
+            return new File(ApplicationLoader.applicationContext.getFilesDir(), FILE_NAME);
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
+    /** Установлен ли свой шрифт. */
+    public static boolean installed() {
+        try {
+            final File target = file();
+            return target != null && target.exists() && target.length() > 512;
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** Обычное начертание — весь текст интерфейса. */
+    public static Typeface regular() {
+        if (!installed()) {
+            return null;
+        }
+        if (!loaded) {
+            loaded = true;
+            try {
+                cachedRegular = Typeface.createFromFile(file());
+            } catch (Throwable throwable) {
+                FileLog.e(throwable);
+                cachedRegular = null;
+            }
+        }
+        return cachedRegular;
+    }
+
+    /** Полужирное начертание — заголовки и акценты. */
+    public static Typeface bold() {
+        final Typeface base = regular();
+        if (base == null) {
+            return null;
+        }
+        if (cachedBold == null) {
+            try {
+                cachedBold = Typeface.create(base, Typeface.BOLD);
+            } catch (Throwable ignore) {
+                cachedBold = base;
+            }
+        }
+        return cachedBold;
+    }
+
+    /** Начертание для конкретной роли (medium/rbold/italic) — как в Telegram. */
+    public static Typeface forAsset(String assetPath) {
+        final Typeface base = regular();
+        if (base == null) {
+            return null;
+        }
+        try {
+            if (assetPath != null) {
+                if (assetPath.contains("italic")) {
+                    return Typeface.create(base, Typeface.ITALIC);
+                }
+                if (assetPath.contains("medium") || assetPath.contains("rbold") || assetPath.contains("rextrabold")) {
+                    return bold();
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return base;
+    }
+
+    /** Выбор .ttf через проводник Google (системный «Открыть документ»). */
+    public static void pick(Context context) {
+        try {
+            final Activity activity = AndroidUtilities.findActivity(context);
+            if (activity == null) {
+                KamiGramUi.notify(context, "Не удалось открыть проводник");
+                return;
+            }
+            final Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES,
+                new String[]{"font/ttf", "font/otf", "application/x-font-ttf", "application/octet-stream"});
+            activity.startActivityForResult(intent, REQUEST_CODE);
+            KamiGramUi.notify(context, "Выберите файл шрифта .ttf");
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+            KamiGramUi.notify(context, "Проводник недоступен");
+        }
+    }
+
+    /**
+     * Результат выбора файла. Вызывает LaunchActivity — единственное место,
+     * куда Android присылает ответ проводника.
+     */
+    public static boolean onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode != REQUEST_CODE) {
+            return false;
+        }
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
+            return true;
+        }
+        final Uri uri = data.getData();
+        final Context context = ApplicationLoader.applicationContext;
+        try {
+            try {
+                context.getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Throwable ignore) {
+                // необязательно: файл всё равно копируется во внутреннюю папку
+            }
+            final InputStream input = context.getContentResolver().openInputStream(uri);
+            if (input == null) {
+                throw new IllegalStateException("нет доступа к файлу");
+            }
+            final File target = file();
+            if (target == null) {
+                throw new IllegalStateException("нет внутренней папки");
+            }
+            final FileOutputStream output = new FileOutputStream(target);
+            final byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) > 0) {
+                output.write(buffer, 0, read);
+            }
+            output.flush();
+            output.close();
+            input.close();
+            cachedName = displayName(context, uri);
+            loaded = false;
+            cachedRegular = null;
+            cachedBold = null;
+            apply();
+            KamiGramUi.notify(context, "Шрифт применён: " + describe());
+            return true;
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+            KamiGramUi.notify(context, "Не удалось прочитать файл шрифта");
+            return true;
+        }
+    }
+
+    /** Сбросить шрифт: назад к родным шрифтам Telegram. */
+    public static void reset() {
+        try {
+            final File target = file();
+            if (target != null && target.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                target.delete();
+            }
+            cachedName = null;
+            loaded = false;
+            cachedRegular = null;
+            cachedBold = null;
+            apply();
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
+    /** Сбросить кэши Telegram и перерисовать интерфейс (шрифт подхватится сразу). */
+    public static void apply() {
+        try {
+            AndroidUtilities.mediumTypeface = null;
+            ThemeHook.notifyAccentChanged();
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
+    /** Подпись для центра мода. */
+    public static String describe() {
+        if (!installed()) {
+            return "родной шрифт Telegram";
+        }
+        try {
+            if (cachedName == null) {
+                cachedName = "выбранный .ttf";
+            }
+            final File target = file();
+            final long size = target == null ? 0 : target.length();
+            return cachedName + (size > 0 ? " · " + (size / 1024) + " КБ" : "");
+        } catch (Throwable ignore) {
+            return "выбранный .ttf";
+        }
+    }
+
+    private static String displayName(Context context, Uri uri) {
+        Cursor cursor = null;
+        try {
+            cursor = context.getContentResolver().query(uri, null, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                final int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (index >= 0) {
+                    final String name = cursor.getString(index);
+                    if (name != null && name.length() > 0) {
+                        return name;
+                    }
+                }
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            if (cursor != null) {
+                try {
+                    cursor.close();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+        return "выбранный .ttf";
+    }
+}

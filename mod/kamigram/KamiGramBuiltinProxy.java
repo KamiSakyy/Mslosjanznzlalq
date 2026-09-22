@@ -33,7 +33,7 @@ import java.util.HashSet;
  *     список, как будто прокси нет) — это скрытая часть мода;
  *   * в центре KamiGram есть один выключатель «KamiProxy» — если выключить,
  *     мод не трогает сеть вообще;
- *   * если у пользователя включён VPN, встроенные прокси отключаются сами
+ *   * прокси работают и при включённом VPN (VPN для Telegram не помеха)
  *     (двойной туннель только мешает);
  *   * если обычного интернета нет и Telegram не грузится, прокси поднимается
  *     автоматически — в том числе на экране входа.
@@ -239,10 +239,9 @@ public final class KamiGramBuiltinProxy {
             if (!enabled()) {
                 return;
             }
-            if (vpnActive()) {
-                disableOurProxy();
-                return;
-            }
+            // ВАЖНО: при включённом VPN прокси ОБЯЗАНЫ работать (просьба пользователя:
+            // «у меня VPN включён для других приложений, а Telegram без соединения»).
+            // Поэтому никаких пауз и отключений из-за VPN — маршрут выбирается как обычно.
             ensureInTelegramList();
 
             final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
@@ -395,7 +394,7 @@ public final class KamiGramBuiltinProxy {
                 return "KamiProxy выключен";
             }
             if (vpnActive()) {
-                return "VPN включён — KamiProxy на паузе";
+                return "VPN включён — KamiProxy работает через него";
             }
             final SharedConfig.ProxyInfo info = SharedConfig.currentProxy;
             if (info == null || info.settings == null || !isBuiltIn(info)) {

@@ -95,6 +95,12 @@ public final class KamiGramConfig {
     public static final String KEY_COMPACT_CHATS = "kamigram_compact_chats";
     /** Шрифт сообщений крупнее на N (0 — как в Telegram). */
     public static final String KEY_FONT_BOOST = "kamigram_font_boost";
+
+    /** Плавные анимации и «стекло»: по умолчанию включены (красиво и плавно). */
+    public static final String KEY_SMOOTH_ANIMATIONS = "kamigram_smooth_animations";
+
+    /** Размытие интерфейса: дорого по ресурсам, но можно оставить — по умолчанию включено. */
+    public static final String KEY_ALLOW_BLUR = "kamigram_allow_blur";
     /** Отправка сообщения по Enter. */
     public static final String KEY_ENTER_TO_SEND = "kamigram_enter_to_send";
     /** Тихая отправка (без звука). */
@@ -133,13 +139,17 @@ public final class KamiGramConfig {
 
     /** Значение по умолчанию для каждого ключа. */
     public static boolean defaultValue(String key) {
-        // выключено по умолчанию: то, что меняет обычное поведение Telegram
+        // Выключено по умолчанию — то, что меняет обычное поведение Telegram:
+        //   * призрак (пользователь включает сам, когда нужно);
+        //   * «только текст» (самый жёсткий режим экономии);
+        //   * стикеры и премиум-эмодзи ВКЛЮЧЕНЫ, как в обычном Telegram;
+        //   * прочие переключатели, которые не должны ничего менять без спроса.
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
-            || KEY_TEXT_ONLY.equals(key)) {
-            // «только текст» по умолчанию выключен: это самый жёсткий режим,
-            // его включает пользователь сам, когда нужна максимальная экономия
+            || KEY_TEXT_ONLY.equals(key)
+            || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
+            || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)) {
             return false;
         }
         return true;

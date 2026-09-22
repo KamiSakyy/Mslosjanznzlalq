@@ -178,14 +178,9 @@ def proxy_button():
                  '                    || org.telegram.messenger.kamigram.KamiGramBuiltinProxy.enabled();\n',
                  'Прокси', 'родной пункт «Прокси» у трёх точек главного экрана (иконка и состояние — от Telegram)')
 
-    # чат: в меню «три точки» только ID этого чата (одна аккуратная строка)
+    # чат: ID БОЛЬШЕ НЕ в меню «три точки» (R50: пользователь просил ID между
+    # описанием и ссылкой @username — там он и показывается, в профиле/канале/группе)
     chat = 'ui/ChatActivity.java'
-    replace_once(chat, 'KAMIGRAM_MENU_CHAT_ID',
-                 '            headerItem = menu.addItem(chat_menu_options, otherIcon);\n',
-                 '            headerItem = menu.addItem(chat_menu_options, otherIcon);\n'
-                 '            /* KAMIGRAM_MENU_CHAT_ID */\n'
-                 '            ' + IDS + '.addRow(headerItem, getDialogId());\n',
-                 'ID', 'ID чата виден в меню «три точки» этого чата')
 
     # обработка нажатия на ID
     replace_once(chat, 'KAMIGRAM_MENU_CLICK_CHAT',
@@ -216,19 +211,8 @@ def ids():
                  '        }\n',
                  'ID', 'ID чата показывается в шапке (подпись под именем)')
 
-    # 3.2 ID в «трёх точках» профиля
-    replace_once('ui/ProfileActivity.java', 'KAMIGRAM_ID_PROFILE',
-                 '        otherItem.removeAllSubItems();\n',
-                 '        otherItem.removeAllSubItems();\n'
-                 '        /* KAMIGRAM_ID_PROFILE: ID в меню профиля (нажатие копирует) */\n'
-                 '        try {\n'
-                 '            if (' + CFG + '.showIds()) {\n'
-                 '                otherItem.addSubItem(' + IDS + '.ID_COPY, 0, "ID: " + getDialogId());\n'
-                 '            }\n'
-                 '        } catch (Throwable ignore) {\n'
-                 '        }\n',
-                 'ID', 'в профиле ID доступен из меню (нажатие копирует)')
-
+    # 3.2 ID в профиле БОЛЬШЕ НЕ в «трёх точках»: R50 показывает ID МЕЖДУ
+    # описанием и ссылкой @username (KamiGramIds.aboutWithId)
     replace_once('ui/ProfileActivity.java', 'KAMIGRAM_ID_PROFILE_CLICK',
                  '            public void onItemClick(final int id) {\n',
                  '            public void onItemClick(final int id) {\n'

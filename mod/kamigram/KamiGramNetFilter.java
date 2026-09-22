@@ -13,7 +13,8 @@ import org.telegram.tgnet.tl.TL_stories;
  *   - истории: списки, просмотры и медиа;
  *   - реклама: спонсорские сообщения, промо, Telegram Premium, Stars, бусты;
  *   - рекомендации, «часто используемые», превью ссылок, телефонная книга;
- *   - в режиме «призрак» - подтверждения прочтения, «печатает» и статус «в сети».
+ *   - в режиме «призрак» - подтверждения прочтения, «печатает» и статус «в сети»
+ *     (кроме честной секунды онлайна сразу после отправки сообщения).
  *
  * ВАЖНО про имена: в исходниках Telegram часть запросов объявлена как
  * `TL_messages_getWebPage`, а часть - просто `getWebPage` внутри класса `TL_messages`.
@@ -72,30 +73,28 @@ public final class KamiGramNetFilter {
      * Чисто «телеграмовский» трафик, который моду не нужен: реклама Premium/Stars,
      * бусты, наборы GIF и музыки. Ничего полезного в этих запросах нет.
      */
+    /**
+     * «Премиум-украшения» Telegram: тяжёлые файлы, которые моду не нужны.
+     * Стикеры и премиум-эмодзи здесь БОЛЬШЕ НЕ лежат: они нужны пользователю
+     * (по умолчанию включены) и отключаются только переключателями в центре.
+     */
     private static final String[] TRASH = {
-        // премиум-украшения, эффекты сообщений, эмодзи-статусы и «доступные реакции»
-        // для эффектов: всё это тяжёлые файлы, а мод их всё равно не показывает
-        "TL_messages_getAvailableEffects",
-        "TL_messages_getEmojiStickers",
-        "TL_messages_getEmojiStatuses",
-        "TL_messages_getFeaturedEmojiStickers",
-        "TL_messages_getEmojiGroups",
-        "TL_messages_getStickerSet",
-        "TL_messages_getAttachedStickers",
-        "TL_messages_searchEmojiStickers",
         "TL_messages_getQuickReplies",
-        "TL_account_getRecentEmojiStatuses",
         "TL_contacts_getLocated",
-        "TL_help_getPremiumPromo",
-        "TL_help_getPromoData",
-        "TL_messages_getEmojiGameInfo",
-        "TL_messages_getSavedGifs",
-        "TL_messages_getSavedReactionTags",
         "TL_premium_getBoostsStatus",
         "TL_premium_getBoostsList",
         "TL_premium_getMyBoosts",
         "TL_payments_getStarsStatus",
         "TL_payments_getStarsTransactions"
+    };
+
+    /** Витрина Premium/Stars/TON — скрыта, пока пользователь не включит её сам. */
+    private static final String[] PREMIUM = {
+        "TL_help_getPremiumPromo",
+        "TL_help_getPromoData",
+        "TL_messages_getAvailableEffects",
+        "TL_messages_getEmojiStatuses",
+        "TL_account_getRecentEmojiStatuses"
     };
 
     /** Исходящие действия пользователя по историям - их не блокируем даже при запрете историй. */
@@ -125,9 +124,20 @@ public final class KamiGramNetFilter {
             final String simple = names[0];
             final String full = names[1];
             if (KamiGramConfig.ghostMode() && (hit(GHOST, simple) || hit(GHOST, full))) {
+                // честный онлайн: во время секунды после отправки статус уходит на сервер
+                if (("TL_account_updateStatus".equals(full) || "TL_account_updateStatus".equals(simple))
+                    && KamiGramGhost.statusAllowed()) {
+                    return false;
+                }
                 return deny();
             }
             if (KamiGramConfig.noStickers() && isStickerRequest(full, simple)) {
+                return deny();
+            }
+            if (KamiGramConfig.noAnimatedEmoji() && isEmojiRequest(full, simple)) {
+                return deny();
+            }
+            if (KamiGramConfig.noPremiumUi() && (hit(PREMIUM, simple) || hit(PREMIUM, full))) {
                 return deny();
             }
             if (KamiGramConfig.noStories() && isStoryRequest(full, simple)) {
@@ -231,6 +241,14 @@ public final class KamiGramNetFilter {
             return false;
         }
         return rest.contains("Sticker") || rest.contains("Emoji");
+    }
+
+    /** Премиум-эмодзи (наборы и стикеры-эмодзи) — отключаются своим переключателем. */
+    private static boolean isEmojiRequest(String full, String simple) {
+        if (!full.startsWith("TL_messages_") && !simple.startsWith("TL_messages_")) {
+            return false;
+        }
+        return full.contains("Emoji") || simple.contains("Emoji");
     }
 
     /** Запросы про истории (все, кроме исходящих действий самого пользователя). */

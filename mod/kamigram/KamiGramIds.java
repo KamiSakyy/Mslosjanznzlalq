@@ -23,6 +23,41 @@ public final class KamiGramIds {
     }
 
     /** Дописывает «· id 123456» к подписи чата. */
+    /**
+     * ID в профиле/канале/группе — МЕЖДУ описанием и ссылкой @username.
+     *
+     * Раньше ID прятался в «трёх точках»; пользователь просил иначе: строка
+     * с ID должна стоять сразу под описанием (как в других клиентах),
+     * а ссылка @username остаётся ниже родным элементом Telegram.
+     */
+    public static CharSequence aboutWithId(CharSequence about, long dialogId) {
+        try {
+            if (!KamiGramConfig.showIds() || dialogId == 0) {
+                return about;
+            }
+            final String id = Long.toString(dialogId);
+            final String prefix = "ID: " + id;
+            final String text = about == null ? "" : about.toString();
+            if (text.contains(prefix)) {
+                return about;
+            }
+            final android.text.SpannableStringBuilder builder =
+                new android.text.SpannableStringBuilder(about == null ? "" : about);
+            if (builder.length() > 0) {
+                builder.append("\n\n");
+            }
+            final int start = builder.length();
+            builder.append(prefix);
+            builder.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                start, builder.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            builder.setSpan(new android.text.style.ForegroundColorSpan(KamiGramUi.secondaryText()),
+                start, builder.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return builder;
+        } catch (Throwable ignore) {
+            return about;
+        }
+    }
+
     public static CharSequence withId(CharSequence subtitle, long dialogId) {
         try {
             if (dialogId == 0 || !KamiGramConfig.showIds()) {

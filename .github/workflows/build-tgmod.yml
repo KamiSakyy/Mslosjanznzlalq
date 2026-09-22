@@ -51,8 +51,8 @@ on:
         default: "0"
         type: string
       no_stickers:
-        description: "Полностью запретить загрузку стикеров и премиум-эмодзи (1/0)"
-        default: "1"
+        description: "Полностью запретить загрузку стикеров и премиум-эмодзи (1/0, по умолчанию 0 — стикеры работают как в Telegram)"
+        default: "0"
         type: string
       autodownload_off:
         description: "Автоскачивание медиа выключено по умолчанию (1/0)"
@@ -105,7 +105,7 @@ jobs:
       TG_REF: ${{ inputs.tg_ref || 'master' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
       MAX_ECONOMY: ${{ inputs.max_economy || '0' }}
-      NO_STICKERS: ${{ inputs.no_stickers || '1' }}
+      NO_STICKERS: ${{ inputs.no_stickers || '0' }}
       AUTODOWNLOAD_OFF: ${{ inputs.autodownload_off || '1' }}
       SLIM_HEAVY: ${{ inputs.slim_heavy || '1' }}
       RES_CONFIGS: ${{ inputs.res_configs || 'ru,en' }}

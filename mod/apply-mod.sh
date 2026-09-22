@@ -1849,7 +1849,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     done
     [ -f "$KAMIGRAM_SRC/KamiGramIcons.java" ] || die "P60: нет $KAMIGRAM_SRC/KamiGramIcons.java"
     cp -f "$KAMIGRAM_SRC/KamiGramIcons.java" "$KAMI_UI/KamiGramIcons.java"
-    for icon in kamigram_ic_ios_settings kamigram_ic_proxy; do
+    for icon in kamigram_ic_ios_settings kamigram_ic_proxy kamigram_ghost; do
         [ -f "$KAMIGRAM_SRC/res/drawable/$icon.xml" ] || die "P60: нет иконки $icon.xml"
         cp -f "$KAMIGRAM_SRC/res/drawable/$icon.xml" "$RES_ROOT/drawable/$icon.xml"
     done
@@ -1928,6 +1928,15 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r43_patches.py" || die "P95: правки применились не полностью"
     [ -f "$TG_DIR/MOD_FEATURES_r43.txt" ] || die "P95: нет отчёта MOD_FEATURES_r43.txt"
     ok "P95 ПРАВКИ 2026: галочка моим каналам, ID под @username, фильтр рекламы, режим «только текст», журнал удалённых"
+
+    # P97: пакет правок R50 — все замечания пользователя одним пакетом:
+    # иконка призрака рядом с «тремя точками», честный онлайн, ID между
+    # описанием и @username, имя приложения + статус прокси, свой .ttf-шрифт,
+    # оптимизация и плавность, «Избранное» без скрепки.
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r50_patches.py" || die "P97: правки R50 применились не полностью"
+    [ -f "$TG_DIR/MOD_R50_FEATURES.txt" ] || die "P97: нет отчёта MOD_R50_FEATURES.txt"
+    R50_COUNT=$(grep -c ' | ' "$TG_DIR/MOD_R50_FEATURES.txt" || true)
+    ok "P97 ПРАВКИ R50: применено пунктов — $R50_COUNT (отчёт: MOD_R50_FEATURES.txt)"
 else
     skip "P90 второй пакет отключён (ZERO_TRAFFIC=0)"
 fi
@@ -1945,11 +1954,11 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
     ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
 
-    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck; do
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
-    ok "P96 новые классы мода на месте: реклама, галочка, «только текст», интерфейс, встроенные прокси"
+    ok "P96 новые классы мода на месте: реклама, галочка, «только текст», интерфейс, встроенные прокси, шрифт, оптимизация, статус прокси в шапке"
 else
     skip "P96 отключено (ZERO_TRAFFIC=0)"
 fi

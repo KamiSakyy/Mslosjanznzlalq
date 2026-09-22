@@ -198,8 +198,9 @@ PALETTE = {
     'chats_actionBackground': CARD,
     'chats_actionIcon': WHITE,
     'chats_actionPressedBackground': CARD2,
-    'chats_unreadCounter': RED,
-    'chats_unreadCounterMuted': GRAY_TEXT,
+    # Цвета счётчика непрочитанного НЕ задаём: остаются родные цвета Telegram
+    # (в тёмной теме это её собственный синий и серый). Раньше здесь был красный —
+    # из-за него кружки непрочитанных были красными, это было неправильно.
     'featuredStickers_addButton': ACCENT,
     'featuredStickers_addedIcon': ACCENT,
     'inappPlayerPlayPause': ACCENT,
