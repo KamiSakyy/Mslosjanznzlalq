@@ -92,6 +92,7 @@ public final class KamiGramCenter {
             // ---------------------------------------------------------- ПРОКСИ
             section(root, context, "KAMIPROXY (ВСТРОЕННЫЕ ПРОКСИ)");
             card(root, context, onChanged, new Row[]{
+                Row.info("Состояние: " + KamiGramSelfCheck.describe() + " · " + KamiGramFirstRun.describe()),
                 Row.toggle(context, "KamiProxy включён", KamiGramConfig.KEY_BUILTIN_PROXY,
                     "Встроенные прокси подключаются сами и переключаются на самый быстрый.", onChanged),
                 Row.info(KamiGramBuiltinProxy.statusText()),

@@ -12,6 +12,7 @@ KamiGram P95 (правки по замечаниям): галочка своим
 
 import io
 import os
+import re
 import sys
 
 DONE = []
@@ -274,22 +275,30 @@ def builtin_proxy_boot():
 # =============================================================================
 
 def hide_builtin_from_list():
-    patch('ui/ProxyListActivity.java', 'KAMIGRAM_HIDE_BUILTIN',
-          '            proxyList.clear();\n            proxyList.addAll(SharedConfig.proxyList);\n',
-          '            /* KAMIGRAM_HIDE_BUILTIN: встроенные прокси сборки скрыты от пользователя */\n'
-          '            try {\n'
-          '                final java.util.ArrayList<SharedConfig.ProxyInfo> kamigramVisible = new java.util.ArrayList<>();\n'
-          '                for (int kamigramIndex = 0; kamigramIndex < SharedConfig.proxyList.size(); kamigramIndex++) {\n'
-          '                    final SharedConfig.ProxyInfo kamigramInfo = SharedConfig.proxyList.get(kamigramIndex);\n'
-          '                    if (!' + BPROXY + '.isBuiltIn(kamigramInfo)) {\n'
-          '                        kamigramVisible.add(kamigramInfo);\n'
-          '                    }\n'
-          '                }\n'
-          '                SharedConfig.proxyList.clear();\n'
-          '                SharedConfig.proxyList.addAll(kamigramVisible);\n'
-          '            } catch (Throwable kamigramIgnore) {\n'
-          '            }\n',
-          'встроенные прокси не видны в списке прокси Telegram')
+    """Встроенные прокси не видны в списке — и при этом НИЧЕГО не ломается.
+
+    ВАЖНО (исправление прошлой сборки): ранее патч переписывал САМ
+    SharedConfig.proxyList — то есть глобальный список прокси Telegram. Это
+    (а) оставляло экран прокси пустым (локальный список активити не заполнялся),
+    (б) удаляло встроенные прокси из общего состояния, где их читают другие
+    потоки. Теперь фильтруем только ЛОКАЛЬНЫЙ список экрана: глобальные данные
+    не трогаем вообще.
+    """
+    return patch('ui/ProxyListActivity.java', 'KAMIGRAM_HIDE_BUILTIN',
+                 '            proxyList.clear();\n            proxyList.addAll(SharedConfig.proxyList);\n',
+                 '            /* KAMIGRAM_HIDE_BUILTIN: встроенные прокси сборки скрыты от пользователя */\n'
+                 '            proxyList.clear();\n'
+                 '            try {\n'
+                 '                for (int kamigramIndex = 0; kamigramIndex < SharedConfig.proxyList.size(); kamigramIndex++) {\n'
+                 '                    final SharedConfig.ProxyInfo kamigramInfo = SharedConfig.proxyList.get(kamigramIndex);\n'
+                 '                    if (!org.telegram.messenger.kamigram.KamiGramBuiltinProxy.isBuiltIn(kamigramInfo)) {\n'
+                 '                        proxyList.add(kamigramInfo);\n'
+                 '                    }\n'
+                 '                }\n'
+                 '            } catch (Throwable kamigramIgnore) {\n'
+                 '                proxyList.addAll(SharedConfig.proxyList);\n'
+                 '            }\n',
+                 'встроенные прокси не видны в списке прокси Telegram')
 
 
 # =============================================================================
@@ -354,6 +363,164 @@ def text_only_taps():
           'тап по фото/видео разрешает загрузку (режим «только текст»)')
 
 
+# =============================================================================
+# 14. ЛИМИТ АККАУНТОВ: ИСПРАВЛЕНИЕ ФАТАЛЬНОГО ВЫЛЕТА НА СТАРТЕ
+# =============================================================================
+#
+# ЧТО БЫЛО: в Java лимит аккаунтов подняли до 10, а нативная часть Telegram
+# (jni/tgnet) осталась на своём #define MAX_ACCOUNT_COUNT 5. Её
+# ConnectionsManager::getInstance() — это switch с ветками 0..4 и default.
+# Java-класс ApplicationLoader.postInitApplication() создаёт ConnectionsManager
+# для КАЖДОГО аккаунта 0..9, поэтому для аккаунтов 6..10 нативный код возвращал
+# ТОТ ЖЕ объект instance4 и повторно вызывал его init(): в нём ещё раз делается
+# pthread_create(&networkThread) на тот же объект, перезагружается чужой конфиг
+# и пересоздаются дата-центры. Это гонка/повторная инициализация и падение
+# приложения сразу после запуска (r45 вылета не давал: там лимит был 4 <= 5).
+#
+# ЧТО ДЕЛАЕМ: поднимаем нативный лимит РОВНО до того же значения, что и в Java,
+# и добавляем недостающие ветки switch. Функционал не теряем: 10 аккаунтов
+# остаются, нативный код на них теперь рассчитан (jniEnv[], TgNetWrapper, switch).
+
+LAUNCH = 'ui/LaunchActivity.java'
+CPP = 'TMessagesProj/jni/tgnet/ConnectionsManager.cpp'
+CPP_DEFINES = 'TMessagesProj/jni/tgnet/Defines.h'
+
+
+def native_accounts():
+    """Синхронизация лимита аккаунтов между Java и нативным кодом.
+
+    ЧТО БЫЛО (причина вылета прошлой сборки): в Java лимит подняли до 10, а
+    нативная часть Telegram (jni/tgnet) осталась на своём MAX_ACCOUNT_COUNT 5, где
+    ConnectionsManager::getInstance() — switch с ветками 0..4 и default. Java-код
+    ApplicationLoader.postInitApplication() создаёт ConnectionsManager для КАЖДОГО
+    аккаунта 0..9, поэтому для 6..10 нативный getInstance() возвращал ТОТ ЖЕ
+    instance4 и повторно вызывал его init(): ещё один pthread_create на тот же
+    объект, перезагрузка чужого конфига, пересоздание дата-центров — гонка и
+    падение приложения сразу после запуска (r45 не падал: 4 <= 5).
+
+    Теперь лимит задаётся в одном месте — здесь — и переносится в нативный код:
+    и Defines.h, и ветки switch. 10 аккаунтов остаются, функционал не теряем.
+    """
+    account_count = 10
+    user_config_path = 'messenger/UserConfig.java'
+    try:
+        user_config = read(path(*user_config_path.split('/')))
+    except Exception as e:
+        SKIPPED.append('%s: %s (лимит аккаунтов)' % (user_config_path, e))
+        return False
+    updated, count = re.subn(r'MAX_ACCOUNT_COUNT\s*=\s*\d+',
+                             'MAX_ACCOUNT_COUNT = %d' % account_count, user_config, count=1)
+    if count == 0:
+        SKIPPED.append('%s: не найдена константа MAX_ACCOUNT_COUNT' % user_config_path)
+        return False
+    if updated != user_config:
+        write(path(*user_config_path.split('/')), updated)
+        DONE.append(('лимит аккаунтов в Java: %d' % account_count, 'UserConfig.java'))
+
+    # --- Defines.h: лимит нативной части равен лимиту Java
+    defines_path = os.path.join(TG_DIR, 'TMessagesProj/jni/tgnet/Defines.h')
+    try:
+        defines = read(defines_path)
+    except Exception as e:
+        SKIPPED.append('TMessagesProj/jni/tgnet/Defines.h: %s (нативный лимит)' % e)
+        return False
+    new_define = '#define MAX_ACCOUNT_COUNT %d' % account_count
+    if 'KAMIGRAM_NATIVE_ACCOUNTS' not in defines:
+        updated, count = re.subn(r'#define MAX_ACCOUNT_COUNT \d+', 'PLACEHOLDER_DEFINE', defines, count=1)
+        if count == 0:
+            SKIPPED.append('Defines.h: не найдено #define MAX_ACCOUNT_COUNT')
+            return False
+        updated = updated.replace(
+            'PLACEHOLDER_DEFINE',
+            '/* KAMIGRAM_NATIVE_ACCOUNTS */ ' + new_define, 1)
+        write(defines_path, updated)
+        DONE.append(('нативный лимит аккаунтов = %d (без этого приложение падало на старте)' % account_count,
+                     'jni/tgnet/Defines.h'))
+
+    # --- ConnectionsManager.cpp: своя ветка switch для каждого аккаунта
+    cpp_rel = 'TMessagesProj/jni/tgnet/ConnectionsManager.cpp'
+    try:
+        cpp = read(os.path.join(TG_DIR, cpp_rel))
+    except Exception as e:
+        SKIPPED.append('%s: %s (ветки аккаунтов)' % (cpp_rel, e))
+        return False
+    if 'KAMIGRAM_NATIVE_ACCOUNTS' in cpp:
+        return True
+    old = ('        case 4:\n'
+           '        default:\n'
+           '            static ConnectionsManager instance4(4);\n'
+           '            return instance4;\n')
+    if old not in cpp:
+        SKIPPED.append('%s: не найден switch аккаунтов' % cpp_rel)
+        return False
+    cases = ''.join(
+        '        case %d:\n'
+        '            static ConnectionsManager instance%d(%d);\n'
+        '            return instance%d;\n' % (i, i, i, i)
+        for i in range(4, account_count - 1))
+    cases += ('        default:\n'
+              '            static ConnectionsManager instance%d(%d); /* KAMIGRAM_NATIVE_ACCOUNTS */\n'
+              '            return instance%d;\n' % (account_count - 1, account_count - 1, account_count - 1))
+    write(os.path.join(TG_DIR, cpp_rel), cpp.replace(old, cases, 1))
+    DONE.append(('нативные объекты сети созданы для всех аккаунтов (switch 0..%d)' % (account_count - 1),
+                 'jni/tgnet/ConnectionsManager.cpp'))
+    return True
+
+
+# =============================================================================
+# 15. ВСПОМОГАТЕЛЬНЫЕ МЕЛОЧИ СТАРТА (не должны мешать запуску)
+# =============================================================================
+
+def safe_start():
+    """Старт приложения: аварийный режим, первый запуск, порядок вызовов.
+
+    ВАЖНО: строки Telegram мы ЗАМЕНЯЕМ (replace_once), а не дописываем рядом —
+    иначе вызов выполняется дважды (так и вышло в прошлой сборке: тема и
+    проверка прокси применялись по два раза на каждом старте).
+
+    KamiGramSelfCheck.beforeStart() выполняется САМЫМ ПЕРВЫМ в onCreate
+    приложения и считает запуски: три неудачных подряд включают аварийный режим,
+    в котором мод пропускает тяжёлые стартовые шаги (оформление, авто-прокси).
+    Так приложение всегда открывается, и функцию можно выключить уже изнутри.
+    """
+    launch = 'ui/LaunchActivity.java'
+
+    # 1) аварийный режим — в самом начале ApplicationLoader.onCreate
+    patch('messenger/ApplicationLoader.java', 'KAMIGRAM_SELF_CHECK',
+          '    public void onCreate() {\n',
+          '        /* KAMIGRAM_SELF_CHECK: защита от вылетов на старте */\n'
+          '        org.telegram.messenger.kamigram.KamiGramSelfCheck.beforeStart(this);\n',
+          'защита от вылетов: счётчик запусков и аварийный режим')
+
+    # 2) тяжёлые стартовые шаги — только когда аварийный режим выключен
+    replace_once(launch, 'KAMIGRAM_SAFE_THEME',
+                 '        org.telegram.messenger.kamigram.KamiGramTheme.apply();\n',
+                 '        /* KAMIGRAM_SAFE_THEME: в аварийном режиме стартовые шаги пропускаются */\n'
+                 '        if (!org.telegram.messenger.kamigram.KamiGramSelfCheck.safeMode()) {\n'
+                 '            org.telegram.messenger.kamigram.KamiGramTheme.apply();\n'
+                 '        }\n',
+                 'оформление применяется один раз и не мешает в аварийном режиме')
+    replace_once(launch, 'KAMIGRAM_SAFE_TICK',
+                 '        org.telegram.messenger.kamigram.KamiGramProxyPower.tick(this); // KAMIGRAM_PROXY_TICK\n',
+                 '        if (!org.telegram.messenger.kamigram.KamiGramSelfCheck.safeMode()) { /* KAMIGRAM_SAFE_TICK */\n'
+                 '            org.telegram.messenger.kamigram.KamiGramProxyPower.tick(this); // KAMIGRAM_PROXY_TICK\n'
+                 '        }\n',
+                 'фоновая проверка прокси не мешает в аварийном режиме')
+    replace_once(launch, 'KAMIGRAM_SAFE_PROXY',
+                 '        org.telegram.messenger.kamigram.KamiGramBuiltinProxy.init(this); // KAMIGRAM_BUILTIN_PROXY\n',
+                 '        if (!org.telegram.messenger.kamigram.KamiGramSelfCheck.safeMode()) { /* KAMIGRAM_SAFE_PROXY */\n'
+                 '            org.telegram.messenger.kamigram.KamiGramBuiltinProxy.init(this); // KAMIGRAM_BUILTIN_PROXY\n'
+                 '        }\n',
+                 'встроенные прокси поднимаются, когда аварийный режим выключен')
+
+    # 3) успешный запуск и разовые действия первого запуска
+    patch(launch, 'KAMIGRAM_SELF_CHECK_OK',
+          '        ApplicationLoader.postInitApplication();\n',
+          '        org.telegram.messenger.kamigram.KamiGramSelfCheck.onLaunchStart(this); /* KAMIGRAM_SELF_CHECK_OK */\n'
+          '        org.telegram.messenger.kamigram.KamiGramFirstRun.check(this); /* KAMIGRAM_FIRST_RUN_SAFE */\n',
+          'первый запуск и отметка «приложение поднялось»')
+
+
 def main():
     verified()
     id_under_username()
@@ -364,6 +531,8 @@ def main():
     builtin_proxy_boot()
     hide_builtin_from_list()
     ghost_silent_send()
+    native_accounts()
+    safe_start()
     text_only_taps()
 
     lines = ['=== P95: правки по замечаниям (%d пунктов) ===' % len(DONE)]
