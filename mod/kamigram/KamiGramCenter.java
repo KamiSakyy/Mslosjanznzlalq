@@ -104,8 +104,11 @@ public final class KamiGramCenter {
             content.setPadding(dp(14), dp(4), dp(14), dp(14));
             scroll.addView(content, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            // высота списка задана явно: карточка диалога измеряется по содержимому,
+            // поэтому «вес» здесь не работает
+            final int viewport = Math.max(dp(240), (int) (AndroidUtilities.displaySize.y * 0.58f));
             root.addView(scroll, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+                ViewGroup.LayoutParams.MATCH_PARENT, viewport));
 
             // ---- закреплённая кнопка «Готово»
             final TextView done = new TextView(context);
@@ -172,9 +175,6 @@ public final class KamiGramCenter {
             if (dialog != null) {
                 final Window window = dialog.getWindow();
                 if (window != null) {
-                    dialog.getWindow().setLayout(
-                        (int) Math.min(AndroidUtilities.displaySize.x, dp(420)),
-                        (int) (AndroidUtilities.displaySize.y * 0.88f));
                     window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
                 }
             }
