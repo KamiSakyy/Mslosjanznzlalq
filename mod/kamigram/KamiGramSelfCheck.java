@@ -104,6 +104,7 @@ public final class KamiGramSelfCheck {
     }
 
     private static final String KEY_GOOD_RUNS = "kamigram_good_runs";
+    private static final String KEY_CLEAN_RUNS = "kamigram_clean_runs";
     private static boolean marked;
 
     /**
@@ -127,6 +128,17 @@ public final class KamiGramSelfCheck {
             editor.putInt(KEY_BOOT_COUNT, 0);
             final int good = preferences.getInt(KEY_GOOD_RUNS, 0) + 1;
             editor.putInt(KEY_GOOD_RUNS, good);
+
+            /* Запуск прошёл спокойно (мерцания не было) — снимаем защиту */
+            if (!ThemeHook.flickerDetected()) {
+                editor.putInt(KEY_CLEAN_RUNS, preferences.getInt(KEY_CLEAN_RUNS, 0) + 1);
+                if (preferences.getInt(KEY_CLEAN_RUNS, 0) + 1 >= 2) {
+                    ThemeHook.resetFlickerGuard();
+                }
+            } else {
+                editor.putInt(KEY_CLEAN_RUNS, 0);
+            }
+
             if (good >= 2) {
                 editor.putBoolean(KEY_SAFE_MODE, false);
                 safeMode = false;

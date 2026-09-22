@@ -235,16 +235,25 @@ public final class ThemeHook {
             return;
         }
         try {
+            loadFlickerState();
             register(activity);
             if (APPLIED.containsKey(activity)) {
                 return;
             }
             APPLIED.put(activity, Boolean.TRUE);
             if (tooManyScreens()) {
-                /* Что-то в системе пересоздаёт экраны слишком часто — визуальные
-                   эффекты мода выключаем, чтобы интерфейс не мигал. Приложение
-                   работает как обычный Telegram. */
+                /* Экраны пересоздаются слишком часто (мерцание). Выключаем
+                   визуальные эффекты мода и ЗАПОМИНАЕМ это: в следующий запуск
+                   интерфейс не будет мигать вообще. Само выключится обратно
+                   после двух спокойных запусков (см. KamiGramSelfCheck). */
                 uiHooksDisabled = true;
+                flickerDetected = true;
+                try {
+                    org.telegram.messenger.ApplicationLoader.applicationContext
+                        .getSharedPreferences("mainconfig", android.content.Context.MODE_PRIVATE)
+                        .edit().putBoolean("kamigram_ui_hooks_off", true).apply();
+                } catch (Throwable ignore) {
+                }
             }
             if (uiHooksDisabled) {
                 return;
@@ -263,6 +272,39 @@ public final class ThemeHook {
     private static final long[] CREATE_TIMES = new long[16];
     private static int createIndex;
     private static int createCount;
+
+    private static boolean flickerDetected;
+    private static boolean stateLoaded;
+
+    /** Было ли замечено мерцание в этом запуске. */
+    public static boolean flickerDetected() {
+        return flickerDetected;
+    }
+
+    /** Выключены ли визуальные эффекты (по защите или после прошлого мерцания). */
+    public static void resetFlickerGuard() {
+        try {
+            org.telegram.messenger.ApplicationLoader.applicationContext
+                .getSharedPreferences("mainconfig", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean("kamigram_ui_hooks_off", false).apply();
+        } catch (Throwable ignore) {
+        }
+        uiHooksDisabled = false;
+        flickerDetected = false;
+    }
+
+    private static void loadFlickerState() {
+        if (stateLoaded) {
+            return;
+        }
+        stateLoaded = true;
+        try {
+            uiHooksDisabled = org.telegram.messenger.ApplicationLoader.applicationContext
+                .getSharedPreferences("mainconfig", android.content.Context.MODE_PRIVATE)
+                .getBoolean("kamigram_ui_hooks_off", false);
+        } catch (Throwable ignore) {
+        }
+    }
 
     /** Визуальные эффекты мода выключены защитой от мерцания. */
     public static boolean uiHooksDisabled() {
