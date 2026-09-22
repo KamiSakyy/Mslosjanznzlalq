@@ -24,11 +24,18 @@ import java.lang.ref.WeakReference;
  */
 public final class KamiGramProxyStatus {
 
-    /** Базовая строка заголовка («KamiGram»). Храним и текст: строку нельзя «терять». */
-    private static WeakReference<CharSequence> baseTitle = new WeakReference<>(null);
-    private static String baseText = null;
-    private static WeakReference<ActionBar> actionBarRef = new WeakReference<>(null);
-    private static WeakReference<Drawable> rightDrawableRef = new WeakReference<>(null);
+    /**
+     * Базовая строка заголовка («KamiGram») и сама шапка.
+     *
+     * r68: держим ОБЫЧНЫЕ (сильные) ссылки. Раньше здесь были WeakReference, и
+     * после сборки мусора «базовая» строка исчезала — заголовок оставался пустым
+     * (пользователь видел «название KamiGram пропадает»). Теперь строка и шапка
+     * всегда под рукой: приложение всё равно живёт с ними до самого выхода.
+     */
+    private static CharSequence baseTitle = null;
+    private static String baseText = "KamiGram";
+    private static ActionBar actionBarRef = null;
+    private static Drawable rightDrawableRef = null;
 
     private KamiGramProxyStatus() {
     }
@@ -37,16 +44,16 @@ public final class KamiGramProxyStatus {
     public static void attach(ActionBar actionBar, CharSequence base, Drawable rightDrawable) {
         try {
             if (base != null) {
-                baseTitle = new WeakReference<>(base);
+                baseTitle = base;
                 final String text = base.toString();
                 if (text != null && text.length() > 0) {
                     baseText = text;
                 }
             }
             if (actionBar != null) {
-                actionBarRef = new WeakReference<>(actionBar);
+                actionBarRef = actionBar;
             }
-            rightDrawableRef = new WeakReference<>(rightDrawable);
+            rightDrawableRef = rightDrawable;
             apply();
         } catch (Throwable ignore) {
         }
@@ -64,8 +71,8 @@ public final class KamiGramProxyStatus {
 
     private static void apply() {
         try {
-            final ActionBar actionBar = actionBarRef.get();
-            CharSequence base = baseTitle.get();
+            final ActionBar actionBar = actionBarRef;
+            CharSequence base = baseTitle;
             if (base == null || base.length() == 0) {
                 // строку могло унести сборщиком мусора — восстанавливаем из текста
                 base = baseText != null ? baseText : "KamiGram";
@@ -82,7 +89,7 @@ public final class KamiGramProxyStatus {
             /* KAMIGRAM_TITLE_BACK: заголовок главного экрана всегда возвращаем на место —
                если его подменило состояние соединения (прокси), имя KamiGram возвращается. */
             actionBar.setTitle(base instanceof SpannableStringBuilder ? base : new SpannableStringBuilder(base),
-                rightDrawableRef.get());
+                rightDrawableRef);
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }

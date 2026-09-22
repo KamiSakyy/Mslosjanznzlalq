@@ -91,11 +91,13 @@ PALETTE = {
     'actionBarTabLine': ACCENT,
     'actionBarTabActiveText': 'FFFFFF',
     'actionBarTabSelector': CARD2,
-    # непрочитанные у папок: спокойный наш цвет вместо красного
+    # непрочитанные у папок: спокойный наш цвет вместо красного.
+    # r68: у НЕвыбранной папки счётчик теперь такой же, как у выбранной — раньше он
+    # был тёмно-фиолетовым (3A2E50) на тёмной панели, и число не было видно вообще.
     'chats_tabUnreadActiveBackground': ACCENT,
-    'chats_tabUnreadUnactiveBackground': '3A2E50',
+    'chats_tabUnreadUnactiveBackground': ACCENT,
     'chats_tabUnreadActiveText': '21152F',
-    'chats_tabUnreadUnactiveText': WHITE,
+    'chats_tabUnreadUnactiveText': '21152F',
     'chats_name': WHITE,
     'chats_message': GRAY_TEXT,
     'chats_date': GRAY_TEXT,

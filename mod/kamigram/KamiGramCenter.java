@@ -221,6 +221,9 @@ public final class KamiGramCenter {
     private static void fillPrivacy(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Призрак", KamiGramConfig.KEY_GHOST, onChanged),
+            // r68: при призраке отправка уходит через «Отложенные» — как в AyuGram
+            Row.toggle("Отправка через «Отложенные»", KamiGramConfig.KEY_AUTO_SCHEDULE, onChanged),
+            Row.toggle("Авто-архив (100+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
             Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
             Row.toggle("Удалённые сообщения", KamiGramConfig.KEY_KEEP_DELETED, onChanged),
             Row.toggle("Одноразовые без пометки", KamiGramConfig.KEY_VIEW_ONCE, onChanged),

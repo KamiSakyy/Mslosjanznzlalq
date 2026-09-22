@@ -108,6 +108,18 @@ public final class KamiGramConfig {
     /** Тихая отправка (без звука). */
     public static final String KEY_SILENT_SEND = "kamigram_silent_send";
 
+    // ------------------------------------------------------------- r68
+    /**
+     * Призрак + отправка через «Отложенные» (как в AyuGram).
+     *
+     * Сообщение уходит не в момент нажатия, а через несколько секунд (сервер
+     * доставляет его по расписанию), поэтому по времени прихода сообщения
+     * нельзя понять, когда мы реально были в сети.
+     */
+    public static final String KEY_AUTO_SCHEDULE = "kamigram_auto_schedule";
+    /** Чаты со «100+» непрочитанных сами уходят в архив. */
+    public static final String KEY_AUTO_ARCHIVE = "kamigram_auto_archive";
+
     // ------------------------------------------------------------- вход
     /** Всегда простой SMS-код вместо Google-аттестации. */
     public static final String KEY_FORCE_SMS = "kamigram_force_sms";
@@ -274,6 +286,27 @@ public final class KamiGramConfig {
     /** Встроенные прокси сборки (KamiProxy) с моментальным авто-роутингом. */
     public static boolean builtinProxy() {
         return value(KEY_BUILTIN_PROXY);
+    }
+
+    /** Отправка через «Отложенные» при включённом призраке (r68). */
+    public static boolean autoSchedule() {
+        return value(KEY_AUTO_SCHEDULE);
+    }
+
+    /** Авто-архив чатов со «100+» непрочитанных (r68). */
+    public static boolean autoArchive() {
+        return value(KEY_AUTO_ARCHIVE);
+    }
+
+    /**
+     * r68: не вычищать медиа «истёкших» (одноразовых и самоуничтожающихся) сообщений.
+     *
+     * Именно этот шаг Telegram превращал фото в пустышку — в чате появлялась
+     * «истёкшая фотография», а само сообщение исчезало. Пользователь просил: фото
+     * не должны исчезать, поэтому здесь всегда true (вернуть можно одной строкой).
+     */
+    public static boolean keepExpiredMedia() {
+        return true;
     }
 
     public static boolean noStickers() {

@@ -2037,3 +2037,33 @@ else
     skip "P98 отключено (ZERO_TRAFFIC=0)"
 fi
 
+
+# =============================================================================
+# P99. r68 — по новому списку пользователя:
+#      1) призрак: отправка уходит через «Отложенные» (как в AyuGram), чтобы по
+#         времени прихода сообщения нельзя было понять, когда мы были в сети;
+#      2) авто-архив: чаты со «100+» непрочитанных сами уходят в архив;
+#      3) у папок счётчик непрочитанных — нашего цвета, как у выбранной вкладки;
+#      4) прокси: моментальное переключение на живой + смена прокси, если фото
+#         перестали загружаться;
+#      5) одноразовые и самоуничтожающиеся фото больше не исчезают («истёкшая
+#         фотография» не появляется);
+#      6) имя KamiGram в шапке не пропадает, иконка загрузок в покое статичная.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG"
+    cp -f "$KAMIGRAM_SRC/KamiGramAutoArchive.java" "$KAMI_PKG/KamiGramAutoArchive.java"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KamiGramAutoArchive" || die "P99: нет класса авто-архива"
+    python3 "$KAMIGRAM_SRC/apply_r68_patches.py" "$TG_DIR" "$APP_NAME" || die "P99: патчи r68 не применились"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_AUTO_SCHEDULE" || die "P99: отправка отложкой при призраке не встала"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_AUTO_SCHEDULE_FWD" || die "P99: пересылки отложкой не встали"
+    has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_AUTO_ARCHIVE" || die "P99: авто-архив не запускается"
+    has "$JAVA_ROOT/org/telegram/ui/Components/FilterTabsView.java" "KAMIGRAM_TAB_UNREAD_COLOR" || die "P99: цвет счётчика у папок не встал"
+    has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_IDLE" || die "P99: покой иконки загрузок не встал"
+    has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA2" || die "P99: медиа одноразовых не защищено"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_AUTO_SCHEDULE_FORWARD" || die "P99: пересылка отложкой в чате не встала"
+    ok "P99 r68: отправка отложкой при призраке, авто-архив 100+, счётчик папок нашего цвета, фото не исчезают, иконка загрузок в покое статичная"
+else
+    skip "P99 отключено (ZERO_TRAFFIC=0)"
+fi

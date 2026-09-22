@@ -7,6 +7,7 @@ import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
@@ -43,6 +44,18 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private static final long DEAD_DELAY = 250L;
     /** Через сколько секунд прокси считается «старым» и перепроверяется. */
     private static final long CHECK_FRESHNESS = 3 * 60 * 1000L;
+    /**
+     * r68: текущий прокси перепроверяется НАМНОГО чаще остальных. Именно поэтому
+     * переключение на живой происходит само, а не «после того, как я отправлю
+     * сообщение или ткну в фото» (так было: движок просыпался только от трафика).
+     */
+    private static final long CURRENT_FRESHNESS = 8_000L;
+    /** Период фонового наблюдения за прокси. */
+    private static final long LOOP_DELAY = 2_500L;
+    /** На сколько миллисекунд живой прокси должен быть быстрее, чтобы его брать. */
+    private static final long SPEED_MARGIN = 250L;
+    /** Не чаще одного «скоростного» переключения в 30 секунд. */
+    private static final long SPEED_SWITCH_COOLDOWN = 30_000L;
 
     private static final KamiGramProxyPower INSTANCE = new KamiGramProxyPower();
 
@@ -50,6 +63,13 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private boolean switching;
     private boolean singleProxyDropped;
     private long lastSwitchTime;
+
+    /** r68: счётчик неудачных загрузок файлов/фото на текущем прокси. */
+    private int loadFailures;
+    private long loadFailureTime;
+    private long lastLoadSwitch;
+    /** r68: фоновое наблюдение запущено. */
+    private boolean loopPosted;
 
     private final Runnable switchRunnable = () -> {
         switching = false;
@@ -71,12 +91,157 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         try {
             for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                 NotificationCenter.getInstance(a).addObserver(this, NotificationCenter.didUpdateConnectionState);
+                /* r68: «фото не грузится» — главный признак, что прокси пора менять
+                   (пинг при этом может быть нормальным). */
+                NotificationCenter.getInstance(a).addObserver(this, NotificationCenter.fileLoadFailed);
+                NotificationCenter.getInstance(a).addObserver(this, NotificationCenter.httpFileDidFailedLoad);
             }
             final NotificationCenter global = NotificationCenter.getGlobalInstance();
             global.addObserver(this, NotificationCenter.proxyCheckDone);
             global.addObserver(this, NotificationCenter.proxySettingsChanged);
+            startLoop();
         } catch (Throwable e) {
             FileLog.e(e);
+        }
+    }
+
+    // ------------------------------------------------- r68: постоянное наблюдение
+
+    /**
+     * Фоновое наблюдение: раз в {@link #LOOP_DELAY} миллисекунд проверяем текущий
+     * прокси и базу живых. Без этого движок просыпался только от событий сети и
+     * от реального трафика, поэтому «мёртвый» прокси мог оставаться включённым,
+     * пока пользователь сам не отправит сообщение.
+     */
+    private void startLoop() {
+        if (loopPosted) {
+            return;
+        }
+        loopPosted = true;
+        AndroidUtilities.runOnUIThread(loopRunnable, LOOP_DELAY);
+    }
+
+    private final Runnable loopRunnable = new Runnable() {
+        @Override
+        public void run() {
+            loopPosted = false;
+            try {
+                if (enabled() && smartEnabled()) {
+                    tickInternal();
+                }
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+            if (enabled() && smartEnabled()) {
+                startLoop();
+            }
+        }
+    };
+
+    /** Один «тик»: перепроверка текущего прокси и переключение, если он мёртв. */
+    private void tickInternal() {
+        final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
+        final long now = SystemClock.elapsedRealtime();
+        if (current != null && current.settings != null && !current.checking
+            && now - current.availableCheckTime > CURRENT_FRESHNESS) {
+            checkOne(current);
+        }
+        pingAll();
+        if (current == null || current.settings == null) {
+            return;
+        }
+        if (!current.checking && current.availableCheckTime != 0 && !current.available) {
+            if (hasAlternative(current)) {
+                switchToBest(contextOrNull());
+            }
+            return;
+        }
+        if (current.available && current.ping > 0) {
+            final SharedConfig.ProxyInfo best = pickBest();
+            if (best != null && best.ping > 0 && best.ping + SPEED_MARGIN < current.ping
+                && now - lastSwitchTime > SPEED_SWITCH_COOLDOWN) {
+                lastSwitchTime = now;
+                if (activate(best, contextOrNull(), true)) {
+                    checkOne(best);
+                }
+            }
+        }
+    }
+
+    /** Есть ли кроме текущего прокси хотя бы один вариант, чтобы не уходить «в прямое». */
+    private static boolean hasAlternative(SharedConfig.ProxyInfo current) {
+        try {
+            final ArrayList<SharedConfig.ProxyInfo> list = alive(true);
+            for (int a = 0; a < list.size(); a++) {
+                if (list.get(a) != current) {
+                    return true;
+                }
+            }
+            if (SharedConfig.proxyList == null) {
+                return false;
+            }
+            for (int a = 0; a < SharedConfig.proxyList.size(); a++) {
+                final SharedConfig.ProxyInfo info = SharedConfig.proxyList.get(a);
+                if (info != null && info != current && info.settings != null) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return false;
+    }
+
+    /**
+     * r68: не удалось загрузить файл/фото на текущем прокси — проверяем его вне
+     * очереди и, если сбои повторяются, уходим на другой живой прокси. Потом
+     * «толкаем» загрузки, чтобы они пошли заново уже через новый прокси.
+     */
+    private void onLoadFailure() {
+        final long now = SystemClock.elapsedRealtime();
+        if (now - loadFailureTime > 45_000L) {
+            loadFailures = 0;
+        }
+        loadFailureTime = now;
+        loadFailures++;
+
+        final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
+        if (current == null || current.settings == null || !isBuiltInProxy(current)) {
+            return;
+        }
+        if (!current.checking && now - current.availableCheckTime > 3_000L) {
+            checkOne(current);
+        }
+        if (loadFailures >= 2 && now - lastLoadSwitch > 15_000L && hasAlternative(current)) {
+            loadFailures = 0;
+            lastLoadSwitch = now;
+            // прокси отвечает на пинг, но режет файлы: помечаем «подозрительным»,
+            // чтобы движок не вернулся на него сразу же
+            current.available = false;
+            current.ping = 0;
+            current.availableCheckTime = now;
+            switchToBest(contextOrNull());
+            AndroidUtilities.runOnUIThread(KamiGramProxyPower::nudgeLoads, 1200L);
+        }
+    }
+
+    /** После смены прокси просим Telegram повторить загрузки. */
+    private static void nudgeLoads() {
+        try {
+            final int account = UserConfig.selectedAccount;
+            FileLoader.getInstance(account).onNetworkChanged(false);
+            NotificationCenter.getInstance(account).postNotificationName(
+                NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_ALL);
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** Наши встроенные прокси сборки (KamiProxy) — не трогаем чужие настройки. */
+    private static boolean isBuiltInProxy(SharedConfig.ProxyInfo info) {
+        try {
+            return info != null && KamiGramBuiltinProxy.isBuiltIn(info);
+        } catch (Throwable ignore) {
+            return false;
         }
     }
 
@@ -359,12 +524,8 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             if (!enabled() || !smartEnabled()) {
                 return;
             }
-            pingAll();
-            // если текущий прокси уже проверен и мёртв, а живой есть - меняем сразу
-            final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
-            if (current != null && !current.checking && current.availableCheckTime != 0 && !current.available) {
-                INSTANCE.switchToBest(context);
-            }
+            INSTANCE.tickInternal();
+            INSTANCE.startLoop();
         } catch (Throwable e) {
             FileLog.e(e);
         }
@@ -455,6 +616,12 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
                 } else if (!checked.available && checked == SharedConfig.currentProxy) {
                     switchToBest(null);
                 }
+            } else if (id == NotificationCenter.fileLoadFailed || id == NotificationCenter.httpFileDidFailedLoad) {
+                /* r68: файл/фото не загрузились на текущем прокси. */
+                if (account != UserConfig.selectedAccount || !enabled() || !smartEnabled()) {
+                    return;
+                }
+                onLoadFailure();
             } else if (id == NotificationCenter.proxySettingsChanged) {
                 cancelSwitch();
             }
