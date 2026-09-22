@@ -133,8 +133,8 @@ public final class KamiGramProxyHelper {
 
             lastActivatedLink = link;
             if (context != null) {
-                KamiGramUi.notify(context, settings.getAddress() + ":" + settings.getPort()
-                    + " - proxy enabled", Toast.LENGTH_SHORT).show();
+                KamiGramUi.notify(context,
+                    settings.getAddress() + ":" + settings.getPort() + " — KamiProxy активен");
             }
             return true;
         } catch (Throwable e) {

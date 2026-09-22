@@ -87,6 +87,24 @@ public final class KamiGramGhost {
     }
 
     /**
+     * Дата отправки для обычной отправки (когда пользователь не выбрал время сам).
+     * 0 — отправить сразу, как всегда; при призраке — «сейчас + 5 секунд», то есть
+     * сообщение уходит отложенным и статус «в сети» не появляется.
+     */
+    public static int sendDate(int scheduleDate) {
+        try {
+            if (scheduleDate != 0 || !silentSending()) {
+                return scheduleDate;
+            }
+            return org.telegram.tgnet.ConnectionsManager
+                .getInstance(org.telegram.messenger.UserConfig.selectedAccount).getCurrentTime()
+                + SILENT_DELAY;
+        } catch (Throwable ignore) {
+            return scheduleDate;
+        }
+    }
+
+    /**
      * Тихая отправка: при включённом призраке сообщения уходят отложенными
      * (через планировщик Telegram), поэтому статус «в сети» не появляется.
      */

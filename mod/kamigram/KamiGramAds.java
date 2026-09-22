@@ -39,10 +39,8 @@ public final class KamiGramAds {
             if (message == null || !KamiGramConfig.adsFilter()) {
                 return false;
             }
-            if (message.isOut() || message.isDateObject || message.isService()) {
-                return false;
-            }
-            if (message.messageOwner == null) {
+            if (message.messageOwner == null || message.isOut() || message.isDateObject
+                || message.messageOwner.action != null) {
                 return false;
             }
             final CharSequence text = textOf(message);

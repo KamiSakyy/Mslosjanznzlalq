@@ -167,14 +167,16 @@ def proxy_button():
     # прокси. Раньше мод добавлял в шапку свои кнопки и свои строки в меню —
     # всё это убрано. Единственная правка ниже — показывать родной пункт всегда,
     # чтобы он был под рукой с первого запуска (а не только после подключения).
-    patch('ui/DialogsActivity.java', 'KAMIGRAM_NATIVE_PROXY_ITEM',
-          '            final boolean proxyVisible = proxyEnabled && !TextUtils.isEmpty(proxyAddress)\n'
-          '                    || getMessagesController().blockedCountry && !SharedConfig.proxyList.isEmpty();\n',
-          '            /* KAMIGRAM_NATIVE_PROXY_ITEM: родной пункт «Прокси» у трёх точек виден всегда */\n'
-          '            final boolean proxyVisible = proxyEnabled && !TextUtils.isEmpty(proxyAddress)\n'
-          '                    || getMessagesController().blockedCountry && !SharedConfig.proxyList.isEmpty()\n'
-          '                    || org.telegram.messenger.kamigram.KamiGramBuiltinProxy.enabled();\n',
-          'Прокси', 'родной пункт «Прокси» у трёх точек главного экрана (иконка и состояние — от Telegram)')
+    # ВАЖНО: строка не добавляется, а ЗАМЕНЯЕТСЯ (replace_once), иначе в методе
+    # появляется второе объявление proxyVisible и сборка не компилируется.
+    replace_once('ui/DialogsActivity.java', 'KAMIGRAM_NATIVE_PROXY_ITEM',
+                 '            final boolean proxyVisible = proxyEnabled && !TextUtils.isEmpty(proxyAddress)\n'
+                 '                    || getMessagesController().blockedCountry && !SharedConfig.proxyList.isEmpty();\n',
+                 '            /* KAMIGRAM_NATIVE_PROXY_ITEM: родной пункт «Прокси» у трёх точек виден всегда */\n'
+                 '            final boolean proxyVisible = proxyEnabled && !TextUtils.isEmpty(proxyAddress)\n'
+                 '                    || getMessagesController().blockedCountry && !SharedConfig.proxyList.isEmpty()\n'
+                 '                    || org.telegram.messenger.kamigram.KamiGramBuiltinProxy.enabled();\n',
+                 'Прокси', 'родной пункт «Прокси» у трёх точек главного экрана (иконка и состояние — от Telegram)')
 
     # чат: в меню «три точки» только ID этого чата (одна аккуратная строка)
     chat = 'ui/ChatActivity.java'

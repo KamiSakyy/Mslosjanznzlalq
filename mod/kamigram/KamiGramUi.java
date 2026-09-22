@@ -42,7 +42,7 @@ public final class KamiGramUi {
             if (context instanceof LaunchActivity) {
                 final BulletinFactory factory =
                     BulletinFactory.of(((LaunchActivity) context).actionBarLayout, null);
-                Bulletin bulletin = factory.createSimpleBulletin(R.raw.info, text);
+                Bulletin bulletin = factory.createSimpleBulletin(org.telegram.messenger.R.raw.info, text);
                 bulletin.show();
                 return;
             }
@@ -50,7 +50,7 @@ public final class KamiGramUi {
             if (activity instanceof LaunchActivity) {
                 final BulletinFactory factory =
                     BulletinFactory.of(((LaunchActivity) activity).actionBarLayout, null);
-                factory.createSimpleBulletin(R.raw.info, text).show();
+                factory.createSimpleBulletin(org.telegram.messenger.R.raw.info, text).show();
             }
         } catch (Throwable throwable) {
             FileLog.e(throwable);
