@@ -42,7 +42,7 @@ public final class KamiGramCenter {
     }
 
     /** Открытый сейчас диалог центра — чтобы кнопка «Готово» закрывала именно его. */
-    private static android.app.Dialog current;
+    private static android.app.Dialog shownDialog;
 
     /** Список разделов: подпись и наполнение. */
     private interface Section {
@@ -171,7 +171,7 @@ public final class KamiGramCenter {
                 .title(null)
                 .content(root)
                 .show();
-            current = dialog;
+            shownDialog = dialog;
             if (dialog != null) {
                 final Window window = dialog.getWindow();
                 if (window != null) {
@@ -184,8 +184,8 @@ public final class KamiGramCenter {
     }
 
     private static void dismissAll(Context context) {
-        final android.app.Dialog dialog = current;
-        current = null;
+        final android.app.Dialog dialog = shownDialog;
+        shownDialog = null;
         try {
             if (dialog != null) {
                 dialog.dismiss();

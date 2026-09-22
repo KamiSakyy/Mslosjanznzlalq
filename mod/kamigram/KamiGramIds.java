@@ -30,31 +30,20 @@ public final class KamiGramIds {
      * с ID должна стоять сразу под описанием (как в других клиентах),
      * а ссылка @username остаётся ниже родным элементом Telegram.
      */
-    public static CharSequence aboutWithId(CharSequence about, long dialogId) {
+    public static String aboutWithId(CharSequence about, long dialogId) {
         try {
             if (!KamiGramConfig.showIds() || dialogId == 0) {
-                return about;
+                return about == null ? "" : about.toString();
             }
             final String id = Long.toString(dialogId);
             final String prefix = "ID: " + id;
             final String text = about == null ? "" : about.toString();
             if (text.contains(prefix)) {
-                return about;
+                return text;
             }
-            final android.text.SpannableStringBuilder builder =
-                new android.text.SpannableStringBuilder(about == null ? "" : about);
-            if (builder.length() > 0) {
-                builder.append("\n\n");
-            }
-            final int start = builder.length();
-            builder.append(prefix);
-            builder.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                start, builder.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            builder.setSpan(new android.text.style.ForegroundColorSpan(KamiGramUi.secondaryText()),
-                start, builder.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            return builder;
+            return text.length() == 0 ? prefix : text + "\n\n" + prefix;
         } catch (Throwable ignore) {
-            return about;
+            return about == null ? "" : about.toString();
         }
     }
 
