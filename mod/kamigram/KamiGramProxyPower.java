@@ -236,6 +236,15 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         }
     }
 
+    /** Контекст приложения: нужен для уведомления и мгновенного переключения. */
+    private static Context contextOrNull() {
+        try {
+            return ApplicationLoader.applicationContext;
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
     /** Наши встроенные прокси сборки (KamiProxy) — не трогаем чужие настройки. */
     private static boolean isBuiltInProxy(SharedConfig.ProxyInfo info) {
         try {
