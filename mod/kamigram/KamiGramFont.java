@@ -106,6 +106,9 @@ public final class KamiGramFont {
 
     /** Начертание для конкретной роли (medium/rbold/italic) — как в Telegram. */
     public static Typeface forAsset(String assetPath) {
+        if (org.telegram.messenger.kamigram.ThemeHook.uiHooksDisabled()) {
+            return null;
+        }
         final Typeface base = regular();
         if (base == null) {
             return null;
@@ -448,7 +451,8 @@ public final class KamiGramFont {
      * надписей шёл при каждом показе экрана, из-за этого вьюхи переразмечались.
      */
     public static void applyToScreen(View view) {
-        if (view == null || regular() == null) {
+        if (view == null || regular() == null
+            || org.telegram.messenger.kamigram.ThemeHook.uiHooksDisabled()) {
             return;
         }
         applyToThemeIfNeeded();

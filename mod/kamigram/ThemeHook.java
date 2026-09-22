@@ -55,6 +55,9 @@ public final class ThemeHook {
     private static String lastThemeName;
 
     public static void keepDarkTheme() {
+        if (uiHooksDisabled) {
+            return;
+        }
         try {
             /* Пользователь сменил тему — наши акценты нужно поставить заново
                (но только по этому поводу, а не на каждом экране). */
@@ -111,6 +114,9 @@ public final class ThemeHook {
      * «цветные» элементы (ссылки, галочки, переключатели, прогресс).
      */
     public static void applyAccent() {
+        if (uiHooksDisabled) {
+            return;
+        }
         final int accent = YORU_PURPLE;
         final int soft = (accent & 0x00FFFFFF) | 0x33000000;
         final int soft22 = (accent & 0x00FFFFFF) | 0x22000000;
@@ -234,6 +240,15 @@ public final class ThemeHook {
                 return;
             }
             APPLIED.put(activity, Boolean.TRUE);
+            if (tooManyScreens()) {
+                /* Что-то в системе пересоздаёт экраны слишком часто — визуальные
+                   эффекты мода выключаем, чтобы интерфейс не мигал. Приложение
+                   работает как обычный Telegram. */
+                uiHooksDisabled = true;
+            }
+            if (uiHooksDisabled) {
+                return;
+            }
             keepDarkTheme();
             applyAccentsOnce();
             tintSystemBars(activity);
@@ -241,6 +256,40 @@ public final class ThemeHook {
             KamiGramTweaks.apply();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
+        }
+    }
+
+    private static boolean uiHooksDisabled;
+    private static final long[] CREATE_TIMES = new long[16];
+    private static int createIndex;
+    private static int createCount;
+
+    /** Визуальные эффекты мода выключены защитой от мерцания. */
+    public static boolean uiHooksDisabled() {
+        return uiHooksDisabled;
+    }
+
+    /**
+     * Больше 10 экранов за 4 секунды — признак цикла пересоздания (мерцание).
+     * В этом случае мод перестаёт вмешиваться в оформление.
+     */
+    private static boolean tooManyScreens() {
+        try {
+            final long now = android.os.SystemClock.elapsedRealtime();
+            CREATE_TIMES[createIndex % CREATE_TIMES.length] = now;
+            createIndex++;
+            if (createCount < CREATE_TIMES.length) {
+                createCount++;
+            }
+            int recent = 0;
+            for (int a = 0; a < createCount; a++) {
+                if (now - CREATE_TIMES[a] < 4000L) {
+                    recent++;
+                }
+            }
+            return recent > 10;
+        } catch (Throwable ignore) {
+            return false;
         }
     }
 

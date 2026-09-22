@@ -1936,10 +1936,15 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
     ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
 
-    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus; do
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
+    # номер сборки внутри приложения: в настройках видно, какая версия стоит
+    BUILD_NUMBER=${GITHUB_RUN_NUMBER:-local}
+    sed_i "s/public static final String NUMBER = \"local\";/public static final String NUMBER = \"r$BUILD_NUMBER\";/" "$KAMI_PKG/KamiGramBuild.java"
+    has "$KAMI_PKG/KamiGramBuild.java" "r$BUILD_NUMBER" || die "P96: номер сборки не подставился"
+    ok "P96 номер сборки в приложении: r$BUILD_NUMBER (видно в настройках, строка KamiGram)"
     ok "P96 новые классы мода на месте: реклама, галочка, «только текст», интерфейс, встроенные прокси, шрифт, оптимизация, статус прокси в шапке"
 else
     skip "P96 отключено (ZERO_TRAFFIC=0)"
