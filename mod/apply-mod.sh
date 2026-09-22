@@ -627,7 +627,7 @@ new = (
     "                            editor.commit();\n"
     "                            ConnectionsManager.setProxySettings(true, proxySettings);\n"
     "                            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);\n"
-    "                            org.telegram.messenger.kamigram.KamiGramUi.notify(activity, proxySettings.getAddress() + \":\" + proxySettings.getPort() + \" \\u2014 KamiProxy\");\\n"
+    "                            org.telegram.messenger.kamigram.KamiGramUi.notify(activity, proxySettings.getAddress() + \":\" + proxySettings.getPort() + \" \\u2014 KamiProxy\");\n"
     "                        } catch (Exception e) {\n"
     "                            FileLog.e(e);\n"
     "                            showProxyAlert(activity, proxySettings);\n"
@@ -1945,7 +1945,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
     ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
 
-    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy; do
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done

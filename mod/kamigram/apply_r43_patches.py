@@ -140,17 +140,27 @@ def id_under_username():
 
 def ads_filter():
     ok = False
-    # 3.1 чат: при вставке сообщений в список
+    # 3.1 чат: реклама выкидывается ДО попадания в список сообщений.
+    #     Раньше правка стояла ниже по коду и реклама всё равно успевала
+    #     добавиться в список — теперь фильтр стоит в самом начале разбора,
+    #     рядом с другими проверками «continue».
     ok |= patch('ui/ChatActivity.java', 'KAMIGRAM_ADS_FILTER',
-                """                if (reversed || !addDateObjects) {
-                    messages.add(obj);""",
-                """                if (org.telegram.messenger.kamigram.KamiGramAds.hide(obj)) {
-                    org.telegram.messenger.kamigram.KamiGramAds.countHidden(obj.caption != null
-                        ? obj.caption.toString()
-                        : (obj.messageText != null ? obj.messageText.toString() : ""));
-                    continue;
-                }
-""", 'рекламные посты не показываются в чате (фильтр по словам)')
+                "            if (canAnimateMessage) {\n"
+                "                obj = needAnimateToMessage;\n"
+                "                animatingMessageObjects.add(obj);\n"
+                "                needAnimateToMessage = null;\n"
+                "            }\n",
+                "            /* KAMIGRAM_ADS_FILTER: рекламный пост не попадает в список чата */\n"
+                "            try {\n"
+                "                if (org.telegram.messenger.kamigram.KamiGramAds.hide(obj)) {\n"
+                "                    org.telegram.messenger.kamigram.KamiGramAds.countHidden(obj.caption != null\n"
+                "                        ? obj.caption.toString()\n"
+                "                        : (obj.messageText != null ? obj.messageText.toString() : \"\"));\n"
+                "                    continue;\n"
+                "                }\n"
+                "            } catch (Throwable kamigramIgnore) {\n"
+                "            }\n",
+                'рекламные посты не показываются в чате (фильтр по словам)')
     return ok
 
 
