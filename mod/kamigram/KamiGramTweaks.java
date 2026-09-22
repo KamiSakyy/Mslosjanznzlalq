@@ -21,15 +21,21 @@ public final class KamiGramTweaks {
     private KamiGramTweaks() {
     }
 
-    /** Применить всё разом. */
+    /** Применить всё разом. Тяжёлая часть — РОВНО ОДИН раз за запуск. */
+    private static volatile boolean applied;
+
     public static void apply() {
+        markOwnOnline();
+        if (applied) {
+            return;
+        }
+        applied = true;
         applyFontSize();
         applyEnterToSend();
         applyNotificationPreview();
         KamiGramFont.apply();
         KamiGramTraffic.restore();
         KamiGramTraffic.init();
-        markOwnOnline();
         applyBackground();
     }
 
@@ -125,18 +131,19 @@ public final class KamiGramTweaks {
         }
     }
 
-    /** Фон чата: чёрный (AMOLED) или графит — как выбрано в центре мода. */
+    /**
+     * Фон чата берётся из палитры Yoru (в теме уже задан chat_wallpaper) и
+     * остаётся сменным: свои обои и темы пользователь ставить не перестаёт.
+     * Раньше здесь фон насильно перекрашивался в чёрный при каждом показе
+     * экрана — из-за этого чат мигал чёрным.
+     */
     public static void applyBackground() {
-        try {
-            org.telegram.ui.ActionBar.Theme.setColor(org.telegram.ui.ActionBar.Theme.key_chat_wallpaper,
-                KamiGramConfig.chatBackgroundIndex() == 0 ? 0xFF000000 : 0xFF1C1C1E, false);
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-        }
+        /* намеренно ничего не перекрашиваем: тема и обои пользователя главнее */
     }
 
     /** Применить после смены настроек в центре мода. */
     public static void applyAndRefresh() {
+        applied = false;
         apply();
         ThemeHook.applyAccent();
     }

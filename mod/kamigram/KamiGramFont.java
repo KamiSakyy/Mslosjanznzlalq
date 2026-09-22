@@ -187,6 +187,7 @@ public final class KamiGramFont {
             cachedRegular = null;
             cachedBold = null;
             apply();
+            onFontChanged();
             KamiGramUi.notify(context, "Шрифт применён: " + describe());
             return true;
         } catch (Throwable throwable) {
@@ -209,18 +210,56 @@ public final class KamiGramFont {
             cachedRegular = null;
             cachedBold = null;
             apply();
+            onFontChanged();
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
     }
 
-    /** Сбросить кэши Telegram и перерисовать интерфейс (шрифт подхватится сразу). */
+    /**
+     * Применить шрифт к «краскам» Telegram. Экраны НЕ пересоздаются: этот метод
+     * вызывается и при старте, и на каждом показе экрана, а пересоздание из
+     * жизненного цикла давало бесконечный цикл — приложение мерцало.
+     */
     public static void apply() {
         try {
             AndroidUtilities.mediumTypeface = null;
             PAINT_STYLE.clear();
+            clearStyles();
+            typedGeneration = -1;
             applyToTheme();
-            ThemeHook.notifyAccentChanged();
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
+    /** Поколение шрифта: растёт при выборе/сбросе, чтобы не перекрашивать зря. */
+    private static int generation = 1;
+    private static int typedGeneration = -1;
+
+    /** Перекрасить «краски» только если шрифт менялся с прошлого раза. */
+    public static void applyToThemeIfNeeded() {
+        if (typedGeneration == generation) {
+            return;
+        }
+        typedGeneration = generation;
+        applyToTheme();
+    }
+
+    /**
+     * Пользователь сменил или сбросил шрифт: перекрашиваем и один раз
+     * обновляем экраны (защита от повторов — в ThemeHook.recreateScreensOnce).
+     */
+    private static void onFontChanged() {
+        generation++;
+        typedGeneration = generation;
+        try {
+            AndroidUtilities.mediumTypeface = null;
+            PAINT_STYLE.clear();
+            clearStyles();
+            applyToTheme();
+            org.telegram.messenger.NotificationCenter.getGlobalInstance()
+                .postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, 0);
         } catch (Throwable throwable) {
             FileLog.e(throwable);
         }
@@ -247,6 +286,30 @@ public final class KamiGramFont {
 
     /** Стиль (полужирный/курсив), который был у «краски» до подмены шрифта. */
     private static final IdentityHashMap<Paint, Integer> PAINT_STYLE = new IdentityHashMap<>();
+
+    /** Готовые начертания (обычный/жирный/курсив/жирный курсив) — создаются один раз. */
+    private static final Typeface[] STYLES = new Typeface[4];
+
+    private static void clearStyles() {
+        for (int i = 0; i < STYLES.length; i++) {
+            STYLES[i] = null;
+        }
+    }
+
+    /** Начертание нашего шрифта: один и тот же объект, поэтому повторных переразметок нет. */
+    private static Typeface styled(int style) {
+        int index = style & (Typeface.BOLD | Typeface.ITALIC);
+        Typeface typeface = STYLES[index];
+        if (typeface == null) {
+            if (index == Typeface.NORMAL) {
+                typeface = regular();
+            } else {
+                typeface = Typeface.create(regular(), index);
+            }
+            STYLES[index] = typeface;
+        }
+        return typeface;
+    }
 
     /**
      * Подменить шрифт во ВСЕХ текстовых «красках» Telegram (сообщения, список
@@ -332,7 +395,10 @@ public final class KamiGramFont {
                 PAINT_STYLE.put(paint, style);
             }
             final int finalStyle = forceBold ? (style | Typeface.BOLD) : style;
-            paint.setTypeface(Typeface.create(base, finalStyle));
+            final Typeface want = styled(finalStyle);
+            if (paint.getTypeface() != want) {
+                paint.setTypeface(want);
+            }
         } catch (Throwable ignore) {
         }
     }
@@ -359,7 +425,10 @@ public final class KamiGramFont {
                         style |= Typeface.ITALIC;
                     }
                 }
-                textView.setTypeface(Typeface.create(regular(), style));
+                final Typeface want = styled(style);
+                if (current != want) {
+                    textView.setTypeface(want);
+                }
             } else if (view instanceof ViewGroup) {
                 final ViewGroup group = (ViewGroup) view;
                 for (int a = 0; a < group.getChildCount(); a++) {
@@ -370,12 +439,12 @@ public final class KamiGramFont {
         }
     }
 
-    /** Полное применение: и «краски» Telegram, и надписи текущего экрана. */
+    /** Полное применение: и «краски» Telegram (если менялись), и надписи экрана. */
     public static void applyToScreen(View view) {
         if (regular() == null) {
             return;
         }
-        applyToTheme();
+        applyToThemeIfNeeded();
         applyToView(view);
     }
 

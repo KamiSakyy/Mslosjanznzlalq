@@ -50,14 +50,21 @@ public final class ThemeHook {
      * Держим тёмную iOS-тему. Если пользователь поставил свою тему — уважаем
      * её и ничего не ломаем: тогда применяются только акценты мода.
      */
+    private static boolean darkThemeApplied;
+
     public static void keepDarkTheme() {
         try {
+            if (darkThemeApplied && Theme.isCurrentThemeDark()) {
+                return;
+            }
             if (Theme.getActiveTheme() != null && Theme.isCurrentThemeDark()) {
+                darkThemeApplied = true;
                 return;
             }
             final Theme.ThemeInfo info = Theme.getTheme(THEME_KEY);
             if (info != null) {
                 Theme.applyTheme(info, true);
+                darkThemeApplied = true;
             }
         } catch (Throwable throwable) {
             FileLog.e(throwable);
@@ -155,17 +162,43 @@ public final class ThemeHook {
 
     /** Пользователь поменял цвет — обновляем все открытые экраны. */
     public static void notifyAccentChanged() {
+        /* Только цвета. Экраны здесь НЕ пересоздаются: раньше отсюда шёл
+           бесконечный цикл (resume → recreate → resume…), из-за которого
+           приложение постоянно мерцало. */
         applyAccent();
-        for (int i = ACTIVITIES.size() - 1; i >= 0; i--) {
-            final Activity current = ACTIVITIES.get(i).get();
-            if (current == null) {
-                ACTIVITIES.remove(i);
-                continue;
+    }
+
+    private static long lastRecreateTime;
+    private static boolean recreatingScreens;
+
+    /**
+     * Один раз пересоздать открытые экраны (после смены шрифта). Защита:
+     * не чаще одного раза в 3 секунды и никогда повторно из самой цепочки
+     * пересоздания — иначе получается мерцание.
+     */
+    public static void recreateScreensOnce() {
+        final long now = android.os.SystemClock.elapsedRealtime();
+        if (recreatingScreens || now - lastRecreateTime < 3000) {
+            return;
+        }
+        recreatingScreens = true;
+        lastRecreateTime = now;
+        try {
+            for (int i = ACTIVITIES.size() - 1; i >= 0; i--) {
+                final Activity current = ACTIVITIES.get(i).get();
+                if (current == null) {
+                    ACTIVITIES.remove(i);
+                    continue;
+                }
+                try {
+                    if (!current.isFinishing()) {
+                        current.recreate();
+                    }
+                } catch (Throwable ignore) {
+                }
             }
-            try {
-                current.recreate();
-            } catch (Throwable ignore) {
-            }
+        } finally {
+            recreatingScreens = false;
         }
     }
 
@@ -217,12 +250,20 @@ public final class ThemeHook {
      * (setSystemUiVisibility(0)), из-за чего приложение перестало рисовать
      * контент под панелью — панель становилась чёрной полосой.
      */
+    private static final java.util.WeakHashMap<Window, Boolean> BARS_DONE = new java.util.WeakHashMap<>();
+
     public static void tintSystemBars(Activity activity) {
         try {
             final Window window = activity.getWindow();
             if (window == null) {
                 return;
             }
+            /* Один раз на окно: повторная установка цветов системных панелей на
+               каждом resume заставляла полосы мигать. */
+            if (BARS_DONE.containsKey(window)) {
+                return;
+            }
+            BARS_DONE.put(window, Boolean.TRUE);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.setStatusBarColor(Color.TRANSPARENT);
@@ -241,10 +282,16 @@ public final class ThemeHook {
      */
     public static void applySecureFlag(Activity activity) {
         try {
-            if (KamiGramConfig.noScreenshots()) {
-                activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-            } else {
-                activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            final Window window = activity.getWindow();
+            if (window == null) {
+                return;
+            }
+            final boolean want = KamiGramConfig.noScreenshots();
+            final boolean has = (window.getAttributes().flags & WindowManager.LayoutParams.FLAG_SECURE) != 0;
+            if (want && !has) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            } else if (!want && has) {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
             }
         } catch (Throwable ignore) {
         }
