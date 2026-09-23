@@ -36,9 +36,10 @@ Telegram-FOSS: берём официальные открытые исходни
 * автоочистка касается только архива при `unread_count + unread_mark > 500`,
   защищая личные чаты/контакты.
 
-APK r77 должен быть получен через GitHub Actions workflow
-`.github/workflows/build-tgmod.yml`; исходная ссылка появится в handoff/release
-после успешного прогона.
+APK r77 собран обязательным GitHub Actions workflow
+`.github/workflows/build-tgmod.yml`. Прямая ссылка:
+[скачать KamiGram-12.10.3-mod-arm64-v8a.apk](https://github.com/KamiSakyy/Mslosjanznzlalq/releases/download/mod-12.10.3-mod-r77/KamiGram-12.10.3-mod-arm64-v8a.apk)
+
 
 ## r76 — исправления KamiProxy, интерфейса и локального Premium
 

@@ -14,8 +14,12 @@ https://github.com/KamiSakyy/Mslosjanznzlalq/tree/arena/01a0ce71-mslosjanznzlalq
 Текущий r77-патчсет находится в ветке выше: self-destruct media сохраняются/пересылаются
 как обычные медиа, `FLAG_SECURE` снят для них, queue не блокирует сторонние загрузки,
 а archive-cleaner работает только для уже архивированных диалогов с `unread_count + unread_mark > 500`.
-APK r77 будет добавлен после успешного GitHub Actions; старые APK ниже
-сохраняются как архив и не содержат новых r77-исправлений. В веб-интерфейсе открой ветку
+
+**Прямое скачивание APK r77:**
+[`KamiGram-12.10.3-mod-arm64-v8a.apk`](https://github.com/KamiSakyy/Mslosjanznzlalq/releases/download/mod-12.10.3-mod-r77/KamiGram-12.10.3-mod-arm64-v8a.apk)
+
+Сборка прошла в GitHub Actions; старые APK ниже сохраняются как архив и не содержат
+новых r77-исправлений. В веб-интерфейсе открой ветку
 и нужный файл → кнопка **Download**.
 
 ## Проверенные версии (самая стабильная сборка)
