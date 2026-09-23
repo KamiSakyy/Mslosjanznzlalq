@@ -129,8 +129,6 @@ public final class KamiGramConfig {
     public static final String KEY_FORWARD_NO_NAME = "kamigram_forward_no_name";
     /** Сгорающие и по таймеру можно пересылать. */
     public static final String KEY_FORWARD_EPHEMERAL = "kamigram_forward_ephemeral";
-    /** Плавающее окно: поверх других приложений (PiP + летающий круглешок). */
-    public static final String KEY_FLOAT_WINDOW = "kamigram_float_window";
     /** Точечный буст: нажатое фото/файл качает первым, со всеми потоками. */
     public static final String KEY_NET_FOCUS = "kamigram_net_focus";
 
@@ -285,9 +283,13 @@ public final class KamiGramConfig {
 
     public static void setInt(String key, int value) {
         try {
-            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            /* r76: числовые настройки должны использовать то же хранилище, что и
+               boolean-настройки. Раньше setInt() всегда писал в global main settings,
+               поэтому при режиме «отдельно для аккаунтов» фон/акцент/размер текста
+               визуально сбрасывались после перезапуска. */
+            final SharedPreferences preferences = store();
             if (preferences != null) {
-                preferences.edit().putInt(key, value).apply();
+                preferences.edit().putInt(key, value).commit();
             }
         } catch (Throwable ignore) {
         }
@@ -593,11 +595,6 @@ public final class KamiGramConfig {
     /** «Пересылать сгорающие»: одноразовые и по таймеру можно переслать. */
     public static boolean forwardEphemeral() {
         return value(KEY_FORWARD_EPHEMERAL);
-    }
-
-    /** «Плавающее окно»: поверх других приложений (по умолчанию включено). */
-    public static boolean floatWindow() {
-        return value(KEY_FLOAT_WINDOW);
     }
 
     /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */

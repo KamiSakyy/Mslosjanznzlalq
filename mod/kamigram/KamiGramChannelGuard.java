@@ -262,21 +262,4 @@ public final class KamiGramChannelGuard {
         }
     }
 
-    /** Открыть системные настройки «Поверх других приложений» (если вдруг понадобится). */
-    public static void requestOverlayPermission(Activity activity) {
-        try {
-            final Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:" + activity.getPackageName()));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            activity.startActivity(intent);
-        } catch (Throwable ignore) {
-            try {
-                final Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                activity.startActivity(intent);
-            } catch (Throwable t) {
-                FileLog.e(t);
-            }
-        }
-    }
 }

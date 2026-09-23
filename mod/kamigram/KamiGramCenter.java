@@ -284,7 +284,6 @@ public final class KamiGramCenter {
             Row.toggle("Пересылать сгорающие", KamiGramConfig.KEY_FORWARD_EPHEMERAL, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Плавающее окно (поверх приложений)", KamiGramConfig.KEY_FLOAT_WINDOW, onChanged),
             Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)
         });
         card(root, context, new Row[]{

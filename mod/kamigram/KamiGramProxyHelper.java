@@ -118,8 +118,10 @@ public final class KamiGramProxyHelper {
             if (settings == null || !settings.isValid()) {
                 return false;
             }
-            final SharedConfig.ProxyInfo info = new SharedConfig.ProxyInfo(settings);
-            SharedConfig.addProxy(info);
+            /* addProxy() returns the canonical row when the link already exists.
+               Using a fresh object here made currentProxy point outside proxyList,
+               which in turn made deletion and KamiProxy fallback race each other. */
+            final SharedConfig.ProxyInfo info = SharedConfig.addProxy(new SharedConfig.ProxyInfo(settings));
             SharedConfig.currentProxy = info;
             SharedConfig.saveProxyList();
 
@@ -146,8 +148,7 @@ public final class KamiGramProxyHelper {
                 return false;
             }
             final ProxySettings current = SharedConfig.currentProxy.settings;
-            return settings.getPort() == current.getPort()
-                && settings.getAddress() != null && settings.getAddress().equalsIgnoreCase(current.getAddress());
+            return settings.equals(current);
         } catch (Throwable e) {
             return false;
         }
@@ -269,6 +270,13 @@ public final class KamiGramProxyHelper {
     public static void watchProxy(final Context context) {
         if (!KamiGramConfig.proxyFallback() || !proxyEnabled()) {
             return;
+        }
+        try {
+            if (SharedConfig.currentProxy != null
+                && KamiGramBuiltinProxy.isBuiltIn(SharedConfig.currentProxy)) {
+                return;
+            }
+        } catch (Throwable ignore) {
         }
         final int account = UserConfig.selectedAccount;
         AndroidUtilities.runOnUIThread(() -> {

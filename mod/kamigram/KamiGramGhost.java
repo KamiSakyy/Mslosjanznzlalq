@@ -1,17 +1,12 @@
 package org.telegram.messenger.kamigram;
 
-import android.view.View;
+import android.content.Context;
 
 import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
-import org.telegram.ui.ActionBar.ActionBarMenu;
-import org.telegram.ui.ActionBar.ActionBarMenuItem;
-import org.telegram.ui.ActionBar.Theme;
-
-import java.lang.ref.WeakReference;
 
 /**
  * KamiGram: «призрак» — сделан по образцу AyuGram (github.com/AyuGram/AyuGram4A).
@@ -36,16 +31,10 @@ import java.lang.ref.WeakReference;
  *     {@code channels.readMessageContents}) не уходят — сервер считает, что
  *     сообщение не просмотрено, и не запускает его удаление.
  *
- * Иконка призрака живёт в шапке ГЛАВНОГО экрана, рядом с «⋮» — там, где
- * название приложения. В чатах и каналах её нет.
+ * Иконка призрака живёт в меню «⋮» главного экрана и не занимает место в
+ * шапке. В чатах и каналах её нет.
  */
 public final class KamiGramGhost {
-
-    /** Идентификатор пункта-иконки призрака. */
-    public static final int HEADER_ITEM_ID = 0x4B4701;
-
-    private static WeakReference<ActionBarMenuItem> headerItem = new WeakReference<>(null);
-    private static WeakReference<Theme.ResourcesProvider> headerProvider = new WeakReference<>(null);
 
     private KamiGramGhost() {
     }
@@ -139,69 +128,26 @@ public final class KamiGramGhost {
         }
     }
 
-    // ------------------------------------------------------------------ иконка
-
-    /** Пункт-иконка призрака рядом с «⋮» в шапке главного экрана. */
-    public static ActionBarMenuItem addHeaderItem(ActionBarMenu menu, Theme.ResourcesProvider provider) {
-        try {
-            final ActionBarMenuItem item = menu.addItem(HEADER_ITEM_ID,
-                org.telegram.messenger.R.drawable.kamigram_ghost);
-            item.setContentDescription("Призрак");
-            headerItem = new WeakReference<>(item);
-            headerProvider = new WeakReference<>(provider);
-            bindHeader(item, provider);
-            return item;
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-            return null;
-        }
-    }
-
-    /** Привязка касания и отрисовка состояния. */
-    public static void bindHeader(final ActionBarMenuItem item, final Theme.ResourcesProvider provider) {
-        if (item == null) {
-            return;
-        }
-        item.setOnClickListener(v -> toggle(item));
-        refreshHeader(item, provider);
-    }
-
-    private static void toggle(ActionBarMenuItem item) {
-        final boolean enabled = !KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
-        KamiGramConfig.set(KamiGramConfig.KEY_GHOST, enabled);
-        refreshHeader(item, null);
-        KamiGramUi.notify(item.getContext(), enabled ? "Призрак включён" : "Призрак выключен");
-    }
-
-    /** Обновить иконку (например, после переключения в настройках мода). */
-    public static void refreshAll() {
-        final ActionBarMenuItem item = headerItem == null ? null : headerItem.get();
-        if (item != null) {
-            refreshHeader(item, headerProvider == null ? null : headerProvider.get());
-        }
-    }
+    // ------------------------------------------------------------------ меню «⋮»
 
     /**
-     * Состояние видно сразу (r70 — минималистичный призрак, наш белый):
-     *   * призрак ВЫКЛЮЧЕН — тонкий белый КОНТУР (пустой призрак);
-     *   * призрак ВКЛЮЧЁН — ЗАПОЛНЕННЫЙ белый призрак.
+     * Переключатель, вызываемый из пункта меню «Призрак». Иконка создаётся
+     * заново при открытии overflow-меню, поэтому отдельная кнопка в шапке не
+     * нужна и не может занять её место.
      */
-    public static void refreshHeader(ActionBarMenuItem item, Theme.ResourcesProvider provider) {
-        if (item == null) {
-            return;
-        }
-        final boolean enabled = KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
+    public static void toggle(Context context) {
         try {
-            item.setIcon(enabled
-                ? org.telegram.messenger.R.drawable.kamigram_ghost_on
-                : org.telegram.messenger.R.drawable.kamigram_ghost);
-            item.setIconColor(0xFFFFFFFF);
-        } catch (Throwable ignore) {
+            final boolean enabled = !KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
+            KamiGramConfig.set(KamiGramConfig.KEY_GHOST, enabled);
+            refreshAll();
+            KamiGramUi.notify(context, enabled ? "Призрак включён" : "Призрак выключен");
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
         }
-        final View icon = item.getIconView();
-        if (icon != null) {
-            icon.setAlpha(enabled ? 1f : 0.9f);
-        }
+    }
+
+    /** Оставлен как совместимый хук для центра настроек; header-иконки больше нет. */
+    public static void refreshAll() {
     }
 
     // ------------------------------------------------------------------ прочее

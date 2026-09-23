@@ -2070,10 +2070,10 @@ fi
 
 
 # =============================================================================
-# P100. r70 — по новому списку пользователя (большой пакет):
-#      1)  (МАСШТАБНОЕ) поверх приложений: иконка рядом с призраком, PiP-окно
-#          поверх любого приложения + летающий круглешок (KamiGramFloat);
-#      2)  подписка на t.me/AsuMeo обязательна: красивое НЕЗакрываемое окно
+# P100. r70 — по новому списку пользователя (большой пакет).
+#      Overlay/PiP r70 удалён следующим пакетом r76: он больше не копируется
+#      и не подключается. Остальные функции r70 остаются.
+#      1)  подписка на t.me/AsuMeo обязательна: красивое НЕЗакрываемое окно
 #          «Подписаться» — само подписывает через API и открывает канал;
 #          проверка только после входа в аккаунт (KamiGramChannelGuard);
 #      3)  «Подключение…» как в оригинале: нет сети — надпись, есть — пропадает;
@@ -2091,13 +2091,13 @@ fi
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
-    # 1) весь актуальный код мода (включая новые r70: ChannelGuard / Float / NetBoost)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramFloat KamiGramAutoArchive; do
+    # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
-    # 2) иконки: минималистичный призрак (контур/заполненный), «поверх», «сгореть»
-    for d in kamigram_ghost kamigram_ghost_on kamigram_float kamigram_burn; do
+    # 2) иконки: минималистичный призрак (контур/заполненный), «сгореть»
+    for d in kamigram_ghost kamigram_ghost_on kamigram_burn; do
         cp -f "$KAMIGRAM_SRC/res/drawable/$d.xml" "$RES_ROOT/drawable/$d.xml" || die "P100: нет иконки $d"
     done
     # 3) патчи r70
@@ -2114,9 +2114,48 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/tgnet/TLRPC.java" "KAMIGRAM_PREMIUM" || die "P100: локальный премиум не встал"
     has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KAMIGRAM_SEND_HD" || die "P100: «всегда HD» не встал"
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_CHANNEL_GUARD" || die "P100: проверка подписки на канал не встала"
-    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_FLOAT_HEADER" || die "P100: иконка «поверх» не встала"
-    has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_FLOAT_STOP" || die "P100: летающий круглешок не встал"
-    ok "P100 r70: поверх приложений (PiP + круглешок), подписка-обязаловка, «Подключение…» оригинальное, живые загрузки, сгореть/прочитать, буст скорости, локальный премиум, всегда HD, ко всем аккаунтам"
+    ok "P100 r70: overlay/PiP отключён, подписка-обязаловка, «Подключение…» оригинальное, живые загрузки, сгореть/прочитать, буст скорости, локальный премиум, всегда HD, ко всем аккаунтам"
 else
     skip "P100 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P101. r76 — cleanup и критические исправления по новому запросу:
+#      overlay/PiP/пузырёк/разрешение overlay удалены полностью;
+#      ghost перенесён из шапки в меню «⋮»;
+#      spinner загрузок стартует только после движения байтов;
+#      custom-прокси и скрытый каталог KamiProxy независимы;
+#      локальные Premium-цвета и фон переживают refresh/restart.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
+
+    for f in KamiGramConfig KamiGramCenter KamiGramGhost KamiGramChannelGuard KamiGramBuiltinProxy KamiGramProxyPower KamiGramProxyHelper KamiGramPremiumState; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P101: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    for d in kamigram_ghost kamigram_ghost_on kamigram_burn; do
+        [ -f "$KAMIGRAM_SRC/res/drawable/$d.xml" ] || die "P101: нет иконки $d"
+        cp -f "$KAMIGRAM_SRC/res/drawable/$d.xml" "$RES_ROOT/drawable/$d.xml"
+    done
+    # Удаляем артефакты старого r70 даже при повторном применении поверх старого дерева.
+    rm -f "$KAMI_PKG/KamiGramFloat.java" "$RES_ROOT/drawable/kamigram_float.xml"
+
+    python3 "$KAMIGRAM_SRC/apply_r76_patches.py" "$TG_DIR" || die "P101: патчи r76 не применились"
+
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_GHOST_OVERFLOW_R76" || die "P101: призрак не перенесён в меню «⋮»"
+    if grep -R -n -E 'KAMIGRAM_FLOAT|KamiGramFloat|KamiGramGhost\.addHeaderItem|SYSTEM_ALERT_WINDOW' "$JAVA_ROOT" "$RES_ROOT" >/dev/null 2>&1; then
+        die "P101: в исходниках осталась функциональность overlay/PiP"
+    fi
+    has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_DOWNLOAD_STATIC_IDLE_R76" || die "P101: idle-анимация загрузок не исправлена"
+    has "$JAVA_ROOT/org/telegram/messenger/SharedConfig.java" "KAMIGRAM_PROXY_CATALOG_R76" || die "P101: каталог KamiProxy не защищён"
+    has "$JAVA_ROOT/org/telegram/messenger/SharedConfig.java" "KAMIGRAM_PROXY_DELETE_GUARD_R76" || die "P101: custom-прокси могут удалить встроенные"
+    has "$JAVA_ROOT/org/telegram/ui/ProxyListActivity.java" "KAMIGRAM_PROXY_SCREEN_EMPTY_R76" || die "P101: включение KamiProxy без custom не работает"
+    has "$JAVA_ROOT/org/telegram/messenger/UserConfig.java" "KAMIGRAM_PREMIUM_RESTORE_R76" || die "P101: Premium-оформление не восстанавливается"
+    has "$JAVA_ROOT/org/telegram/ui/PeerColorActivity.java" "KAMIGRAM_PREMIUM_SAVE_R76" || die "P101: Premium-оформление не сохраняется"
+    [ -f "$KAMI_PKG/KamiGramPremiumState.java" ] || die "P101: нет локального Premium-хранилища"
+    ok "P101 r76: overlay/PiP удалён, призрак в меню «⋮», idle-иконка загрузок статична, custom и KamiProxy независимы с быстрым fallback, Premium-фон сохраняется"
+else
+    skip "P101 r76 отключено (ZERO_TRAFFIC=0)"
 fi
