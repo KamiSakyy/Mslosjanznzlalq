@@ -194,7 +194,8 @@ public final class KamiGramGhost {
                 // в секретных чатах отложенных сообщений нет
                 return scheduleDate;
             }
-            int date = org.telegram.tgnet.ConnectionsManager.getInstance(account).getCurrentTime() + 10;
+            int date = org.telegram.tgnet.ConnectionsManager.getInstance(
+                org.telegram.messenger.UserConfig.selectedAccount).getCurrentTime() + 10;
             date += 1; // окно ошибки: < 10 секунд — Telegram отправит немедленно
             if (hasDocument) {
                 date += 15;

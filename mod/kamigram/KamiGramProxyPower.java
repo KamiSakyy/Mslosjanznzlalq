@@ -28,18 +28,21 @@ import java.util.HashSet;
  */
 public final class KamiGramProxyPower implements NotificationCenter.NotificationCenterDelegate {
 
-    private static final long SWITCH_DELAY = 1_200L;
-    private static final long DEAD_DELAY = 250L;
+    /* KAMIGRAM_PROXY_FAST_FAILOVER_R77: a failed live route is replaced
+       immediately; there is no long rotation cooldown hiding a faster route. */
+    private static final long SWITCH_DELAY = 180L;
+    private static final long DEAD_DELAY = 120L;
     private static final long CURRENT_FRESHNESS = 8_000L;
-    private static final long LOOP_DELAY = 2_000L;
-    private static final long SPEED_MARGIN = 250L;
-    private static final long SPEED_SWITCH_COOLDOWN = 30_000L;
+    private static final long LOOP_DELAY = 1_000L;
+    private static final long SPEED_MARGIN = 25L;
 
     private static final KamiGramProxyPower INSTANCE = new KamiGramProxyPower();
 
     private boolean initialized;
     private boolean switching;
     private boolean loopPosted;
+    /* True only after Telegram confirms a usable connection. */
+    private boolean lastConnectionHealthy;
     private long lastSwitchTime;
     private int loadFailures;
     private long loadFailureTime;
@@ -136,8 +139,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             } else if (refreshed.available && refreshed.ping > 0
                 && KamiGramBuiltinProxy.isBuiltIn(refreshed)) {
                 final SharedConfig.ProxyInfo best = KamiGramBuiltinProxy.bestAvailable();
-                if (best != null && best != refreshed && best.ping + SPEED_MARGIN < refreshed.ping
-                    && now - lastSwitchTime > SPEED_SWITCH_COOLDOWN) {
+                if (best != null && best != refreshed && best.ping + SPEED_MARGIN < refreshed.ping) {
+                    /* KAMIGRAM_PROXY_FASTEST_LIVE_R77: do not keep a slower
+                       built-in route merely because a cooldown is running. */
                     if (activate(best, null, true)) {
                         lastSwitchTime = now;
                         checkOne(best);
@@ -287,6 +291,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
                 editor.putBoolean("proxy_enabled_calls", false);
             }
             editor.commit();
+            /* A route change starts a new connection attempt. Never let the
+               previous healthy state hide the new route's connecting phase. */
+            INSTANCE.lastConnectionHealthy = false; /* KAMIGRAM_PROXY_ROUTE_CHANGE_R77 */
             SharedConfig.currentProxy = info;
             SharedConfig.saveProxyList();
             ConnectionsManager.setProxySettings(true, info.settings);
@@ -457,17 +464,33 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
                     return;
                 }
                 final int state = ConnectionsManager.getInstance(account).getConnectionState();
-                if (state == ConnectionsManager.ConnectionStateConnectingToProxy) {
-                    scheduleSwitch(SWITCH_DELAY);
-                } else if (state == ConnectionsManager.ConnectionStateConnecting) {
-                    scheduleSwitch(DEAD_DELAY);
-                } else if (state == ConnectionsManager.ConnectionStateConnected
-                    || state == ConnectionsManager.ConnectionStateUpdating
-                    || state == ConnectionsManager.ConnectionStateWaitingForNetwork) {
+                if (state == ConnectionsManager.ConnectionStateConnected
+                    || state == ConnectionsManager.ConnectionStateUpdating) {
+                    lastConnectionHealthy = true; /* KAMIGRAM_CONNECTION_HEALTHY_R77 */
                     cancelSwitch();
-                    if (state != ConnectionsManager.ConnectionStateWaitingForNetwork) {
-                        lastSwitchTime = 0;
+                    lastSwitchTime = 0;
+                } else if (state == ConnectionsManager.ConnectionStateWaitingForNetwork) {
+                    /* There is no useful fallback while Android reports that the
+                       device itself is offline; the overlay must remain visible. */
+                    lastConnectionHealthy = false;
+                    cancelSwitch();
+                } else if (state == ConnectionsManager.ConnectionStateConnectingToProxy
+                    || state == ConnectionsManager.ConnectionStateConnecting) {
+                    /* The old live route is no longer usable as soon as Telegram
+                       leaves Connected/Updating. Mark it dead before selecting the
+                       fastest already-live KamiProxy, rather than waiting for a
+                       several-second probe timeout. */
+                    if (lastConnectionHealthy) {
+                        final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
+                        if (current != null && current.settings != null) {
+                            current.available = false;
+                            current.ping = 0;
+                            current.availableCheckTime = SystemClock.elapsedRealtime();
+                        }
                     }
+                    lastConnectionHealthy = false;
+                    scheduleSwitch(state == ConnectionsManager.ConnectionStateConnectingToProxy
+                        ? SWITCH_DELAY : DEAD_DELAY);
                 }
             } else if (id == NotificationCenter.proxyCheckDone) {
                 if (!enabled() || !smartEnabled()) {
@@ -508,6 +531,21 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         pingAll();
         INSTANCE.switchToBest(context);
         KamiGramBuiltinProxy.route(context, true);
+    }
+
+    /**
+     * A title overlay may disappear only after Telegram confirms a usable
+     * connection. ApplicationLoader.isNetworkOnline() is not sufficient: it is
+     * also true while a proxy is negotiating or has just failed.
+     */
+    public static boolean connectionHealthy() { /* KAMIGRAM_CONNECTION_HEALTHY_R77 */
+        try {
+            final int state = ConnectionsManager.getInstance(UserConfig.selectedAccount).getConnectionState();
+            return state == ConnectionsManager.ConnectionStateConnected
+                || state == ConnectionsManager.ConnectionStateUpdating;
+        } catch (Throwable ignore) {
+            return false;
+        }
     }
 
     public static boolean networkOnline() {

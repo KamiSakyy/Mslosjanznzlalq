@@ -2159,3 +2159,47 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
 else
     skip "P101 r76 отключено (ZERO_TRAFFIC=0)"
 fi
+
+# =============================================================================
+# P102. r77 — по новому запросу пользователя:
+#      1) «Настроить прокси >» скрывается только после подтверждённого
+#         Connected/Updating и возвращается при потере связи;
+#      2) self-destruct media скачиваются, сохраняются и пересылаются как обычные
+#         медиа, без FLAG_SECURE;
+#      3) «Прочитать» использует иконку глаза;
+#      4) открытие файла ускоряет его, но не ставит остальные загрузки на паузу;
+#      5) ротация выбирает самый быстрый живой KamiProxy и не трогает live custom;
+#      6) очищается только архив: unread > 500, боты блокируются и удаляются,
+#         каналы/группы покидаются, личные/контакты защищены.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG"
+    for f in KamiGramProxyPower KamiGramBuiltinProxy KamiGramNetFilter KamiGramTextOnly KamiGramAutoArchive; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P102: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    python3 "$KAMIGRAM_SRC/apply_r77_patches.py" "$TG_DIR" || die "P102: патчи r77 не применились"
+
+    has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_PROXY_OVERLAY_R77" || die "P102: stale proxy overlay не исправлен"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_PROXY_REFRESH_HEALTHY_R77" || die "P102: offline refresh заголовка не исправлен"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_CONNECTION_HEALTHY_R77" || die "P102: состояние живого proxy не отслеживается"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NET_NO_PAUSE_R77" || die "P102: открытие медиа всё ещё ставит очередь на паузу"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_EPHEMERAL_IMAGE_LOAD_R77" || die "P102: ephemeral-фото блокируются text-only"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_EPHEMERAL_ACTIONS_R77" || die "P102: save/share действия ephemeral не добавлены"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_READ_EYE_R77" || die "P102: иконка «Прочитать» не заменена на глаз"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_EPHEMERAL_FORWARD_UPLOAD_R77" || die "P102: ephemeral forwarding не переводится в upload"
+    has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "KAMIGRAM_SECRET_VIEWER_SECURE_R77" || die "P102: secure flag SecretMediaViewer не условный"
+    has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_PHOTO_VIEWER_EPHEMERAL_SCREENSHOT_R77" || die "P102: secure flag PhotoViewer не условный"
+    has "$JAVA_ROOT/org/telegram/ui/SecretVoicePlayer.java" "KAMIGRAM_SECRET_VOICE_SCREENSHOT_R77" || die "P102: secure flag SecretVoicePlayer не условный"
+    has "$JAVA_ROOT/org/telegram/ui/Cells/ChatMessageCell.java" "KAMIGRAM_EPHEMERAL_CELL_SCREENSHOT_R77" || die "P102: secure flag one-time cell не условный"
+    has "$JAVA_ROOT/org/telegram/messenger/ProxyRotationController.java" "KAMIGRAM_PROXY_ROTATION_R77" || die "P102: native proxy rotation не защищён"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_CLEAN_R77" || die "P102: archive cleaner r77 не скопирован"
+    grep -q "'chats_archiveBackground': CARD2" "$KAMIGRAM_SRC/apply_theme_pro.py" || die "P102: цвет архива не KamiGram"
+    grep -q "'chats_archivePullDownBackground': CARD2" "$KAMIGRAM_SRC/apply_theme_pro.py" || die "P102: цвет pull-down архива не KamiGram"
+    grep -q "'actionBarTabActiveText': 'FFFFFF'" "$KAMIGRAM_SRC/apply_theme_pro.py" || die "P102: активная папка не светлая"
+    grep -q "'actionBarTabUnactiveText': 'CCFFFFFF'" "$KAMIGRAM_SRC/apply_theme_pro.py" || die "P102: неактивная папка не светлая"
+    ok "P102 r77: overlay/fallback/queue исправлены, self-destruct media сохраняются и пересылаются, screenshot разрешён, глаз и KamiGram-палитра на месте, archive-only cleanup >500"
+else
+    skip "P102 отключено (ZERO_TRAFFIC=0)"
+fi

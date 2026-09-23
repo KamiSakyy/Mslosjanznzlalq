@@ -1,6 +1,7 @@
 package org.telegram.messenger.kamigram;
 
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_stories;
@@ -173,6 +174,13 @@ public final class KamiGramNetFilter {
      */
     public static boolean blockDownload(TLRPC.Document document, Object parentObject) {
         try {
+            /* KAMIGRAM_EPHEMERAL_DOWNLOAD_R77: never apply economy filters to
+               a self-destructing message the user opened or selected. */
+            if (parentObject instanceof MessageObject
+                && ((MessageObject) parentObject).messageOwner != null
+                && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
+                return false;
+            }
             if (KamiGramConfig.noStories() && parentObject instanceof TL_stories.StoryItem) {
                 return denyFile(document);
             }

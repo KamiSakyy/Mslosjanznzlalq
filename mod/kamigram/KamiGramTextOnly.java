@@ -43,6 +43,11 @@ public final class KamiGramTextOnly {
     /** Блокируем ли загрузку картинки (фото, аватар, превью, стикер). */
     public static boolean blockImage(Object parentObject) {
         try {
+            if (parentObject instanceof MessageObject
+                && ((MessageObject) parentObject).messageOwner != null
+                && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
+                return false;
+            }
             if (!enabled() || KamiGramUi.isManual()) {
                 return false;
             }
@@ -56,6 +61,14 @@ public final class KamiGramTextOnly {
     /** Блокируем ли загрузку файла (видео, аудио, документ, стикер). */
     public static boolean blockDocument(TLRPC.Document document, Object parentObject, long size) {
         try {
+            /* KAMIGRAM_EPHEMERAL_DOWNLOAD_R77: self-destruct media is an
+               explicit user-visible request and must never be hidden by the
+               traffic-saving mode, including voice/files/documents. */
+            if (parentObject instanceof MessageObject
+                && ((MessageObject) parentObject).messageOwner != null
+                && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
+                return false;
+            }
             if (!enabled() || KamiGramUi.isManual()) {
                 return false;
             }

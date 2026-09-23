@@ -43,8 +43,10 @@ public final class KamiGramBuiltinProxy {
         "https://t.me/proxy?server=media9.happtg.org&port=443&secret=ee2e7c3d85e469cb8f825f4678a716a363706574726f766963682e7275"
     };
 
-    private static final long ROUTE_INTERVAL = 8_000L;
-    private static final long BETTER_BY_MS = 120L;
+    private static final long ROUTE_INTERVAL = 1_000L;
+    /* KAMIGRAM_PROXY_FASTEST_LIVE_R77: select the quickest confirmed live
+       built-in route instead of waiting 120 ms for a nominal improvement. */
+    private static final long BETTER_BY_MS = 25L;
 
     private static final ArrayList<SharedConfig.ProxyInfo> PRESETS = new ArrayList<>();
     private static final HashSet<String> PRESET_KEYS = new HashSet<>();
