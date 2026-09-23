@@ -273,28 +273,30 @@ public final class KamiGramFloat {
             } catch (Throwable ignore) {
             }
 
-            float downX, downY, viewX, viewY;
-            boolean moved;
+            // изменяемое состояние жеста — в финальных массивах (лямбда)
+            final float[] downXY = new float[2];
+            final float[] viewXY = new float[2];
+            final boolean[] moved = {false};
             bubble.setOnTouchListener((v, event) -> {
                 switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        downX = event.getRawX();
-                        downY = event.getRawY();
-                        viewX = v.getX();
-                        viewY = v.getY();
-                        moved = false;
+                        downXY[0] = event.getRawX();
+                        downXY[1] = event.getRawY();
+                        viewXY[0] = v.getX();
+                        viewXY[1] = v.getY();
+                        moved[0] = false;
                         return true;
                     case MotionEvent.ACTION_MOVE:
-                        final float dx = event.getRawX() - downX;
-                        final float dy = event.getRawY() - downY;
+                        final float dx = event.getRawX() - downXY[0];
+                        final float dy = event.getRawY() - downXY[1];
                         if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-                            moved = true;
+                            moved[0] = true;
                         }
-                        v.setX(viewX + dx);
-                        v.setY(viewY + dy);
+                        v.setX(viewXY[0] + dx);
+                        v.setY(viewXY[1] + dy);
                         return true;
                     case MotionEvent.ACTION_UP:
-                        if (!moved) {
+                        if (!moved[0]) {
                             openApp(activity);
                         }
                         return true;
