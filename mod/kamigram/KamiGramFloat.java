@@ -298,10 +298,7 @@ public final class KamiGramFloat {
                             openApp(activity);
                         }
                         return true;
-                    case MotionEvent.ACTION_LONG_PRESS:
-                        hideBubble();
-                        KamiGramUi.notify(activity, "Круглешок скрыт");
-                        return true;
+                    // долгое нажатие обрабатывает setOnLongClickListener ниже
                     default:
                         return false;
                 }

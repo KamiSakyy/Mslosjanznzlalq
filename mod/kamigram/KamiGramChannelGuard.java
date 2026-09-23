@@ -95,12 +95,14 @@ public final class KamiGramChannelGuard {
                 }
                 final TLRPC.TL_contacts_resolvedPeer result =
                     (TLRPC.TL_contacts_resolvedPeer) response;
-                final TLRPC.User user = result.users != null && result.users.size() > 0
-                    ? result.users.get(0) : null;
-                if (!(user instanceof TLRPC.TL_user)) {
+                // канал приходит в ответе объектом Chat (у него флаг left
+                // — «не состою в канале» — и все данные для подписки)
+                final TLRPC.Chat channel = result.chats != null && result.chats.size() > 0
+                    ? result.chats.get(0) : null;
+                if (channel == null) {
+                    // канал не пришёл (нет сети/канал скрыт) — повторим позже
                     return;
                 }
-                final TLRPC.TL_user channel = (TLRPC.TL_user) user;
                 final boolean joined = !channel.left;
                 AndroidUtilities.runOnUIThread(() -> {
                     if (joined) {
@@ -130,7 +132,7 @@ public final class KamiGramChannelGuard {
     // ------------------------------------------------------------------ диалог
 
     private static void showSubscribeDialog(final Activity activity, final int account,
-                                            final TLRPC.TL_user channel) {
+                                            final TLRPC.Chat channel) {
         if (activity == null || activity.isFinishing() || dialogShowing) {
             return;
         }
@@ -152,7 +154,7 @@ public final class KamiGramChannelGuard {
     }
 
     /** Красивое содержимое окна: аватар канала, название, короткий текст. */
-    private static View buildView(Context ctx, TLRPC.TL_user channel) {
+    private static View buildView(Context ctx, TLRPC.Chat channel) {
         final LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -171,14 +173,14 @@ public final class KamiGramChannelGuard {
         avatar.setTypeface(AndroidUtilities.bold());
         avatar.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 28);
         avatar.setTextColor(ThemeHook.YORU_TEXT);
-        // в этой базе TLRPC у User нет поля title (оно в userFull) —
-        // показываем username канала
-        final String title = TextUtils.isEmpty(channel.username) ? CHANNEL_USERNAME : channel.username;
+        final String title = TextUtils.isEmpty(channel.title)
+            ? (TextUtils.isEmpty(channel.username) ? CHANNEL_USERNAME : channel.username)
+            : channel.title;
         avatar.setText(String.valueOf(title.charAt(0)));
         root.addView(avatar, new LinearLayout.LayoutParams(
             AndroidUtilities.dp(72), AndroidUtilities.dp(72)));
 
-        // название канала (username — в этой базе у User нет поля title)
+        // название канала
         final TextView name = new TextView(ctx);
         name.setText(title);
         name.setTextSize(20);
@@ -221,10 +223,10 @@ public final class KamiGramChannelGuard {
      * канала. Если подписка прошла — окно закрывается.
      */
     private static void doJoin(final Activity activity, final int account,
-                               final TLRPC.TL_user channel, final Runnable afterJoin) {
+                               final TLRPC.Chat channel, final Runnable afterJoin) {
         try {
             final TLRPC.TL_inputChannel inputChannel = new TLRPC.TL_inputChannel();
-            inputChannel.channel_id = channel.id;
+            inputChannel.channel_id = channel.id; // id канала уже высокий (0x100000000|id)
             inputChannel.access_hash = channel.access_hash;
             final TLRPC.TL_channels_joinChannel request = new TLRPC.TL_channels_joinChannel();
             request.channel = inputChannel;
