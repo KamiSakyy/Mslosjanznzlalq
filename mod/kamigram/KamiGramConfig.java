@@ -337,9 +337,12 @@ public final class KamiGramConfig {
         return value(KEY_SHOW_IDS);
     }
 
-    /** Удалённые сообщения остаются в чате. */
+    /**
+     * r80: retained key for settings/database compatibility, but native Telegram
+     * deletion is always authoritative and the old keep-deleted behaviour is off.
+     */
     public static boolean keepDeleted() {
-        return value(KEY_KEEP_DELETED);
+        return false; /* KAMIGRAM_NATIVE_DELETE_R80 */
     }
 
     /** Одноразовые сообщения смотрим без пометки «просмотрено» (сервер не удаляет). */
@@ -390,9 +393,12 @@ public final class KamiGramConfig {
         return value(KEY_BUILTIN_PROXY);
     }
 
-    /** Отправка через «Отложенные» при включённом призраке (r68). */
+    /**
+     * r80: retained key for old preferences; normal sends never become
+     * Scheduled messages, regardless of the stored legacy value.
+     */
     public static boolean autoSchedule() {
-        return value(KEY_AUTO_SCHEDULE);
+        return false; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     /** Авто-архив чатов со «100+» непрочитанных (r68). */

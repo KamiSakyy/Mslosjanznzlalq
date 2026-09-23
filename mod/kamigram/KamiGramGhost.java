@@ -166,100 +166,25 @@ public final class KamiGramGhost {
         return scheduleDate;
     }
 
-    // ---------------------------------------------------- r68: отправка «отложкой»
+    // ---------------------------------------------------- r80: instant sending
 
     /**
-     * Призрак: обычная отправка уходит через «Отложенные» — точно как в AyuGram
-     * (SendMessagesHelper: scheduleDate = currentTime + 10 + 1).
-     *
-     * Почему так: если отправить сообщение сразу, собеседник получает его в ту же
-     * секунду, когда мы нажали «отправить», — по времени прихода видно, что мы
-     * были в сети. Отложенное сообщение уходит по расписанию, и по нему нельзя
-     * понять, когда мы реально заходили.
-     *
-     * Telegram отправляет сообщение сразу, если до даты отправки меньше 10 секунд
-     * (в этом случае приходит обычный updateNewMessage) — поэтому берём +10 и ещё
-     * +1 секунду «окна ошибки». Картинке нужно время на загрузку (+10), документу
-     * тоже (+15) — иначе сообщение может «созреть» раньше, чем загрузится файл.
+     * Compatibility hook kept for the r68 call sites. It deliberately returns
+     * Telegram's original schedule date unchanged: KamiGram must never turn an
+     * ordinary send or forward into a delayed message.
      */
     public static int autoScheduleDate(int scheduleDate, long peer, boolean hasPhoto, boolean hasDocument) {
-        try {
-            if (!KamiGramConfig.ghostMode() || !KamiGramConfig.autoSchedule()) {
-                return scheduleDate;
-            }
-            if (scheduleDate != 0) {
-                return scheduleDate;
-            }
-            if (org.telegram.messenger.DialogObject.isEncryptedDialog(peer)) {
-                // в секретных чатах отложенных сообщений нет
-                return scheduleDate;
-            }
-            int date = org.telegram.tgnet.ConnectionsManager.getInstance(
-                org.telegram.messenger.UserConfig.selectedAccount).getCurrentTime() + 10;
-            date += 1; // окно ошибки: < 10 секунд — Telegram отправит немедленно
-            if (hasDocument) {
-                date += 15;
-            } else if (hasPhoto) {
-                date += 10;
-            }
-            markAutoScheduled();
-            return date;
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-            return scheduleDate;
-        }
+        return scheduleDate; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
-    /** То же для пересылок и медиа-пакетов: смотрим, что именно отправляем. */
+    /** Forwarding compatibility overload: no artificial timer, no queue hop. */
     public static int autoScheduleDate(int scheduleDate, long peer, java.util.ArrayList<org.telegram.messenger.MessageObject> messages) {
-        boolean photo = false;
-        boolean document = false;
-        try {
-            if (messages != null) {
-                for (int a = 0; a < messages.size(); a++) {
-                    final org.telegram.messenger.MessageObject object = messages.get(a);
-                    if (object == null || object.messageOwner == null) {
-                        continue;
-                    }
-                    if (object.isPhoto()) {
-                        photo = true;
-                    } else if (object.isDocument() || object.isVideo() || object.isVoice() || object.isMusic()) {
-                        document = true;
-                    }
-                }
-            }
-        } catch (Throwable ignore) {
-        }
-        return autoScheduleDate(scheduleDate, peer, photo, document);
+        return scheduleDate; /* KAMIGRAM_INSTANT_FORWARD_R80 */
     }
 
-    private static boolean autoScheduled;
-    private static long autoScheduledTime;
-
-    private static boolean autoScheduleHintShown;
-
-    private static void markAutoScheduled() {
-        autoScheduled = true;
-        autoScheduledTime = System.currentTimeMillis();
-        if (!autoScheduleHintShown) {
-            // один раз за запуск: чтобы не было сюрприза «нажал отправить, а сообщения нет»
-            autoScheduleHintShown = true;
-            final android.content.Context context = org.telegram.messenger.ApplicationLoader.applicationContext;
-            if (context != null) {
-                org.telegram.messenger.AndroidUtilities.runOnUIThread(() ->
-                    KamiGramUi.notify(context, "Призрак: отправка через «Отложенные»"));
-            }
-        }
-    }
-
-    /**
-     * Была ли последняя отправка переведена в «отложенную» (флаг сбрасывается
-     * после прочтения — как AyuState.getAutomaticallyScheduled в AyuGram).
-     */
+    /** Always false because r80 no longer moves messages to Scheduled. */
     public static boolean consumeAutoScheduled() {
-        final boolean value = autoScheduled && System.currentTimeMillis() - autoScheduledTime < 5000L;
-        autoScheduled = false;
-        return value;
+        return false; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     // ------------------------------------------------------------------ совместимость

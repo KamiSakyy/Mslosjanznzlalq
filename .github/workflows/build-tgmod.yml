@@ -314,6 +314,12 @@ jobs:
           grep -q "name='$APP_PACKAGE'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверный package id (ждали $APP_PACKAGE)"; FAILED=1; }
           grep -q "application-label:'$APP_NAME'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверное название приложения (ждали $APP_NAME)"; FAILED=1; }
           [ -n "$VERSION" ] && grep -q "versionName='$VERSION'" /tmp/badging.txt || { echo "::warning title=Проверка::версия в APK отличается от gradle.properties ($VERSION)"; }
+          ICON_ENTRIES=$(unzip -l "$APK" 2>/dev/null | grep -cE 'mipmap-[^/]+/kamigram_launcher\.png' || true)
+          echo "KamiGram launcher PNG entries in APK: $ICON_ENTRIES"
+          [ "$ICON_ENTRIES" -ge 5 ] || echo "::warning title=Проверка::фирменная Emilia/KamiGram launcher-иконка не найдена по ожидаемому resource name; полный launcher список ниже"
+          ICON_LIST=$(unzip -Z1 "$APK" 2>/dev/null | grep -E '(^|/)(mipmap|drawable)[^/]*/.*(launcher|ic_launcher).*\.(png|xml)$' | tr '\n' ' ' || true)
+          echo "::notice title=APK launcher resources::${ICON_LIST:0:900}"
+          grep -q "kamigram_launcher" /tmp/badging.txt || echo "::notice title=Проверка::aapt2 badging не вывел имя alias, полный APK launcher список записан выше"
           [ "$FAILED" = "1" ] && exit 1
 
           # --- информационные проверки ---

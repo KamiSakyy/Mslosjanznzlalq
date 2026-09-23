@@ -19,6 +19,7 @@ import org.telegram.tgnet.TLObject;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Быстрый наблюдатель KamiProxy.
@@ -36,9 +37,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private static final long CURRENT_FRESHNESS = 8_000L;
     private static final long LOOP_DELAY = 1_000L;
     private static final long SPEED_MARGIN = 25L;
-    /* KAMIGRAM_PROXY_SEND_LEASE_R78: route changes are deferred while Telegram
-       is completing an ordinary outgoing message request. */
-    private static final long MESSAGE_SEND_LEASE = 12_000L;
+    /* KAMIGRAM_PROXY_SEND_LEASE_R78 is retained only as a compatibility marker.
+       r80 tracks real native request tokens instead of holding a fixed timer. */
+    private static final ConcurrentHashMap<Integer, Boolean> MESSAGE_REQUESTS_IN_FLIGHT = new ConcurrentHashMap<>();
 
     private static final KamiGramProxyPower INSTANCE = new KamiGramProxyPower();
 
@@ -51,7 +52,6 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private int loadFailures;
     private long loadFailureTime;
     private long lastLoadSwitch;
-    private static volatile long messageSendLeaseUntil;
 
     private final Runnable switchRunnable = () -> {
         switching = false;
@@ -96,10 +96,11 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     /**
-     * Central request classifier used by ConnectionsManager. A send lease is
-     * deliberately time based: Telegram owns the asynchronous callback, while
-     * the proxy watcher only needs to avoid changing routes during the short
-     * connection/retry window that made messages fail intermittently.
+     * Central request classifier used by ConnectionsManager. Route stability is
+     * tied to the real native request token, never to a synthetic delay. The
+     * token is removed on Telegram's response or cancellation, so ordinary
+     * sends remain immediate while the smart watcher cannot rotate the route
+     * underneath an active send.
      */
     public static boolean isMessageRequest(TLObject object) {
         if (object == null) {
@@ -119,19 +120,29 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         }
     }
 
-    public static void noteMessageRequestStarted() {
-        final long until = SystemClock.elapsedRealtime() + MESSAGE_SEND_LEASE;
-        if (until > messageSendLeaseUntil) {
-            messageSendLeaseUntil = until;
+    /** r80: pin only the actual native request, never a fixed send timer. */
+    public static void noteMessageRequestStarted(int requestToken) {
+        if (requestToken >= 0) {
+            MESSAGE_REQUESTS_IN_FLIGHT.put(requestToken, Boolean.TRUE); /* KAMIGRAM_INSTANT_SEND_R80 */
         }
     }
 
+    /** Compatibility overload for older call sites; it still has no timer. */
+    public static void noteMessageRequestStarted() {
+        MESSAGE_REQUESTS_IN_FLIGHT.put(Integer.MIN_VALUE, Boolean.TRUE); /* KAMIGRAM_INSTANT_SEND_R80 */
+    }
+
+    /** Route selection is stable only while a real request token is active. */
     public static boolean messageSendInFlight() {
-        return SystemClock.elapsedRealtime() < messageSendLeaseUntil;
+        return !MESSAGE_REQUESTS_IN_FLIGHT.isEmpty(); /* KAMIGRAM_INSTANT_SEND_R80 */
+    }
+
+    public static void noteMessageRequestFinished(int requestToken) {
+        MESSAGE_REQUESTS_IN_FLIGHT.remove(requestToken); /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
     }
 
     public static void noteMessageRequestFinished() {
-        messageSendLeaseUntil = 0L; /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
+        MESSAGE_REQUESTS_IN_FLIGHT.remove(Integer.MIN_VALUE); /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
     }
 
     private void startLoop() {

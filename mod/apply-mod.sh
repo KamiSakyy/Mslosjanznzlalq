@@ -2233,3 +2233,103 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
 else
     skip "P103 r78 отключено (ZERO_TRAFFIC=0)"
 fi
+
+# =============================================================================
+# P104. r80 — instant native Telegram behaviour:
+#      1) no Ghost/Scheduled rewrite: text, media and forwards go out now;
+#      2) protected channels/chats expose Forward and use copy/upload delivery;
+#      3) the old keep-deleted journal is disabled so Delete removes immediately;
+#      4) fixed proxy send lease is replaced by a real request-token guard;
+#      5) protected/one-time media keep native save/share actions;
+#      6) the launcher uses the generated KamiGram Emilia + Telegram icon.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    python3 "$KAMIGRAM_SRC/apply_r80_patches.py" "$TG_DIR" || die "P104: патчи r80 не применились"
+
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_INSTANT_SEND_R80" || die "P104: отправка всё ещё может уйти в отложенные"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_RESTRICTIONS_R80" || die "P104: меню защищённых сообщений не разблокировано"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_PROTECTED_FORWARD_COPY_R80" || die "P104: защищённая пересылка не использует copy/upload"
+    has "$JAVA_ROOT/org/telegram/messenger/MessageObject.java" "KAMIGRAM_FORWARD_RESTRICTIONS_R80_MESSAGE_OBJECT" || die "P104: MessageObject всё ещё запрещает пересылку"
+    has "$KAMI_PKG/KamiGramDeleted.java" "KAMIGRAM_NATIVE_DELETE_R80" || die "P104: старый фильтр удаления не отключён"
+    has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_INSTANT_SEND_R80" || die "P104: legacy auto-schedule всё ещё может включиться"
+    has "$KAMI_PKG/KamiGramCenter.java" "KAMIGRAM_NATIVE_DELETE_R80" || die "P104: legacy keep-deleted control всё ещё показан"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_INSTANT_SEND_R80" || die "P104: фиксированный proxy send lease остался активным"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_INSTANT_PROXY_ROUTE_R80" || die "P104: route stability не привязана к реальному request token"
+
+    ICON_SRC="$KAMIGRAM_SRC/res"
+    APP_RES_ROOT="$TG_DIR/TMessagesProj_App/src/main/res"
+    for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+        [ -f "$ICON_SRC/mipmap-$density/kamigram_launcher.png" ] || die "P104: нет иконки KamiGram ($density)"
+        # Keep the source-library resource for the main manifest and mirror it
+        # into the final application module so aapt/resource shrinking sees the
+        # afat release manifest reference as a live launcher resource.
+        mkdir -p "$RES_ROOT/mipmap-$density" "$APP_RES_ROOT/mipmap-$density"
+        cp -f "$ICON_SRC/mipmap-$density/kamigram_launcher.png" "$RES_ROOT/mipmap-$density/kamigram_launcher.png"
+        cp -f "$ICON_SRC/mipmap-$density/kamigram_launcher.png" "$APP_RES_ROOT/mipmap-$density/kamigram_launcher.png"
+    done
+
+    ICON_MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
+    ICON_CONFIG_RELEASE="$TG_DIR/TMessagesProj/config/release/AndroidManifest.xml"
+    ICON_CONFIG_SDK23="$TG_DIR/TMessagesProj/config/release/AndroidManifest_SDK23.xml"
+    ICON_CONFIG_STANDALONE="$TG_DIR/TMessagesProj/config/release/AndroidManifest_standalone.xml"
+    python3 - "$ICON_MANIFEST" "$ICON_CONFIG_RELEASE" "$ICON_CONFIG_SDK23" "$ICON_CONFIG_STANDALONE" <<'PY' || die "P104: не удалось подключить иконку KamiGram"
+import io, os, sys
+main_path = sys.argv[1]
+extra_paths = sys.argv[2:]
+marker = "KAMIGRAM_LAUNCHER_R80"
+src = io.open(main_path, encoding="utf-8").read()
+if marker not in src:
+    anchor = '''        <activity-alias
+            android:enabled="true"
+            android:name="org.telegram.messenger.DefaultIcon"
+'''
+    replacement = '''        <!-- KAMIGRAM_LAUNCHER_R80 -->
+        <activity-alias
+            android:enabled="true"
+            android:name="org.telegram.messenger.DefaultIcon"
+            android:icon="@mipmap/kamigram_launcher"
+            android:roundIcon="@mipmap/kamigram_launcher"
+'''
+    if anchor not in src:
+        sys.stderr.write("P104: DefaultIcon anchor not found\n")
+        sys.exit(1)
+    src = src.replace(anchor, replacement, 1)
+io.open(main_path, "w", encoding="utf-8").write(src)
+
+# The afat release flavor overlays the library manifest with one of these
+# config manifests. Point its real application icon at the generated resource,
+# otherwise resource shrinking can discard a library-only alias icon.
+new_icon = '''        android:icon="@mipmap/kamigram_launcher"
+        android:roundIcon="@mipmap/kamigram_launcher"
+'''
+old_icons = [
+    '''        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+''',
+    '''        android:icon="@mipmap/ic_launcher_sa"
+        android:roundIcon="@mipmap/ic_launcher_sa"
+''',
+]
+for path in extra_paths:
+    if not os.path.isfile(path):
+        continue
+    text = io.open(path, encoding="utf-8").read()
+    for old_icon in old_icons:
+        if old_icon in text:
+            text = text.replace(old_icon, new_icon, 1)
+            break
+    else:
+        if '@mipmap/kamigram_launcher' not in text:
+            sys.stderr.write("P104: release manifest icon anchor not found: %s\n" % path)
+            sys.exit(1)
+    io.open(path, "w", encoding="utf-8").write(text)
+PY
+    grep -q "KAMIGRAM_LAUNCHER_R80" "$ICON_MANIFEST" || die "P104: иконка не прописалась в DefaultIcon"
+    grep -q "@mipmap/kamigram_launcher" "$ICON_CONFIG_SDK23" || die "P104: afat SDK23 manifest не использует фирменную иконку"
+    [ -f "$RES_ROOT/mipmap-xxxhdpi/kamigram_launcher.png" ] || die "P104: ресурс фирменной иконки отсутствует"
+    [ -f "$APP_RES_ROOT/mipmap-xxxhdpi/kamigram_launcher.png" ] || die "P104: ресурс фирменной иконки не попал в application module"
+    ok "P104 r80: мгновенные send/forward/delete, protected copy-upload, save/share protected media, proxy с real request-token stability без artificial lease, фирменная Emilia/KamiGram иконка"
+else
+    skip "P104 отключено (ZERO_TRAFFIC=0)"
+fi
