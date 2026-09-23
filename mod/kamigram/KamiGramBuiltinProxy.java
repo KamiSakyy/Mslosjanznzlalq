@@ -29,7 +29,9 @@ import java.util.HashSet;
 public final class KamiGramBuiltinProxy {
 
     /** Каталог KamiProxy. Меняется только здесь. */
+    /* KAMIGRAM_PROXY_CATALOG_R76: built-ins are never deleted with custom proxies. */
     public static final String[] LINKS = {
+        "https://t.me/proxy?server=akenai.tg&port=853&secret=ee54ce330e4690cc297d2b031ff3f288b06d742e616b656e61692e636c69636b",
         "https://t.me/proxy?server=akenai.top&port=853&secret=ee54ce330e4690cc297d2b031ff3f288b06d742e616b656e61692e636c69636b",
         "https://t.me/proxy?server=t.meow-network.com&port=443&secret=ee5622e11fff3e49bcc85280197a6106b5742e6d656f772d6e6574776f726b2e636f6d",
         "https://t.me/proxy?server=s03.neo-trading.org&port=443&secret=eeaf794bcc20f70b1436b6b92b01b207e26d61676e69742e7275",
