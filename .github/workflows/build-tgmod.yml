@@ -39,8 +39,8 @@ on:
         default: "0"
         type: string
       tg_ref:
-        description: "Ветка/коммит DrKLO/Telegram"
-        default: "master"
+        description: "Ветка/коммит DrKLO/Telegram (r70: ЗАПИНЕН — база 12.10.3, на которой все P-патчи проверены)"
+        default: "9552e5541e1274b9557c9832b204dbfcaf44b3dc"
         type: string
       disable_billing:
         description: "Выключить Google Play Billing (1/0)"

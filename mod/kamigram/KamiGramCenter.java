@@ -56,7 +56,7 @@ public final class KamiGramCenter {
             return;
         }
         try {
-            final String[] tabs = {"Связь", "Приватность", "Вид", "Память"};
+            final String[] tabs = {"Связь", "Приватность", "Вид", "Память", "Другое"};
 
             final LinearLayout root = new LinearLayout(context);
             root.setOrientation(LinearLayout.VERTICAL);
@@ -129,7 +129,7 @@ public final class KamiGramCenter {
             root.addView(done, doneParams);
 
             final Section[] sections = {KamiGramCenter::fillConnection, KamiGramCenter::fillPrivacy,
-                KamiGramCenter::fillLook, KamiGramCenter::fillMemory};
+                KamiGramCenter::fillLook, KamiGramCenter::fillMemory, KamiGramCenter::fillOther};
 
             final int[] current = {0};
             final TextView[] tabViews = new TextView[tabs.length];
@@ -272,6 +272,23 @@ public final class KamiGramCenter {
                 })
                 .negative("Отмена", null)
                 .show())
+        });
+    }
+
+    // ------------------------------------------------------------------ ДРУГОЕ (r70)
+
+    private static void fillOther(LinearLayout root, final Context context, final Runnable onChanged) {
+        card(root, context, new Row[]{
+            Row.toggle("Отправлять всегда HD", KamiGramConfig.KEY_SEND_HD, onChanged),
+            Row.toggle("Пересылать без имени", KamiGramConfig.KEY_FORWARD_NO_NAME, onChanged),
+            Row.toggle("Пересылать сгорающие", KamiGramConfig.KEY_FORWARD_EPHEMERAL, onChanged)
+        });
+        card(root, context, new Row[]{
+            Row.toggle("Плавающее окно (поверх приложений)", KamiGramConfig.KEY_FLOAT_WINDOW, onChanged),
+            Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)
+        });
+        card(root, context, new Row[]{
+            Row.toggle("Применять KamiGram ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
     }
 

@@ -446,10 +446,16 @@ def build(assets, base_name='night.attheme'):
     # 3. собираем ответ
     out = '\n'.join('%s=%s' % (k, values[k]) for k in order) + '\n'
 
-    # 4. пишем во все тёмные темы + в тему дня (чтобы день и ночь были одинаково iOS)
+    # 4. пишем во ВСЕ встроенные темы (r70: включая Day и Arctic) —
+    #    чтобы в чатах (и во всём приложении) была наша тема Yoru при ЛЮБОЙ
+    #    системной настройке «светлый/тёмный». Пользовательские темы
+    #    (свои .attheme-файлы и обои) НЕ трогаем — они работают как обычно.
     written = []
-    for name in ('bluebubbles.attheme', 'darkblue.attheme', 'night.attheme'):
+    for name in ('bluebubbles.attheme', 'darkblue.attheme', 'night.attheme',
+                 'arctic.attheme', 'day.attheme'):
         path = os.path.join(assets, name)
+        if not os.path.isfile(path):
+            continue
         io.open(path, 'w', encoding='utf-8').write(out)
         written.append(name)
 

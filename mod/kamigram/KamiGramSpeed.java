@@ -82,6 +82,19 @@ public final class KamiGramSpeed {
         return enabled() ? 4 : 0;
     }
 
+    /**
+     * r70: сколько файлов качать одновременно (большие/маленькие очереди).
+     * Штатные лимиты Telegram (2 и 5) — «искусственное» ограничение: на
+     * мобильном интернете полезно держать больше параллельных загрузок.
+     */
+    public static int largeQueueMax() {
+        return enabled() ? 4 : 0;
+    }
+
+    public static int smallQueueMax() {
+        return enabled() ? 8 : 0;
+    }
+
     /** Принудительно ли быстрый режим поднимает приоритет музыки и голосовых. */
     public static boolean boostAudio() {
         return enabled();

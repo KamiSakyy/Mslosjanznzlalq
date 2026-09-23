@@ -120,6 +120,20 @@ public final class KamiGramConfig {
     /** Чаты со «100+» непрочитанных сами уходят в архив. */
     public static final String KEY_AUTO_ARCHIVE = "kamigram_auto_archive";
 
+    // ------------------------------------------------------------- r70
+    /** Применять настройки KamiGram ко всем аккаунтам (выкл = только текущий). */
+    public static final String KEY_APPLY_ALL = "kamigram_apply_all";
+    /** Отправлять фото/видео всегда в HD-качестве (4096, JPEG 99). */
+    public static final String KEY_SEND_HD = "kamigram_send_hd";
+    /** При пересылке всегда без имени отправителя. */
+    public static final String KEY_FORWARD_NO_NAME = "kamigram_forward_no_name";
+    /** Сгорающие и по таймеру можно пересылать. */
+    public static final String KEY_FORWARD_EPHEMERAL = "kamigram_forward_ephemeral";
+    /** Плавающее окно: поверх других приложений (PiP + летающий круглешок). */
+    public static final String KEY_FLOAT_WINDOW = "kamigram_float_window";
+    /** Точечный буст: нажатое фото/файл качает первым, со всеми потоками. */
+    public static final String KEY_NET_FOCUS = "kamigram_net_focus";
+
     // ------------------------------------------------------------- вход
     /** Всегда простой SMS-код вместо Google-аттестации. */
     public static final String KEY_FORCE_SMS = "kamigram_force_sms";
@@ -131,7 +145,13 @@ public final class KamiGramConfig {
 
     private static boolean get(String key, boolean fallback) {
         try {
-            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            // r70: флаг «ко всем аккаунтам» сам читается из ГЛОБАЛЬНЫХ
+            // настроек (это точка входа), остальные ключи — из того хранилища,
+            // которое выбрано флагом.
+            if (KEY_APPLY_ALL.equals(key)) {
+                return applyToAllGlobal();
+            }
+            final SharedPreferences preferences = store();
             return preferences == null || preferences.getBoolean(key, fallback);
         } catch (Throwable ignore) {
             return fallback;
@@ -140,10 +160,72 @@ public final class KamiGramConfig {
 
     private static int getInt(String key, int fallback) {
         try {
-            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            final SharedPreferences preferences = store();
             return preferences == null ? fallback : preferences.getInt(key, fallback);
         } catch (Throwable ignore) {
             return fallback;
+        }
+    }
+
+    /** r70: включено ли «Применять KamiGram ко всем аккаунтам» (всегда гл. хранилище). */
+    private static boolean applyToAllGlobal() {
+        try {
+            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            return preferences == null || preferences.getBoolean(KEY_APPLY_ALL, true);
+        } catch (Throwable ignore) {
+            return true;
+        }
+    }
+
+    /** r70: где хранятся настройки мода: у всех аккаунтов вместе или у каждого. */
+    private static SharedPreferences store() {
+        try {
+            if (applyToAllGlobal()) {
+                return MessagesController.getGlobalMainSettings();
+            }
+            int account;
+            try {
+                account = org.telegram.messenger.UserConfig.selectedAccount;
+            } catch (Throwable ignore) {
+                account = 0;
+            }
+            return MessagesController.getMainSettings(account);
+        } catch (Throwable ignore) {
+            return MessagesController.getGlobalMainSettings();
+        }
+    }
+
+    /** r70: перенос настроек текущего аккаунта в общее хранилище (без затирающего эффекта). */
+    private static void migrateAccountToGlobal() {
+        try {
+            final SharedPreferences accountPrefs = MessagesController.getMainSettings(
+                org.telegram.messenger.UserConfig.selectedAccount);
+            final SharedPreferences globalPrefs = MessagesController.getGlobalMainSettings();
+            if (accountPrefs == null || globalPrefs == null) {
+                return;
+            }
+            android.content.SharedPreferences.Editor editor = null;
+            for (java.util.Map.Entry<String, ?> entry : accountPrefs.getAll().entrySet()) {
+                if (entry.getKey() != null && entry.getKey().startsWith("kamigram_")
+                    && !globalPrefs.contains(entry.getKey())) {
+                    final Object val = entry.getValue();
+                    if (val instanceof Boolean) {
+                        if (editor == null) {
+                            editor = globalPrefs.edit();
+                        }
+                        editor.putBoolean(entry.getKey(), (Boolean) val);
+                    } else if (val instanceof Integer) {
+                        if (editor == null) {
+                            editor = globalPrefs.edit();
+                        }
+                        editor.putInt(entry.getKey(), (Integer) val);
+                    }
+                }
+            }
+            if (editor != null) {
+                editor.apply();
+            }
+        } catch (Throwable ignore) {
         }
     }
 
@@ -164,7 +246,8 @@ public final class KamiGramConfig {
             || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
             || KEY_NO_PREMIUM_UI.equals(key)
-            || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)) {
+            || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
             return false;
         }
         return true;
@@ -172,9 +255,20 @@ public final class KamiGramConfig {
 
     public static void set(String key, boolean value) {
         try {
-            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            // r70: «ко всем аккаунтам» пишется только в глобальное хранилище —
+            // это переключатель самого хранилища, а не обычная настройка.
+            final SharedPreferences preferences = KEY_APPLY_ALL.equals(key)
+                ? MessagesController.getGlobalMainSettings()
+                : store();
             if (preferences != null) {
                 preferences.edit().putBoolean(key, value).apply();
+            }
+            if (KEY_APPLY_ALL.equals(key)) {
+                // при переводе на «все аккаунты» настройки текущего аккаунта
+                // подтягиваются в общее хранилище (не затирая новые значения)
+                if (value) {
+                    migrateAccountToGlobal();
+                }
             }
         } catch (Throwable ignore) {
         }
@@ -477,5 +571,37 @@ public final class KamiGramConfig {
 
     public static void markForceSmsResent() {
         forceSmsResent = true;
+    }
+
+    // ------------------------------------------------------------------ r70
+
+    /** Настройки KamiGram применяются ко всем аккаунтам (по умолчанию да). */
+    public static boolean applyToAll() {
+        return value(KEY_APPLY_ALL);
+    }
+
+    /** «Отправлять всегда HD»: фото/видео уходят в максимальном качестве. */
+    public static boolean sendHd() {
+        return value(KEY_SEND_HD);
+    }
+
+    /** «Пересылать без имени»: пересылки всегда без имени отправителя. */
+    public static boolean forwardWithoutName() {
+        return value(KEY_FORWARD_NO_NAME);
+    }
+
+    /** «Пересылать сгорающие»: одноразовые и по таймеру можно переслать. */
+    public static boolean forwardEphemeral() {
+        return value(KEY_FORWARD_EPHEMERAL);
+    }
+
+    /** «Плавающее окно»: поверх других приложений (по умолчанию включено). */
+    public static boolean floatWindow() {
+        return value(KEY_FLOAT_WINDOW);
+    }
+
+    /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
+    public static boolean netFocus() {
+        return value(KEY_NET_FOCUS);
     }
 }

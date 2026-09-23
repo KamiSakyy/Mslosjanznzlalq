@@ -2067,3 +2067,56 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
 else
     skip "P99 отключено (ZERO_TRAFFIC=0)"
 fi
+
+
+# =============================================================================
+# P100. r70 — по новому списку пользователя (большой пакет):
+#      1)  (МАСШТАБНОЕ) поверх приложений: иконка рядом с призраком, PiP-окно
+#          поверх любого приложения + летающий круглешок (KamiGramFloat);
+#      2)  подписка на t.me/AsuMeo обязательна: красивое НЕЗакрываемое окно
+#          «Подписаться» — само подписывает через API и открывает канал;
+#          проверка только после входа в аккаунт (KamiGramChannelGuard);
+#      3)  «Подключение…» как в оригинале: нет сети — надпись, есть — пропадает;
+#      4)  иконка загрузок анимируется только пока реально идут байты;
+#      5)  иконка призрака минималистичная, белая: контур / заполнена;
+#      6)  меню сообщения: «Сгореть» (у собеседника) и «Прочитать», сгорающие
+#          можно пересылать; «Пересылать без имени»;
+#      7)  точечный буст мобильного интернета: нажатое медиа — все потоки,
+#          остальные загрузки на паузу; лимиты очередей сняты;
+#      8)  премиум разблокирован локально (весь премиум доступен);
+#      9)  «Отправлять всегда HD» (по умолчанию вкл);
+#      10) чаты — тема Yoru во всех встроенных темах (свои темы/обои не трогаем);
+#      11) «Применять KamiGram ко всем аккаунтам» (по умолчанию вкл).
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
+    # 1) весь актуальный код мода (включая новые r70: ChannelGuard / Float / NetBoost)
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramFloat KamiGramAutoArchive; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    # 2) иконки: минималистичный призрак (контур/заполненный), «поверх», «сгореть»
+    for d in kamigram_ghost kamigram_ghost_on kamigram_float kamigram_burn; do
+        cp -f "$KAMIGRAM_SRC/res/drawable/$d.xml" "$RES_ROOT/drawable/$d.xml" || die "P100: нет иконки $d"
+    done
+    # 3) патчи r70
+    python3 "$KAMIGRAM_SRC/apply_r70_patches.py" "$TG_DIR" "$APP_NAME" || die "P100: патчи r70 не применились"
+    has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_CONNECTING_SUBTITLE" || die "P100: «Подключение…» как в оригинале не встало"
+    has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK_R70" || die "P100: защита имени KamiGram (r70) не встала"
+    has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_DOWNLOAD_ANIM_LIVE" || die "P100: живая анимация загрузок не встала"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CASE_BURN" || die "P100: «Сгореть/Прочитать» в меню не встало"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_EPHEMERAL" || die "P100: пересылка сгорающих не встала"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_NONAME" || die "P100: пересылка без имени не встала"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NET_FOCUS_LOOP" || die "P100: фокус скорости в очередях не встал"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoadOperation.java" "KAMIGRAM_NET_FOCUS_PARAMS" || die "P100: буст потока фокусного файла не встал"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_NET_FOCUS_RECHECK" || die "P100: пересборка очередей (фокус) не встала"
+    has "$JAVA_ROOT/org/telegram/tgnet/TLRPC.java" "KAMIGRAM_PREMIUM" || die "P100: локальный премиум не встал"
+    has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KAMIGRAM_SEND_HD" || die "P100: «всегда HD» не встал"
+    has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_CHANNEL_GUARD" || die "P100: проверка подписки на канал не встала"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_FLOAT_HEADER" || die "P100: иконка «поверх» не встала"
+    has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_FLOAT_STOP" || die "P100: летающий круглешок не встал"
+    ok "P100 r70: поверх приложений (PiP + круглешок), подписка-обязаловка, «Подключение…» оригинальное, живые загрузки, сгореть/прочитать, буст скорости, локальный премиум, всегда HD, ко всем аккаунтам"
+else
+    skip "P100 отключено (ZERO_TRAFFIC=0)"
+fi

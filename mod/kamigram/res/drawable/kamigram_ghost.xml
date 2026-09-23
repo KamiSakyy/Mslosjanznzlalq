@@ -1,10 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KamiGram: призрак, МИНИМАЛИСТИЧНЫЙ контур (выключен). Белый.
+     Рядом — kamigram_ghost_on (заполненный, включён). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.6"
+        android:pathData="M12,3.2C8.2,3.2 5,6.4 5,10.2V20.8L7.4,19.1L9.7,20.8L12,19.1L14.3,20.8L16.6,19.1L19,20.8V10.2C19,6.4 15.8,3.2 12,3.2Z" />
+    <path
         android:fillColor="#FFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M12,2.2C7.05,2.2 3,6.25 3,11.2v10.1c0,0.6 0.7,0.94 1.18,0.58l1.92,-1.44 1.92,1.44c0.38,0.29 0.9,0.29 1.28,0l1.92,-1.44 1.92,1.44c0.38,0.29 0.9,0.29 1.28,0l1.92,-1.44 1.92,1.44C20.3,22.24 21,21.9 21,21.3V11.2C21,6.25 16.95,2.2 12,2.2zM9.4,9.3a1.75,1.75 0 1,0 0,3.5 1.75,1.75 0 0,0 0,-3.5zM14.6,9.3a1.75,1.75 0 1,0 0,3.5 1.75,1.75 0 0,0 0,-3.5z" />
+        android:pathData="M8.35,10.6a1.15,1.15 0 1,0 2.3,0a1.15,1.15 0 1,0 -2.3,0Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M13.35,10.6a1.15,1.15 0 1,0 2.3,0a1.15,1.15 0 1,0 -2.3,0Z" />
 </vector>

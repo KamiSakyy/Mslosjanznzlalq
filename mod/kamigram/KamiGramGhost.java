@@ -76,12 +76,19 @@ public final class KamiGramGhost {
             }
 
             if (ghost && isReadHistory(object)) {
+                // r70: «Сгореть»/«Прочитать» из меню — считывание разрешено
+                if (bypassActive()) {
+                    return false;
+                }
                 answerLocally(onComplete);
                 return true;
             }
 
             if (viewOnce() && isReadContents(object)) {
                 // «просмотрено» не уходит: сервер не удаляет одноразовое сообщение
+                if (bypassActive()) {
+                    return false;
+                }
                 answerLocally(onComplete);
                 return true;
             }
@@ -175,9 +182,9 @@ public final class KamiGramGhost {
     }
 
     /**
-     * Состояние видно сразу:
-     *   * призрак ВЫКЛЮЧЕН — серая иконка;
-     *   * призрак ВКЛЮЧЁН — ЗЕЛЁНАЯ иконка (изумруд Yoru #88E0A0).
+     * Состояние видно сразу (r70 — минималистичный призрак, наш белый):
+     *   * призрак ВЫКЛЮЧЕН — тонкий белый КОНТУР (пустой призрак);
+     *   * призрак ВКЛЮЧЁН — ЗАПОЛНЕННЫЙ белый призрак.
      */
     public static void refreshHeader(ActionBarMenuItem item, Theme.ResourcesProvider provider) {
         if (item == null) {
@@ -185,12 +192,15 @@ public final class KamiGramGhost {
         }
         final boolean enabled = KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
         try {
-            item.setIconColor(enabled ? ThemeHook.YORU_EMERALD : ThemeHook.YORU_MUTED);
+            item.setIcon(enabled
+                ? org.telegram.messenger.R.drawable.kamigram_ghost_on
+                : org.telegram.messenger.R.drawable.kamigram_ghost);
+            item.setIconColor(0xFFFFFFFF);
         } catch (Throwable ignore) {
         }
         final View icon = item.getIconView();
         if (icon != null) {
-            icon.setAlpha(enabled ? 1f : 0.75f);
+            icon.setAlpha(enabled ? 1f : 0.9f);
         }
     }
 
@@ -343,5 +353,122 @@ public final class KamiGramGhost {
     /** Оставлено для совместимости со старым кодом: сейчас статус всегда «не в сети». */
     public static boolean statusAllowed() {
         return false;
+    }
+
+    // ---------------------------------------------------- r70: «Сгореть» / «Прочитать»
+
+    private static volatile long readBypassUntil;
+
+    /** Разрешить запросы «прочитано» на N секунд (обход глушения призрака). */
+    public static void allowReadsFor(int seconds) {
+        readBypassUntil = System.currentTimeMillis() + seconds * 1000L;
+    }
+
+    private static boolean bypassActive() {
+        try {
+            return System.currentTimeMillis() < readBypassUntil;
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** Сгорающее сообщение: одноразовое/с таймером медиа или секретный чат с таймером. */
+    public static boolean isEphemeralMedia(org.telegram.messenger.TLRPC.Message message) {
+        try {
+            if (message == null) {
+                return false;
+            }
+            if (message instanceof org.telegram.messenger.TLRPC.TL_message) {
+                final org.telegram.messenger.TLRPC.MessageMedia media =
+                    ((org.telegram.messenger.TLRPC.TL_message) message).media;
+                return media != null && media.ttl_seconds != 0;
+            }
+            if (message instanceof org.telegram.messenger.TLRPC.TL_message_secret) {
+                final org.telegram.messenger.TLRPC.TL_message_secret secret =
+                    (org.telegram.messenger.TLRPC.TL_message_secret) message;
+                final org.telegram.messenger.TLRPC.MessageMedia media = secret.media;
+                return secret.ttl > 0 || (media != null && media.ttl_seconds > 0);
+            }
+        } catch (Throwable ignore) {
+        }
+        return false;
+    }
+
+    /**
+     * «Сгореть» (r70): отправить серверу «прочитано» С РЕАЛЬНЫМ таймером.
+     * У собеседника сообщение сгорит (одноразовое — сразу, по таймеру — по
+     * расписанию), а у нас локальная копия остаётся (наши защиты от удаления
+     * её не трогают).
+     */
+    public static void burnMessage(int account, long dialogId,
+                                   org.telegram.messenger.MessageObject message) {
+        try {
+            if (message == null || message.messageOwner == null) {
+                return;
+            }
+            final org.telegram.messenger.TLRPC.Message owner = message.messageOwner;
+            final org.telegram.messenger.MessagesController controller =
+                org.telegram.messenger.MessagesController.getInstance(account);
+            if (controller == null) {
+                return;
+            }
+            allowReadsFor(30);
+            if (owner instanceof org.telegram.messenger.TLRPC.TL_message_secret) {
+                final org.telegram.messenger.TLRPC.TL_message_secret secret =
+                    (org.telegram.messenger.TLRPC.TL_message_secret) owner;
+                final org.telegram.messenger.TLRPC.MessageMedia media = secret.media;
+                final int ttl = secret.ttl > 0 ? secret.ttl
+                    : (media != null && media.ttl_seconds > 0 ? media.ttl_seconds : 1);
+                controller.markMessageAsRead(dialogId, secret.random_id, ttl);
+            } else if (owner instanceof org.telegram.messenger.TLRPC.TL_message) {
+                final org.telegram.messenger.TLRPC.MessageMedia media =
+                    ((org.telegram.messenger.TLRPC.TL_message) owner).media;
+                if (media != null && media.ttl_seconds > 0) {
+                    // одноразовое/по таймеру: читаем с реальным ttl — сервер начнёт уничтожение
+                    controller.markMessageAsRead2(dialogId, owner.id, null, media.ttl_seconds, 0, true);
+                } else {
+                    // чат с аккаунт-таймером: обычное «прочитано» запускает общий таймер
+                    controller.markMessageAsRead2(dialogId, owner.id, null, 0, 0, false);
+                }
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+    }
+
+    /**
+     * «Прочитать» (r70): пометить сообщение прочитанным (собеседник увидит
+     * отметку), БЕЗ сгорания.
+     */
+    public static void readMessage(int account, long dialogId,
+                                   org.telegram.messenger.MessageObject message) {
+        try {
+            if (message == null || message.messageOwner == null) {
+                return;
+            }
+            final org.telegram.messenger.TLRPC.Message owner = message.messageOwner;
+            final org.telegram.messenger.MessagesController controller =
+                org.telegram.messenger.MessagesController.getInstance(account);
+            if (controller == null) {
+                return;
+            }
+            allowReadsFor(30);
+            if (owner instanceof org.telegram.messenger.TLRPC.TL_message_secret) {
+                final org.telegram.messenger.TLRPC.TL_message_secret secret =
+                    (org.telegram.messenger.TLRPC.TL_message_secret) owner;
+                final org.telegram.messenger.TLRPC.EncryptedChat chat = controller.getEncryptedChat(
+                    org.telegram.messenger.DialogObject.getEncryptedChatId(dialogId));
+                if (chat != null) {
+                    final java.util.ArrayList<Long> ids = new java.util.ArrayList<>();
+                    ids.add(secret.random_id);
+                    org.telegram.messenger.AccountInstance.getInstance(account)
+                        .getSecretChatHelper().sendMessagesReadMessage(chat, ids, null);
+                }
+            } else {
+                controller.markMessageAsRead2(dialogId, owner.id, null, 0, 0, false);
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
     }
 }
