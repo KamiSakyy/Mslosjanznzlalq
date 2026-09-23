@@ -240,7 +240,13 @@ public final class KamiGramNetFilter {
             // подсказки клавиатуры эмодзи оставляем: они крошечные и нужны для поиска
             return false;
         }
-        return rest.contains("Sticker") || rest.contains("Emoji");
+        /* KAMIGRAM_MEDIA_POLICY_R81: ordinary emoji keywords/status text are
+           not a blocked media class. Sticker requests and explicitly animated
+           or custom-emoji sets are the only emoji-related network requests
+           eligible for this economy switch. */
+        return rest.contains("Sticker")
+            || rest.contains("CustomEmoji")
+            || rest.contains("AnimatedEmoji");
     }
 
     /** Премиум-эмодзи (наборы и стикеры-эмодзи) — отключаются своим переключателем. */
@@ -248,7 +254,10 @@ public final class KamiGramNetFilter {
         if (!full.startsWith("TL_messages_") && !simple.startsWith("TL_messages_")) {
             return false;
         }
-        return full.contains("Emoji") || simple.contains("Emoji");
+        return full.contains("CustomEmoji") || simple.contains("CustomEmoji")
+            || full.contains("AnimatedEmoji") || simple.contains("AnimatedEmoji")
+            || full.contains("EmojiSticker") || simple.contains("EmojiSticker")
+            || full.contains("EmojiStatus") || simple.contains("EmojiStatus");
     }
 
     /**

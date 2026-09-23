@@ -51,14 +51,99 @@ public final class ThemeHook {
      * её и ничего не ломаем: тогда применяются только акценты мода.
      */
     private static boolean darkThemeApplied;
+    private static boolean telegramThemeApplied;
+    private static Theme.ThemeInfo telegramOriginalTheme;
 
     private static String lastThemeName;
+    private static final String TELEGRAM_ORIGINAL_ASSET = "kamigram_telegram_original_night.attheme";
+
+    /**
+     * Build a private copy of Telegram's stock Night theme. P16 keeps the
+     * untouched upstream asset under a KamiGram-only name before replacing the
+     * built-in assets with the KamiGram palette. The copy is never registered
+     * as a user theme and is therefore safe to use as a temporary preview.
+     */
+    private static Theme.ThemeInfo telegramOriginalTheme() {
+        try {
+            if (telegramOriginalTheme != null) {
+                return telegramOriginalTheme;
+            }
+            final Theme.ThemeInfo night = Theme.getTheme(THEME_KEY);
+            if (night == null) {
+                return null;
+            }
+            final Theme.ThemeInfo copy = new Theme.ThemeInfo(night);
+            copy.assetName = TELEGRAM_ORIGINAL_ASSET;
+            copy.name = THEME_KEY;
+            copy.account = org.telegram.messenger.UserConfig.selectedAccount;
+            telegramOriginalTheme = copy;
+            return copy;
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+            return null;
+        }
+    }
+
+    /** Apply original Telegram colours without changing the settings layout. */
+    private static void applyTelegramTheme() {
+        try {
+            final Theme.ThemeInfo original = telegramOriginalTheme();
+            if (original == null) {
+                return;
+            }
+            if (!telegramThemeApplied || Theme.getActiveTheme() != original) {
+                Theme.applyTheme(original, false, false);
+            }
+            telegramThemeApplied = true;
+            darkThemeApplied = false;
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
+
+    /**
+     * Keep the two-way setting persistent: KamiGram → stock Telegram →
+     * KamiGram. A recreated activity picks the persisted branch on its next
+     * lifecycle callback, so refresh/restart cannot lose the selection.
+     */
+    public static void toggleTelegramTheme(Context context) {
+        try {
+            final boolean enabled = !KamiGramConfig.telegramTheme();
+            KamiGramConfig.set(KamiGramConfig.KEY_TELEGRAM_THEME, enabled);
+            accentApplied = false;
+            darkThemeApplied = false;
+            telegramThemeApplied = false;
+            if (enabled) {
+                applyTelegramTheme();
+            } else {
+                final Theme.ThemeInfo kami = Theme.getTheme(THEME_KEY);
+                if (kami != null) {
+                    Theme.applyTheme(kami, false, true);
+                    darkThemeApplied = true;
+                }
+                applyAccent();
+            }
+            recreateScreensOnce();
+            KamiGramUi.notify(context, enabled ? "Оригинальная тема Telegram" : "Тема KamiGram восстановлена");
+        } catch (Throwable throwable) {
+            FileLog.e(throwable);
+        }
+    }
 
     public static void keepDarkTheme() {
         if (uiHooksDisabled) {
             return;
         }
         try {
+            if (KamiGramConfig.telegramTheme()) {
+                applyTelegramTheme();
+                return;
+            }
+            if (telegramThemeApplied) {
+                telegramThemeApplied = false;
+                darkThemeApplied = false;
+                accentApplied = false;
+            }
             /* Пользователь сменил тему — наши акценты нужно поставить заново
                (но только по этому поводу, а не на каждом экране). */
             final Theme.ThemeInfo active = Theme.getActiveTheme();
@@ -114,8 +199,8 @@ public final class ThemeHook {
      * «цветные» элементы (ссылки, галочки, переключатели, прогресс).
      */
     public static void applyAccent() {
-        if (uiHooksDisabled) {
-            return;
+        if (uiHooksDisabled || KamiGramConfig.telegramTheme()) {
+            return; /* KAMIGRAM_TELEGRAM_THEME_R81 */
         }
         final int accent = YORU_PURPLE;
         final int soft = (accent & 0x00FFFFFF) | 0x33000000;
@@ -268,6 +353,9 @@ public final class ThemeHook {
                 return;
             }
             keepDarkTheme();
+            if (KamiGramConfig.telegramTheme()) {
+                return; /* KAMIGRAM_TELEGRAM_THEME_R81: no KamiGram tint/tweaks */
+            }
             applyAccentsOnce();
             tintSystemBars(activity);
             applySecureFlag(activity);

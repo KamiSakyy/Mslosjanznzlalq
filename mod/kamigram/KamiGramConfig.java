@@ -105,6 +105,8 @@ public final class KamiGramConfig {
     public static final String KEY_ALLOW_BLUR = "kamigram_allow_blur";
     /** Отправка сообщения по Enter. */
     public static final String KEY_ENTER_TO_SEND = "kamigram_enter_to_send";
+    /** Тема Telegram: true — временно использовать оригинальную палитру Telegram. */
+    public static final String KEY_TELEGRAM_THEME = "kamigram_telegram_theme";
     /** Тихая отправка (без звука). */
     public static final String KEY_SILENT_SEND = "kamigram_silent_send";
 
@@ -248,6 +250,7 @@ public final class KamiGramConfig {
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
+            || KEY_TELEGRAM_THEME.equals(key)
             || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
             || KEY_NO_PREMIUM_UI.equals(key) || KEY_NO_STORIES.equals(key)
@@ -612,5 +615,10 @@ public final class KamiGramConfig {
     /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
     public static boolean netFocus() {
         return value(KEY_NET_FOCUS);
+    }
+
+    /** Двусторонний переключатель «Тема Telegram», сохраняемый между запусками. */
+    public static boolean telegramTheme() {
+        return value(KEY_TELEGRAM_THEME);
     }
 }

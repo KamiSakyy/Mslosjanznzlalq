@@ -36,8 +36,10 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
 
     private static final int ARCHIVE_FOLDER_ID = 1;
     private static final int LIMIT = 500;
-    private static final long MIN_INTERVAL = 5_000L;
-    private static final long DELAY = 1_000L;
+    /* r81: debounce only duplicate notifications; never make a destructive
+       sweep wait behind an artificial one-second timer. */
+    private static final long MIN_INTERVAL = 1_000L;
+    private static final long DELAY = 0L;
 
     private static final KamiGramAutoArchive INSTANCE = new KamiGramAutoArchive();
     private static final HashMap<Integer, Boolean> POSTED = new HashMap<>();
@@ -111,7 +113,9 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 if (dialog == null || dialog.isFolder || dialog.folder_id != ARCHIVE_FOLDER_ID) {
                     continue; // never inspect the main list or a filter folder
                 }
-                final int unread = dialog.unread_count + (dialog.unread_mark ? 1 : 0);
+                /* unread_mark is a badge, not an additional unread message.
+                   r81 must act only when the server count itself is > 500. */
+                final int unread = Math.max(0, dialog.unread_count);
                 if (unread <= LIMIT) {
                     continue; // requirement is strictly more than 500
                 }

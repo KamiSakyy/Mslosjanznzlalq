@@ -578,6 +578,8 @@ if [ "$IOS_THEME" = "1" ]; then
         grep -q '^switchTrackChecked=-3627009' "$theme_file"      || die "P16: $theme_name — переключатель не #C8A7FF"
         grep -qE '^windowBackgroundGray=-16777216' "$theme_file" && die "P16: $theme_name — остался чёрный фон #000000"
     done
+    [ -f "$TG_DIR/TMessagesProj/src/main/assets/kamigram_telegram_original_night.attheme" ] \
+        || die "P16: не сохранена оригинальная тема Telegram для обратного переключателя"
     ok "P16 ТЕМА YORU: фон #0D0B12, карточки #1C1724, текст #F7F0FF, акцент #C8A7FF (из yoru-android)"
 else
     skip "P16 тема Yoru не применяется (IOS_THEME=0)"
@@ -2332,4 +2334,47 @@ PY
     ok "P104 r80: мгновенные send/forward/delete, protected copy-upload, save/share protected media, proxy с real request-token stability без artificial lease, фирменная Emilia/KamiGram иконка"
 else
     skip "P104 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P105. r81 — hidden reliability/speed pass:
+#      1) focus download starts without the queue debounce and never pauses an
+#         already active background operation;
+#      2) ordinary sends use only the native scheduleDate path, with no Ghost /
+#         Scheduled rewrite or callback timer;
+#      3) proxy request leases are account-safe and released by the exact native
+#         token on response, exception, retry, or cancellation;
+#      4) archive cleanup is immediate, archive-only, and strictly >500 unread;
+#      5) the mandatory AsuMeo gate blocks use until Telegram confirms membership;
+#      6) «Тема Telegram» is a persistent two-way KamiGram/native-theme toggle.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    for f in KamiGramConfig KamiGramCenter ThemeHook KamiGramSpeed KamiGramNetBoost KamiGramNetFilter KamiGramProxyPower KamiGramChannelGuard KamiGramAutoArchive; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P105: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    [ -f "$KAMIGRAM_SRC/apply_r81_patches.py" ] || die "P105: нет apply_r81_patches.py"
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r81_patches.py" || die "P105: патчи r81 не применились"
+
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_QUEUE_IMMEDIATE_R81" || die "P105: очередь загрузок всё ещё ждёт debounce"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NO_ACTIVE_PAUSE_R81" || die "P105: фокус ставит активные загрузки на паузу"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_QUEUE_RECHECK_IMMEDIATE_R81" || die "P105: focus recheck не мгновенный"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_INSTANT_SEND_R81" || die "P105: live send всё ещё проходит через legacy Ghost hook"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_REQUEST_ACCOUNT_R81" || die "P105: proxy lease не привязан к аккаунту"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_ROUTE_PARSE_FAIL_R81" || die "P105: proxy lease зависает при ошибке парсинга"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "KAMIGRAM_CHANNEL_GATE_R81" || die "P105: обязательный gate AsuMeo отсутствует"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "setCancelable(false)" || die "P105: gate AsuMeo можно закрыть"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "dialog.folder_id != ARCHIVE_FOLDER_ID" || die "P105: archive cleanup больше не archive-only"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "unread <= LIMIT" || die "P105: порог archive cleanup неизвестен"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R81" || die "P105: media filter может блокировать обычные emoji/media"
+    has "$KAMI_PKG/KamiGramCenter.java" "Тема Telegram" || die "P105: кнопка «Тема Telegram» отсутствует"
+    has "$KAMI_PKG/ThemeHook.java" "KAMIGRAM_TELEGRAM_THEME_R81" || die "P105: обратный переключатель темы отсутствует"
+    has "$KAMI_PKG/KamiGramConfig.java" "KEY_TELEGRAM_THEME" || die "P105: состояние темы не сохраняется"
+    if [ "$IOS_THEME" = "1" ]; then
+        [ -f "$TG_DIR/TMessagesProj/src/main/assets/kamigram_telegram_original_night.attheme" ] || die "P105: оригинальная тема Telegram не упакована"
+    fi
+    ok "P105 r81: instant downloads/send, account-safe proxy guard, strict archive >500, mandatory AsuMeo gate, persistent Telegram theme toggle"
+else
+    skip "P105 r81 отключено (ZERO_TRAFFIC=0)"
 fi

@@ -95,6 +95,16 @@ public final class KamiGramSpeed {
         return enabled() ? 8 : 0;
     }
 
+    /**
+     * Очередь должна реагировать на нажатие сразу. Telegram's normal 20 ms
+     * debounce is useful for a burst of background thumbnails, but it makes a
+     * user-requested focus visibly wait; a zero delay still posts to the worker
+     * queue and therefore does not block the UI thread.
+     */
+    public static int queueCheckDelayMs() {
+        return enabled() ? 0 : 20;
+    }
+
     /** Принудительно ли быстрый режим поднимает приоритет музыки и голосовых. */
     public static boolean boostAudio() {
         return enabled();

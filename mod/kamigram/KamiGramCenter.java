@@ -222,7 +222,7 @@ public final class KamiGramCenter {
         card(root, context, new Row[]{
             Row.toggle("Призрак", KamiGramConfig.KEY_GHOST, onChanged),
             // KAMIGRAM_INSTANT_SEND_R80: legacy auto-schedule is intentionally not exposed.
-            Row.toggle("Авто-архив (100+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
+            Row.toggle("Авто-архив (500+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
             Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
             // KAMIGRAM_NATIVE_DELETE_R80: legacy keep-deleted is intentionally not exposed.
             Row.toggle("Одноразовые без пометки", KamiGramConfig.KEY_VIEW_ONCE, onChanged),
@@ -239,7 +239,13 @@ public final class KamiGramCenter {
     private static void fillLook(LinearLayout root, final Context context, final Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Плавные анимации", KamiGramConfig.KEY_SMOOTH_ANIMATIONS, onChanged),
-            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged)
+            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged),
+            Row.action("Тема Telegram", () -> {
+                ThemeHook.toggleTelegramTheme(context);
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            })
         });
         textSizeCard(root, context, onChanged);
         fontCard(root, context, onChanged);

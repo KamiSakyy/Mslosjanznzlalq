@@ -418,6 +418,14 @@ def build(assets, base_name='night.attheme'):
     base_path = os.path.join(assets, base_name)
     src = io.open(base_path, encoding='utf-8').read()
 
+    # r81: keep a pristine Telegram Night asset beside the generated palette.
+    # The settings switch uses this private copy for a reversible preview; it
+    # must be created before any built-in theme is overwritten and must remain
+    # stable on idempotent reruns.
+    original_path = os.path.join(assets, 'kamigram_telegram_original_night.attheme')
+    if not os.path.isfile(original_path):
+        io.open(original_path, 'w', encoding='utf-8').write(src)
+
     # 1. запоминаем родные ключи и значения (они гарантированно согласованы)
     values = {}
     order = []

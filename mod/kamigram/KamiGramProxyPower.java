@@ -39,7 +39,10 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private static final long SPEED_MARGIN = 25L;
     /* KAMIGRAM_PROXY_SEND_LEASE_R78 is retained only as a compatibility marker.
        r80 tracks real native request tokens instead of holding a fixed timer. */
-    private static final ConcurrentHashMap<Integer, Boolean> MESSAGE_REQUESTS_IN_FLIGHT = new ConcurrentHashMap<>();
+    /* r81: request tokens are local to a ConnectionsManager. Include the
+       account in the key so two accounts cannot release one another's send
+       guard and rotate a route during an active upload. */
+    private static final ConcurrentHashMap<Long, Boolean> MESSAGE_REQUESTS_IN_FLIGHT = new ConcurrentHashMap<>();
 
     private static final KamiGramProxyPower INSTANCE = new KamiGramProxyPower();
 
@@ -120,16 +123,24 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         }
     }
 
-    /** r80: pin only the actual native request, never a fixed send timer. */
-    public static void noteMessageRequestStarted(int requestToken) {
+    private static long requestKey(int account, int requestToken) {
+        return (((long) account) << 32) ^ (requestToken & 0xffffffffL);
+    }
+
+    /** r81: pin only the actual native request, with an account-safe token. */
+    public static void noteMessageRequestStarted(int account, int requestToken) {
         if (requestToken >= 0) {
-            MESSAGE_REQUESTS_IN_FLIGHT.put(requestToken, Boolean.TRUE); /* KAMIGRAM_INSTANT_SEND_R80 */
+            MESSAGE_REQUESTS_IN_FLIGHT.put(requestKey(account, requestToken), Boolean.TRUE); /* KAMIGRAM_REQUEST_ACCOUNT_R81 */
         }
     }
 
     /** Compatibility overload for older call sites; it still has no timer. */
+    public static void noteMessageRequestStarted(int requestToken) {
+        noteMessageRequestStarted(-1, requestToken);
+    }
+
     public static void noteMessageRequestStarted() {
-        MESSAGE_REQUESTS_IN_FLIGHT.put(Integer.MIN_VALUE, Boolean.TRUE); /* KAMIGRAM_INSTANT_SEND_R80 */
+        MESSAGE_REQUESTS_IN_FLIGHT.put(requestKey(-1, Integer.MIN_VALUE), Boolean.TRUE); /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     /** Route selection is stable only while a real request token is active. */
@@ -137,12 +148,16 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         return !MESSAGE_REQUESTS_IN_FLIGHT.isEmpty(); /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
+    public static void noteMessageRequestFinished(int account, int requestToken) {
+        MESSAGE_REQUESTS_IN_FLIGHT.remove(requestKey(account, requestToken)); /* KAMIGRAM_REQUEST_ACCOUNT_R81 */
+    }
+
     public static void noteMessageRequestFinished(int requestToken) {
-        MESSAGE_REQUESTS_IN_FLIGHT.remove(requestToken); /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
+        noteMessageRequestFinished(-1, requestToken);
     }
 
     public static void noteMessageRequestFinished() {
-        MESSAGE_REQUESTS_IN_FLIGHT.remove(Integer.MIN_VALUE); /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
+        MESSAGE_REQUESTS_IN_FLIGHT.remove(requestKey(-1, Integer.MIN_VALUE)); /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
     }
 
     private void startLoop() {
