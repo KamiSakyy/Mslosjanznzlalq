@@ -38,6 +38,7 @@
 | `apk/KamiGram-12.10.3-mod-r67.apk` | 35M | `cb851eb65c9052ed...` |
 | `apk/KamiGram-12.10.3-mod-r69.apk` | 35M | `12fb0369e7a72b48...` |
 | `apk/KamiGram-12.10.3-mod-r75.apk` | 35M | `86df8c8098df30b6...` |
+| `apk/KamiGram-12.10.3-mod-r76.apk` | 35M | `6e567a63ad43e77e...` |
 | `apk/KamiGram-12.10.3-mod-r8.apk` | 35M | `a787e5ce648b222b...` |
 
 ## Исходники версий
@@ -80,6 +81,7 @@
 | `sources/MOD_INFO-12.10.3-mod-r67.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-mod-r69.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-mod-r75.txt` | 12K |
+| `sources/MOD_INFO-12.10.3-mod-r76.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-mod-r8.txt` | 4.0K |
 | `sources/changes-12.10.3-mod-r14.patch.gz` | 1.4M |
 | `sources/changes-12.10.3-mod-r14.stat.txt` | 0 |
@@ -145,6 +147,8 @@
 | `sources/changes-12.10.3-mod-r69.stat.txt` | 0 |
 | `sources/changes-12.10.3-mod-r75.patch.gz` | 1.6M |
 | `sources/changes-12.10.3-mod-r75.stat.txt` | 0 |
+| `sources/changes-12.10.3-mod-r76.patch.gz` | 1.6M |
+| `sources/changes-12.10.3-mod-r76.stat.txt` | 0 |
 | `sources/kamigram-mod-src-12.10.3-mod-r40.zip` | 180K |
 | `sources/kamigram-mod-src-12.10.3-mod-r42.zip` | 204K |
 | `sources/kamigram-mod-src-12.10.3-mod-r45.zip` | 220K |
@@ -161,5 +165,6 @@
 | `sources/kamigram-mod-src-12.10.3-mod-r69.zip` | 340K |
 | `sources/kamigram-mod-src-12.10.3-mod-r70.zip` | 196K |
 | `sources/kamigram-mod-src-12.10.3-mod-r75.zip` | 380K |
+| `sources/kamigram-mod-src-12.10.3-mod-r76.zip` | 372K |
 
-Обновлено: 2026-09-23 11:24 UTC
+Обновлено: 2026-09-23 14:58 UTC
