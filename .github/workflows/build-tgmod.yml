@@ -159,8 +159,20 @@ jobs:
           SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
           [ -x "$SDKM" ] || { echo "::error::sdkmanager не найден в $SDK"; exit 1; }
           yes | "$SDKM" --licenses > /dev/null 2>&1 || true
-          "$SDKM" --install "platform-tools" "platforms;android-36" \
-                          "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+          packages=("platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1")
+          installed=0
+          for attempt in 1 2 3; do
+            echo "Установка Android SDK, попытка $attempt/3"
+            if "$SDKM" --install "${packages[@]}"; then
+              installed=1
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::sdkmanager завершился с ошибкой; повтор через $((attempt * 15)) секунд"
+              sleep $((attempt * 15))
+            fi
+          done
+          [ "$installed" = 1 ] || { echo "::error::не удалось установить обязательные Android SDK packages"; exit 1; }
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
 
       - name: Установить ccache
