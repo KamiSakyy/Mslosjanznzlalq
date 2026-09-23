@@ -121,22 +121,18 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 }
 
                 if (dialogId > 0) {
-                    /* All ordinary people are explicitly protected. The contact
-                       check is intentionally present even though the bot check
-                       below already excludes them, so a future peer type cannot
-                       widen the destructive branch. */
+                    /* KAMIGRAM_ARCHIVE_SAFETY_R78: every private user dialog is
+                       protected. This explicit contact check is intentionally
+                       before the bot branch, so even a bot that was added to the
+                       address book cannot be touched by archive cleanup. */
                     final TLRPC.User user = controller.getUser(dialogId);
-                    if (user == null || !user.bot || UserObject.isService(user.id)) {
-                        // Every ordinary private dialog, including people from
-                        // Contacts, is deliberately never auto-cleaned.
+                    if (user == null || UserObject.isService(user.id)
+                        || ContactsController.getInstance(account).isContact(user.id)
+                        || !user.bot) {
                         continue;
                     }
-                    // Keep the explicit contact predicate as a safety guard
-                    // for future peer-type changes. A bot saved as a contact
-                    // is still a bot and must be blocked and removed.
-                    if (!user.bot && ContactsController.getInstance(account).isContact(user.id)) {
-                        continue;
-                    }
+                    // Only a non-contact bot in the archive is destructive:
+                    // block it first, then remove its dialog.
                     controller.blockPeer(dialogId);
                     controller.deleteDialog(dialogId, 0, true);
                     continue;

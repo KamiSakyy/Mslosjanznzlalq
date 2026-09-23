@@ -168,6 +168,15 @@ public final class ThemeHook {
         set(Theme.key_chat_recordTime, 0xFFFF8F9F);
         set(Theme.key_chat_recordedVoiceDot, 0xFFFF8F9F);
         set(Theme.key_chat_recordVoiceCancel, 0xFFFF8F9F);
+
+        /* KAMIGRAM_FOLDER_PALETTE_R78: folder tabs, including «All personal»,
+           must use KamiGram surfaces instead of a black runtime fallback. */
+        set(Theme.key_actionBarTabLine, YORU_PURPLE);
+        set(Theme.key_actionBarTabActiveText, YORU_TEXT);
+        set(Theme.key_actionBarTabUnactiveText, YORU_MUTED);
+        set(Theme.key_actionBarTabSelector, YORU_SURFACE);
+        set(Theme.key_chats_archiveBackground, YORU_SURFACE);
+        set(Theme.key_chats_archivePullDownBackground, YORU_SURFACE);
     }
 
     private static void set(int key, int color) {
@@ -454,7 +463,7 @@ public final class ThemeHook {
     }
 
     public static int background() {
-        return 0xFF000000;
+        return YORU_BG; /* KAMIGRAM_FOLDER_PALETTE_R78: no black fallback */
     }
 
     public static int primaryText() {

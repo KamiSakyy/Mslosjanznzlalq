@@ -11,16 +11,17 @@
 https://github.com/KamiSakyy/Mslosjanznzlalq/tree/arena/01a0ce71-mslosjanznzlalq
 ```
 
-Текущий r77-патчсет находится в ветке выше: self-destruct media сохраняются/пересылаются
-как обычные медиа, `FLAG_SECURE` снят для них, queue не блокирует сторонние загрузки,
-а archive-cleaner работает только для уже архивированных диалогов с `unread_count + unread_mark > 500`.
+Текущий r78-патчсет находится в ветке выше: обычные фото/видео/аудио/голосовые/кружочки/
+документы не блокируются и стартуют по нажатию, proxy-send не ротается посреди отправки,
+AsuMeo подписывается автоматически, а папки используют палитру KamiGram. Self-destruct
+media, `FLAG_SECURE`, queue, eye icon и archive-cleaner r77 сохранены.
 
-**Прямое скачивание APK r77:**
+APK r78 публикуется обязательным GitHub Actions workflow после push этого патчсета.
+До завершения workflow предыдущий прямой APK r77 остаётся доступен:
 [`KamiGram-12.10.3-mod-arm64-v8a.apk`](https://github.com/KamiSakyy/Mslosjanznzlalq/releases/download/mod-12.10.3-mod-r77/KamiGram-12.10.3-mod-arm64-v8a.apk)
 
-Сборка прошла в GitHub Actions; старые APK ниже сохраняются как архив и не содержат
-новых r77-исправлений. В веб-интерфейсе открой ветку
-и нужный файл → кнопка **Download**.
+Старые APK ниже сохраняются как архив; после успешной сборки ссылка r78 будет добавлена
+в этот раздел workflow/handoff-коммитом.
 
 ## Проверенные версии (самая стабильная сборка)
 

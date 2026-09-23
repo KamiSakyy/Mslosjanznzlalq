@@ -236,15 +236,21 @@ public final class KamiGramConfig {
         // Выключено по умолчанию — то, что меняет обычное поведение Telegram:
         //   * призрак (пользователь включает сам, когда нужно);
         //   * «только текст» (самый жёсткий режим экономии);
-        //   * стикеры и премиум-эмодзи ВКЛЮЧЕНЫ, как в обычном Telegram;
-        //   * прочие переключатели, которые не должны ничего менять без спроса.
+        //   * обычные фото, видео, аудио, голосовые, кружочки и документы
+        //     всегда проходят native FileLoader;
+        //   * единственные медиакатегории с ограничением — stickers, premium
+        //     emoji и GIFs;
+        //   * noStories не является media block и по умолчанию выключен.
+        if (KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_NO_GIFS.equals(key)) {
+            return true;
+        }
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
             || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
-            || KEY_NO_PREMIUM_UI.equals(key)
-            || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_NO_PREMIUM_UI.equals(key) || KEY_NO_STORIES.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
             return false;
         }

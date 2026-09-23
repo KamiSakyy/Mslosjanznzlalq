@@ -90,7 +90,8 @@ PALETTE = {
     # как у разделов в центре мода (светлая «пилюля» + тёмный текст)
     'actionBarTabLine': ACCENT,
     'actionBarTabActiveText': 'FFFFFF',
-    'actionBarTabSelector': CARD2,
+    # A folder row is a KamiGram surface, never a black/transparent native tab.
+    'actionBarTabSelector': CARD,
     # непрочитанные у папок: спокойный наш цвет вместо красного.
     # r68: у НЕвыбранной папки счётчик теперь такой же, как у выбранной — раньше он
     # был тёмно-фиолетовым (3A2E50) на тёмной панели, и число не было видно вообще.

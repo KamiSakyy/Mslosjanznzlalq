@@ -274,6 +274,11 @@ public final class KamiGramBuiltinProxy {
             if (!enabled()) {
                 return;
             }
+            /* KAMIGRAM_PROXY_SEND_GUARD_R78: do not replace a route while an
+               ordinary outgoing message is waiting for its proxy response. */
+            if (KamiGramProxyPower.messageSendInFlight()) {
+                return;
+            }
             ensureBuiltinsLoaded();
             KamiGramProxyPower.pingAll();
 

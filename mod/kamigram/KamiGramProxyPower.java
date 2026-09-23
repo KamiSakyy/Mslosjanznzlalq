@@ -15,6 +15,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.proxy.ProxySettings;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLObject;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,6 +36,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private static final long CURRENT_FRESHNESS = 8_000L;
     private static final long LOOP_DELAY = 1_000L;
     private static final long SPEED_MARGIN = 25L;
+    /* KAMIGRAM_PROXY_SEND_LEASE_R78: route changes are deferred while Telegram
+       is completing an ordinary outgoing message request. */
+    private static final long MESSAGE_SEND_LEASE = 12_000L;
 
     private static final KamiGramProxyPower INSTANCE = new KamiGramProxyPower();
 
@@ -47,6 +51,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private int loadFailures;
     private long loadFailureTime;
     private long lastLoadSwitch;
+    private static volatile long messageSendLeaseUntil;
 
     private final Runnable switchRunnable = () -> {
         switching = false;
@@ -90,6 +95,45 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         return KamiGramConfig.smartProxy();
     }
 
+    /**
+     * Central request classifier used by ConnectionsManager. A send lease is
+     * deliberately time based: Telegram owns the asynchronous callback, while
+     * the proxy watcher only needs to avoid changing routes during the short
+     * connection/retry window that made messages fail intermittently.
+     */
+    public static boolean isMessageRequest(TLObject object) {
+        if (object == null) {
+            return false;
+        }
+        try {
+            final String simple = object.getClass().getSimpleName().toLowerCase();
+            return simple.contains("sendmessage")
+                || simple.contains("sendmedia")
+                || simple.contains("sendmultimedia")
+                || simple.contains("sendinlinebotresult")
+                || simple.contains("sendpaidmessage")
+                || simple.contains("sendscheduledmessages")
+                || simple.contains("forwardmessages");
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    public static void noteMessageRequestStarted() {
+        final long until = SystemClock.elapsedRealtime() + MESSAGE_SEND_LEASE;
+        if (until > messageSendLeaseUntil) {
+            messageSendLeaseUntil = until;
+        }
+    }
+
+    public static boolean messageSendInFlight() {
+        return SystemClock.elapsedRealtime() < messageSendLeaseUntil;
+    }
+
+    public static void noteMessageRequestFinished() {
+        messageSendLeaseUntil = 0L; /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
+    }
+
     private void startLoop() {
         if (loopPosted) {
             return;
@@ -117,6 +161,11 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     private void tickInternal() {
         try {
+            /* KAMIGRAM_PROXY_SEND_GUARD_R78: never rotate a route in the
+               middle of an ordinary message send/retry. */
+            if (messageSendInFlight()) {
+                return;
+            }
             KamiGramBuiltinProxy.ensureBuiltinsLoaded();
             final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
             final long now = SystemClock.elapsedRealtime();
@@ -187,8 +236,8 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     /** Activate only a built-in fallback, never an arbitrary custom row. */
     private void switchToBest(Context context) {
-        if (!enabled() || !smartEnabled()) {
-            return;
+        if (!enabled() || !smartEnabled() || messageSendInFlight()) {
+            return; /* KAMIGRAM_PROXY_SEND_GUARD_R78 */
         }
         try {
             KamiGramBuiltinProxy.ensureBuiltinsLoaded();
@@ -461,6 +510,13 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         try {
             if (id == NotificationCenter.didUpdateConnectionState) {
                 if (account != UserConfig.selectedAccount || !enabled() || !smartEnabled()) {
+                    return;
+                }
+                /* KAMIGRAM_PROXY_SEND_GUARD_R78: a transient Connecting state
+                   belongs to the message retry path; keep the current route
+                   stable until Telegram finishes that request. */
+                if (messageSendInFlight()) {
+                    cancelSwitch();
                     return;
                 }
                 final int state = ConnectionsManager.getInstance(account).getConnectionState();

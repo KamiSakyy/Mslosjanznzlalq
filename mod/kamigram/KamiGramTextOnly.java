@@ -6,15 +6,12 @@ import org.telegram.tgnet.TLRPC;
 /**
  * KamiGram: режим «ТОЛЬКО ТЕКСТ» — максимальная экономия трафика.
  *
- * Когда режим включён, приложение не тратит ни байта на картинки:
- *   * аватарки, превью фото, GIF-превью и стикеры не загружаются вообще;
- *   * фото, видео, музыка, документы и голосовые не скачиваются сами;
- *   * в списке чатов вместо аватарок — цветные кружки с буквой (их рисует
- *     Telegram, трафика ноль);
- *   * как только пользователь сам нажимает на фото/видео/голосовое, загрузка
- *     разрешается (окно 30 секунд) — то есть «медиа только при нажатии».
- *
- * Открыть текст чата, писать сообщения и читать всё можно без ограничений.
+ * r78 keeps this compatibility class because older patch points still call it,
+ * but it no longer blocks a user-visible media request. Telegram's native
+ * DownloadController still controls background/autodownload; a tap reaches
+ * FileLoader immediately. Sticker, premium-emoji, and GIF denial is centralized
+ * in KamiGramNetFilter so ordinary video/audio/voice/files cannot be caught by
+ * a broad "text only" predicate.
  */
 public final class KamiGramTextOnly {
 
@@ -25,66 +22,33 @@ public final class KamiGramTextOnly {
         return KamiGramConfig.textOnly();
     }
 
-    /** Можно ли сейчас качать этот файл/картинку. false = блокируем. */
+    /**
+     * Media policy r78: the old text-only switch must never veto a normal
+     * Telegram media request. Autodownload is controlled by Telegram's own
+     * DownloadController presets; once the user taps, FileLoader is allowed to
+     * start immediately.
+     */
     public static boolean allow(Object parentObject, String mime, long size) {
-        try {
-            if (!enabled()) {
-                return true;
-            }
-            if (KamiGramUi.isManual()) {
-                return true; // пользователь сам открыл медиа
-            }
-            return false;
-        } catch (Throwable ignore) {
-            return true;
-        }
+        return true;
     }
 
-    /** Блокируем ли загрузку картинки (фото, аватар, превью, стикер). */
+    /**
+     * Images are not a text-only exception anymore. Sticker and GIF documents
+     * are filtered centrally by KamiGramNetFilter, while ordinary photos,
+     * avatars, previews, and round-media thumbnails stay native Telegram.
+     */
     public static boolean blockImage(Object parentObject) {
-        try {
-            if (parentObject instanceof MessageObject
-                && ((MessageObject) parentObject).messageOwner != null
-                && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
-                return false;
-            }
-            if (!enabled() || KamiGramUi.isManual()) {
-                return false;
-            }
-            // обои чата качает сам Telegram отдельно; тут только картинки в интерфейсе
-            return true;
-        } catch (Throwable ignore) {
-            return false;
-        }
+        return false; /* KAMIGRAM_MEDIA_POLICY_R78 */
     }
 
-    /** Блокируем ли загрузку файла (видео, аудио, документ, стикер). */
+    /**
+     * The former text-only gate blocked video, audio, voice, and documents even
+     * after a user tapped them. r78 leaves category filtering to NetFilter so
+     * ordinary files always enter FileLoader; only sticker/premium-emoji/GIF
+     * documents may be denied there.
+     */
     public static boolean blockDocument(TLRPC.Document document, Object parentObject, long size) {
-        try {
-            /* KAMIGRAM_EPHEMERAL_DOWNLOAD_R77: self-destruct media is an
-               explicit user-visible request and must never be hidden by the
-               traffic-saving mode, including voice/files/documents. */
-            if (parentObject instanceof MessageObject
-                && ((MessageObject) parentObject).messageOwner != null
-                && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
-                return false;
-            }
-            if (!enabled() || KamiGramUi.isManual()) {
-                return false;
-            }
-            if (document == null) {
-                return false;
-            }
-            if (size > 0) {
-                // считаем сэкономленный трафик
-                KamiGramTraffic.blockedBytes(size);
-            } else {
-                KamiGramTraffic.blockedRequest();
-            }
-            return true;
-        } catch (Throwable ignore) {
-            return false;
-        }
+        return false; /* KAMIGRAM_MEDIA_POLICY_R78 */
     }
 
     /** Является ли сообщение медиа-сообщением (для подсказки в чате). */

@@ -4,14 +4,12 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.tgnet.tl.TL_stories;
 
 /**
  * KamiGram: фильтр «нулевого трафика».
  *
  * Всё, что жрёт интернет впустую, отсекается ДО выхода в сеть - в одном месте:
- *   - стикеры, наборы эмодзи и премиум-эмодзи (запросы и сами файлы .tgs/.webm);
- *   - истории: списки, просмотры и медиа;
+ *   - стикеры, наборы эмодзи, premium emoji и GIF-файлы (только эти медиа);
  *   - реклама: спонсорские сообщения, промо, Telegram Premium, Stars, бусты;
  *   - рекомендации, «часто используемые», превью ссылок, телефонная книга;
  *   - в режиме «призрак» - подтверждения прочтения, «печатает» и статус «в сети»
@@ -98,18 +96,6 @@ public final class KamiGramNetFilter {
         "TL_account_getRecentEmojiStatuses"
     };
 
-    /** Исходящие действия пользователя по историям - их не блокируем даже при запрете историй. */
-    private static final String[] STORY_ACTIONS = {
-        "TL_stories_sendStory",
-        "TL_stories_deleteStories",
-        "TL_stories_editStory",
-        "TL_stories_sendReaction",
-        "TL_stories_report",
-        "TL_stories_activateStealthMode",
-        "TL_stories_togglePeerStoriesHidden",
-        "TL_stories_exportStoryLink"
-    };
-
     private KamiGramNetFilter() {
     }
 
@@ -137,9 +123,9 @@ public final class KamiGramNetFilter {
             if (KamiGramConfig.noPremiumUi() && (hit(PREMIUM, simple) || hit(PREMIUM, full))) {
                 return deny();
             }
-            if (KamiGramConfig.noStories() && isStoryRequest(full, simple)) {
-                return deny();
-            }
+            /* KAMIGRAM_MEDIA_POLICY_R78: stories are ordinary Telegram media.
+               Only sticker, premium-emoji, and GIF requests are media-blocked;
+               story/video/audio/document requests must reach Telegram. */
             if (KamiGramConfig.noAds() && (hit(ADS, simple) || hit(ADS, full))) {
                 return deny();
             }
@@ -159,7 +145,7 @@ public final class KamiGramNetFilter {
         return false;
     }
 
-    /** Тумблер «Стикеры» в центре мода: выключен — наборы не грузятся вообще. */
+    /** Media policy switch: when enabled, sticker sets never enter the network. */
     public static boolean stickersBlocked() {
         try {
             return KamiGramConfig.value(KamiGramConfig.KEY_NO_STICKERS);
@@ -169,8 +155,9 @@ public final class KamiGramNetFilter {
     }
 
     /**
-     * Файлы стикеров и премиум-эмодзи (.tgs / .webm / .webp) и медиа историй
-     * не скачиваются: экономия трафика и батареи.
+     * Only sticker, premium-emoji, and GIF files are denied here. Story media
+     * and every ordinary user-selected photo/video/audio/voice/document stay
+     * on the native Telegram download path.
      */
     public static boolean blockDownload(TLRPC.Document document, Object parentObject) {
         try {
@@ -181,13 +168,13 @@ public final class KamiGramNetFilter {
                 && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
                 return false;
             }
-            if (KamiGramConfig.noStories() && parentObject instanceof TL_stories.StoryItem) {
+            /* KAMIGRAM_MEDIA_POLICY_R78: story media is not a blocked category. */
+            if (KamiGramConfig.noStickers()
+                && (isStickerDocument(document) || isStickerMessage(parentObject))) {
                 return denyFile(document);
             }
-            if (KamiGramConfig.noStickers() && isStickerDocument(document)) {
-                return denyFile(document);
-            }
-            if (KamiGramConfig.noGifs() && isGifDocument(document)) {
+            if (KamiGramConfig.noGifs()
+                && (isGifDocument(document) || isGifMessage(parentObject))) {
                 return denyFile(document);
             }
         } catch (Throwable e) {
@@ -264,45 +251,43 @@ public final class KamiGramNetFilter {
         return full.contains("Emoji") || simple.contains("Emoji");
     }
 
-    /** Запросы про истории (все, кроме исходящих действий самого пользователя). */
-    private static boolean isStoryRequest(String full, String simple) {
-        if (!full.startsWith("TL_stories_") && !simple.startsWith("TL_stories_")) {
-            return false;
-        }
-        return !(hit(STORY_ACTIONS, full) || hit(STORY_ACTIONS, simple));
-    }
-
-    /** Документ - стикер или премиум-эмодзи. */
     /**
-     * GIF и анимации (.mp4/.webm с флагом animated): в запросе пользователя они
-     * не должны грузиться, как стикеры. Автопроигрывание при этом выключено
-     * отдельно (P70), поэтому картинка вообще не оживает без нажатия.
+     * GIF only. Do not infer GIF from the MIME type: Telegram uses video/mp4
+     * for ordinary videos, round videos, and GIFs alike. The animated document
+     * attribute is the authoritative discriminator used by Telegram itself.
      */
     private static boolean isGifDocument(TLRPC.Document document) {
         if (document == null) {
             return false;
         }
-        final String mime = document.mime_type;
-        if (mime == null) {
+        try {
+            return MessageObject.isGifDocument(document);
+        } catch (Throwable ignore) {
             return false;
         }
-        final boolean video = mime.startsWith("video/");
-        if (!video) {
+    }
+
+    private static boolean isStickerMessage(Object parentObject) {
+        if (!(parentObject instanceof MessageObject)) {
             return false;
         }
-        if (document.attributes != null) {
-            for (int a = 0; a < document.attributes.size(); a++) {
-                final TLRPC.DocumentAttribute attribute = document.attributes.get(a);
-                if (attribute instanceof TLRPC.TL_documentAttributeAnimated) {
-                    return true;
-                }
-                if (attribute instanceof TLRPC.TL_documentAttributeVideo
-                    && ((TLRPC.TL_documentAttributeVideo) attribute).round_message) {
-                    return false; // кружки пользователь смотрит сам — их не трогаем
-                }
-            }
+        try {
+            final MessageObject message = (MessageObject) parentObject;
+            return message.isSticker() || message.isAnimatedEmoji();
+        } catch (Throwable ignore) {
+            return false;
         }
-        return "video/mp4".equals(mime) || "video/webm".equals(mime);
+    }
+
+    private static boolean isGifMessage(Object parentObject) {
+        if (!(parentObject instanceof MessageObject)) {
+            return false;
+        }
+        try {
+            return ((MessageObject) parentObject).isGif();
+        } catch (Throwable ignore) {
+            return false;
+        }
     }
 
     private static boolean isStickerDocument(TLRPC.Document document) {

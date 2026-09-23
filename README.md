@@ -23,6 +23,26 @@ Telegram-FOSS: берём официальные открытые исходни
 
 ---
 
+## r78 — обычные медиа, auto-join AsuMeo, proxy-send lease и палитра папок
+
+Поверх r76/r77 добавлен `P103` (`mod/kamigram/apply_r78_patches.py`):
+
+* фото, видео, аудио, голосовые, кружочки и документы загружаются нативным Telegram-путём
+  сразу после нажатия; блокируются только stickers, premium emoji и GIF, а обычный `video/mp4`
+  больше не ошибочно определяется как GIF;
+* smart KamiProxy не переключает маршрут во время `sendMessage`/`sendMedia`/forward-запроса,
+  поэтому обычные сообщения не теряются при подключённом proxy;
+* после входа приложение само вызывает `channels.joinChannel` для `https://t.me/AsuMeo`,
+  без ручной кнопки подписки;
+* автоочистка касается только архива при `unread_count + unread_mark > 500`, защищает
+  личные диалоги и контакты, а группы/каналы покидает и ботов блокирует/удаляет;
+* папка «Все личные» и остальные folder tabs используют поверхность/selector KamiGram,
+  без чёрного runtime-фона.
+
+Существующие r76/r77 требования по независимым custom/KamiProxy, fallback, self-destruct media,
+скриншотам, иконке глаза и archive-only safety не меняются. APK r78 собирается обязательным
+GitHub Actions workflow `.github/workflows/build-tgmod.yml`.
+
 ## r77 — self-destruct media, быстрый KamiProxy и очистка только архива
 
 Поверх рабочего r76 добавлен `P102` (`mod/kamigram/apply_r77_patches.py`):

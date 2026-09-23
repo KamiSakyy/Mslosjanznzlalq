@@ -26,7 +26,7 @@
 #     DISABLE_BILLING      1 = выключить Google Play Billing            [0]
 #     USE_CCACHE           1 = кэшировать нативную сборку через ccache  [1]
 #     AUTODOWNLOAD_OFF     1 = автоскачивание медиа выключено по умолчанию [1]
-#     NO_STICKERS          1 = стикеры/премиум-эмодзи не загружаются вообще  [1]
+#     NO_STICKERS          1 = блокировать стикеры/премиум-эмодзи (обычные медиа не трогать) [1]
 #     MAX_ECONOMY          1 = принудительный power-saver (анимации/автоплей off) [1]
 #     RES_CONFIGS          какие локали оставить в APK ("ru,en" | "all")   [ru,en]
 #     SLIM_HEAVY           заглушки тяжёлых Lottie-анимаций: 1 | all | 0   [1]
@@ -74,7 +74,7 @@ GHOST_MODE=${GHOST_MODE:-1}               # уникальная функция:
 NO_RESTRICTIONS=${NO_RESTRICTIONS:-1}     # уникальная функция: снять запреты защищённого контента
 FIX_LOGIN=${FIX_LOGIN:-1}                   # фикс входа: обычный SMS вместо Google Play Integrity
 SMART_PROXY=${SMART_PROXY:-1}             # прокси из буфера сам включается, мёртвый — сам выключается
-ZERO_TRAFFIC=${ZERO_TRAFFIC:-1}           # нулевой трафик: стикеры/премиум-эмодзи/истории не грузятся
+ZERO_TRAFFIC=${ZERO_TRAFFIC:-1}           # traffic policy: stickers/premium emoji/GIFs only; ordinary media stays native
 IOS_DESIGN=${IOS_DESIGN:-1}               # iOS-дизайн KamiGram кодом (скругления, пилюля таба)
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
@@ -427,7 +427,7 @@ if marker not in src:
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
     [ "$(grep -c 'KAMIGRAM_NO_STICKERS' "$MDC")" = "4" ] || die "P11: ожидалось 4 точки блокировки"
-    ok "P11 стикеры и премиум-эмодзи грузятся как обычно; отключаются только тумблером в центре мода"
+    ok "P11 стикеры и premium-эмодзи блокируются; фото/видео/аудио/голосовые/кружочки/документы не затронуты"
 else
     skip "P11 стикеры оставлены как в upstream (NO_STICKERS=0)"
 fi
@@ -1379,10 +1379,10 @@ else
 fi
 
 # =============================================================================
-# P27. НУЛЕВОЙ ТРАФИК (КОД): стикеры, премиум-эмодзи, истории и реклама Premium
-#      отсекаются ДО выхода в сеть - и сами запросы, и файлы (.tgs/.webm/.webp).
-#      Там же работает режим «призрак»: подтверждения прочтения, «печатает» и
-#      статус «в сети» не уходят на сервер вообще.
+# P27. НУЛЕВОЙ ТРАФИК (КОД): стикеры, premium-эмодзи, GIF и реклама Premium
+#      отсекаются ДО выхода в сеть - и сами запросы, и файлы (.tgs/.webm/.gif).
+#      Фото, видео, аудио, голосовые, кружочки и обычные документы не фильтруем;
+#      режим «призрак» по-прежнему локально обрабатывает read/typing/online.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     AK_DIR="$JAVA_ROOT/org/telegram/messenger/kamigram"
@@ -1419,7 +1419,7 @@ PY
     has "$CM_PATH" "KAMIGRAM_NET_FILTER" || die "P27: сетевой фильтр не встал в ConnectionsManager"
 
     FL_PATH="$JAVA_ROOT/org/telegram/messenger/FileLoader.java"
-    python3 - "$FL_PATH" <<'PY' || die "P27: не удалось отключить загрузку стикеров и медиа историй"
+    python3 - "$FL_PATH" <<'PY' || die "P27: не удалось включить узкий media-фильтр stickers/premium-emoji/GIF"
 import io, sys
 path = sys.argv[1]
 src = io.open(path, encoding='utf-8').read()
@@ -1430,7 +1430,7 @@ if mark not in src:
         sys.stderr.write('P27: не найден loadFile в FileLoader\n')
         sys.exit(1)
     guard = (anchor +
-        '        /* ' + mark + ': файлы стикеров, премиум-эмодзи и медиа историй не скачиваются */\n'
+        '        /* ' + mark + ': только stickers, premium-emoji and GIF files are denied */\n'
         '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)) {\n'
         '            if (BuildVars.LOGS_ENABLED) {\n'
         '                FileLog.d("KamiGram: файл не скачивается (экономия трафика) " + document);\n'
@@ -1491,7 +1491,7 @@ if mark not in src:
 print('stories off')
 PY
     fi
-    ok "P27 НУЛЕВОЙ ТРАФИК: запросы по стикерам, наборам эмодзи, премиум-эмодзи и историям не уходят в сеть; файлы .tgs/.webm/.webp и медиа историй не скачиваются; реклама Telegram Premium не запрашивается"
+    ok "P27 НУЛЕВОЙ ТРАФИК: stickers/premium-emoji/GIF requests and files are denied; ordinary photo/video/audio/voice/round/document media stays native; Telegram Premium ads are filtered"
 else
     skip "P27 нулевой трафик отключён (ZERO_TRAFFIC=0)"
 fi
@@ -2202,4 +2202,34 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     ok "P102 r77: overlay/fallback/queue исправлены, self-destruct media сохраняются и пересылаются, screenshot разрешён, глаз и KamiGram-палитра на месте, archive-only cleanup >500"
 else
     skip "P102 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P103. r78 — обычные медиа снова работают как в Telegram:
+#      1) video/photo/audio/voice/round/document never stop at the economy gate;
+#         only stickers, premium emoji and GIFs remain deny-able;
+#      2) the selected proxy route is leased while an ordinary message is sent;
+#      3) AsuMeo subscription is joined automatically after login;
+#      4) archive safety explicitly protects private dialogs and contacts;
+#      5) every folder tab, including «Все личные», uses the KamiGram palette.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    python3 "$KAMIGRAM_SRC/apply_r78_patches.py" "$TG_DIR" || die "P103: патчи r78 не применились"
+
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_SEND_GUARD_R78" || die "P103: отправка сообщения не защищена от proxy-ротации"
+    has "$JAVA_ROOT/org/telegram/ui/Components/FilterTabsView.java" "KAMIGRAM_FOLDER_SURFACE_R78" || die "P103: папки всё ещё могут получить чёрный фон"
+    has "$JAVA_ROOT/org/telegram/ui/Components/FilterTabsView.java" "KAMIGRAM_FOLDER_SELECTOR_R78" || die "P103: цвет выбранной папки не KamiGram"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R78" || die "P103: обычные медиа всё ещё проходят старый фильтр"
+    has "$KAMI_PKG/KamiGramTextOnly.java" "KAMIGRAM_MEDIA_POLICY_R78" || die "P103: text-only блокирует нажатые медиа"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_PROXY_SEND_GUARD_R78" || die "P103: proxy send lease отсутствует"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_PROXY_SEND_FINISH_R78" || die "P103: proxy send lease не освобождается после ответа"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_SEND_FINISH_R78" || die "P103: отправка не освобождает proxy lease"
+    has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_PROXY_SEND_GUARD_R78" || die "P103: builtin route может переключиться во время отправки"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "KAMIGRAM_AUTO_JOIN_R78" || die "P103: автоматическая подписка AsuMeo отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_SAFETY_R78" || die "P103: archive safety marker отсутствует"
+    has "$KAMI_PKG/ThemeHook.java" "KAMIGRAM_FOLDER_PALETTE_R78" || die "P103: runtime palette для папок отсутствует"
+    has "$KAMIGRAM_SRC/apply_theme_pro.py" "'actionBarTabSelector': CARD" || die "P103: theme generator оставляет чёрный selector папки"
+    ok "P103 r78: обычные медиа не блокируются, GIF/sticker/premium-emoji ограничены, proxy send lease, auto-join AsuMeo, archive safety >500 и palette папок исправлены"
+else
+    skip "P103 r78 отключено (ZERO_TRAFFIC=0)"
 fi
