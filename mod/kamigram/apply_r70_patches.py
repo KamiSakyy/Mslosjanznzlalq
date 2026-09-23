@@ -553,7 +553,7 @@ def net_boost():
 def premium_local():
     replace_all('tgnet/TLRPC.java', 'KAMIGRAM_PREMIUM',
                 '            premium = hasFlag(flags, FLAG_28);',
-                '            premium = hasFlag(flags, FLAG_28) || hasFlag(flags, FLAG_10); /* KAMIGRAM_PREMIUM: локальный премиум для своего аккаунта */',
+                '            premium = hasFlag(flags, FLAG_28) || self; /* KAMIGRAM_PREMIUM: локальный премиум для своего аккаунта (self — уже распарсен выше) */',
                 'премиум: свой аккаунт — premium')
 
     replace('messenger/UserConfig.java', 'KAMIGRAM_PREMIUM_UI',
