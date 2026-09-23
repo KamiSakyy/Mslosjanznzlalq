@@ -199,7 +199,8 @@ def download_icon_live():
     patch(icon, 'KAMIGRAM_DOWNLOAD_ANIM_LIVE_FIELD',
           '    private boolean kamigramDownloadAnim; /* KAMIGRAM_NO_FAKE_DOWNLOAD_FIELD */',
           '\n    private float kamigramLastProgress = -1f; /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_FIELD */\n'
-          '    private long kamigramLastProgressAt; /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_FIELD */',
+          '    private long kamigramLastProgressAt; /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_FIELD */\n'
+          '    private boolean kamigramLiveCheckScheduled; /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_FIELD */',
           'загрузки: поля живого прогресса')
 
     replace(icon, 'KAMIGRAM_DOWNLOAD_ANIM_LIVE',
@@ -227,9 +228,15 @@ def download_icon_live():
     patch(icon, 'KAMIGRAM_DOWNLOAD_ANIM_LIVE_CHECK',
           '    private class ProgressObserver implements DownloadController.FileDownloadProgressListener {',
           '    /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_CHECK (r70): загрузка замерла (очередь/пауза/\n'
-          '       нет прогресса) — гасим анимацию: иконка не крутится «ни о чём». */\n'
+          '       нет прогресса) — гасим анимацию: иконка не крутится «ни о чём».\n'
+          '       Один контроллер на время: повторные вызовы не плодят запусков. */\n'
           '    private void kamigramScheduleLiveCheck() {\n'
+          '        if (kamigramLiveCheckScheduled) {\n'
+          '            return;\n'
+          '        }\n'
+          '        kamigramLiveCheckScheduled = true;\n'
           '        org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {\n'
+          '            kamigramLiveCheckScheduled = false;\n'
           '            if (currentListeners.size() == 0 || !kamigramDownloadAnim) {\n'
           '                return;\n'
           '            }\n'

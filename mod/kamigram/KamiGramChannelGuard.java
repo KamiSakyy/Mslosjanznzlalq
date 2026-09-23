@@ -171,14 +171,16 @@ public final class KamiGramChannelGuard {
         avatar.setTypeface(AndroidUtilities.bold());
         avatar.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 28);
         avatar.setTextColor(ThemeHook.YORU_TEXT);
-        final String title = TextUtils.isEmpty(channel.title) ? CHANNEL_USERNAME : channel.title;
+        // в этой базе TLRPC у User нет поля title (оно в userFull) —
+        // показываем username канала
+        final String title = TextUtils.isEmpty(channel.username) ? CHANNEL_USERNAME : channel.username;
         avatar.setText(String.valueOf(title.charAt(0)));
         root.addView(avatar, new LinearLayout.LayoutParams(
             AndroidUtilities.dp(72), AndroidUtilities.dp(72)));
 
-        // название канала
+        // название канала (username — в этой базе у User нет поля title)
         final TextView name = new TextView(ctx);
-        name.setText(TextUtils.isEmpty(channel.title) ? CHANNEL_USERNAME : channel.title);
+        name.setText(title);
         name.setTextSize(20);
         name.setTypeface(AndroidUtilities.bold());
         name.setTextColor(ThemeHook.YORU_TEXT);

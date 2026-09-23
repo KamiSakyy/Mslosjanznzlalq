@@ -373,20 +373,20 @@ public final class KamiGramGhost {
     }
 
     /** Сгорающее сообщение: одноразовое/с таймером медиа или секретный чат с таймером. */
-    public static boolean isEphemeralMedia(org.telegram.messenger.TLRPC.Message message) {
+    public static boolean isEphemeralMedia(org.telegram.tgnet.TLRPC.Message message) {
         try {
             if (message == null) {
                 return false;
             }
-            if (message instanceof org.telegram.messenger.TLRPC.TL_message) {
-                final org.telegram.messenger.TLRPC.MessageMedia media =
-                    ((org.telegram.messenger.TLRPC.TL_message) message).media;
+            if (message instanceof org.telegram.tgnet.TLRPC.TL_message) {
+                final org.telegram.tgnet.TLRPC.MessageMedia media =
+                    ((org.telegram.tgnet.TLRPC.TL_message) message).media;
                 return media != null && media.ttl_seconds != 0;
             }
-            if (message instanceof org.telegram.messenger.TLRPC.TL_message_secret) {
-                final org.telegram.messenger.TLRPC.TL_message_secret secret =
-                    (org.telegram.messenger.TLRPC.TL_message_secret) message;
-                final org.telegram.messenger.TLRPC.MessageMedia media = secret.media;
+            if (message instanceof org.telegram.tgnet.TLRPC.TL_message_secret) {
+                final org.telegram.tgnet.TLRPC.TL_message_secret secret =
+                    (org.telegram.tgnet.TLRPC.TL_message_secret) message;
+                final org.telegram.tgnet.TLRPC.MessageMedia media = secret.media;
                 return secret.ttl > 0 || (media != null && media.ttl_seconds > 0);
             }
         } catch (Throwable ignore) {
@@ -406,23 +406,23 @@ public final class KamiGramGhost {
             if (message == null || message.messageOwner == null) {
                 return;
             }
-            final org.telegram.messenger.TLRPC.Message owner = message.messageOwner;
+            final org.telegram.tgnet.TLRPC.Message owner = message.messageOwner;
             final org.telegram.messenger.MessagesController controller =
                 org.telegram.messenger.MessagesController.getInstance(account);
             if (controller == null) {
                 return;
             }
             allowReadsFor(30);
-            if (owner instanceof org.telegram.messenger.TLRPC.TL_message_secret) {
-                final org.telegram.messenger.TLRPC.TL_message_secret secret =
-                    (org.telegram.messenger.TLRPC.TL_message_secret) owner;
-                final org.telegram.messenger.TLRPC.MessageMedia media = secret.media;
+            if (owner instanceof org.telegram.tgnet.TLRPC.TL_message_secret) {
+                final org.telegram.tgnet.TLRPC.TL_message_secret secret =
+                    (org.telegram.tgnet.TLRPC.TL_message_secret) owner;
+                final org.telegram.tgnet.TLRPC.MessageMedia media = secret.media;
                 final int ttl = secret.ttl > 0 ? secret.ttl
                     : (media != null && media.ttl_seconds > 0 ? media.ttl_seconds : 1);
                 controller.markMessageAsRead(dialogId, secret.random_id, ttl);
-            } else if (owner instanceof org.telegram.messenger.TLRPC.TL_message) {
-                final org.telegram.messenger.TLRPC.MessageMedia media =
-                    ((org.telegram.messenger.TLRPC.TL_message) owner).media;
+            } else if (owner instanceof org.telegram.tgnet.TLRPC.TL_message) {
+                final org.telegram.tgnet.TLRPC.MessageMedia media =
+                    ((org.telegram.tgnet.TLRPC.TL_message) owner).media;
                 if (media != null && media.ttl_seconds > 0) {
                     // одноразовое/по таймеру: читаем с реальным ttl — сервер начнёт уничтожение
                     controller.markMessageAsRead2(dialogId, owner.id, null, media.ttl_seconds, 0, true);
@@ -446,17 +446,17 @@ public final class KamiGramGhost {
             if (message == null || message.messageOwner == null) {
                 return;
             }
-            final org.telegram.messenger.TLRPC.Message owner = message.messageOwner;
+            final org.telegram.tgnet.TLRPC.Message owner = message.messageOwner;
             final org.telegram.messenger.MessagesController controller =
                 org.telegram.messenger.MessagesController.getInstance(account);
             if (controller == null) {
                 return;
             }
             allowReadsFor(30);
-            if (owner instanceof org.telegram.messenger.TLRPC.TL_message_secret) {
-                final org.telegram.messenger.TLRPC.TL_message_secret secret =
-                    (org.telegram.messenger.TLRPC.TL_message_secret) owner;
-                final org.telegram.messenger.TLRPC.EncryptedChat chat = controller.getEncryptedChat(
+            if (owner instanceof org.telegram.tgnet.TLRPC.TL_message_secret) {
+                final org.telegram.tgnet.TLRPC.TL_message_secret secret =
+                    (org.telegram.tgnet.TLRPC.TL_message_secret) owner;
+                final org.telegram.tgnet.TLRPC.EncryptedChat chat = controller.getEncryptedChat(
                     org.telegram.messenger.DialogObject.getEncryptedChatId(dialogId));
                 if (chat != null) {
                     final java.util.ArrayList<Long> ids = new java.util.ArrayList<>();
