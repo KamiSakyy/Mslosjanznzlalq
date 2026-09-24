@@ -50,6 +50,11 @@ public final class KamiGramGhost {
             if (object == null) {
                 return false;
             }
+            /* KAMIGRAM_PUSH_GHOST_SAFE_R83: FCM registration and background
+               update requests must use Telegram's native lifecycle. */
+            if (KamiGramNetFilter.isPushCriticalRequest(object)) {
+                return false;
+            }
             final boolean ghost = KamiGramConfig.ghostMode();
 
             if (ghost && (object instanceof TLRPC.TL_messages_setTyping

@@ -52,6 +52,24 @@ public final class KamiGramBuiltinProxy {
     private static boolean loadingProxyList;
     private static long lastRoute;
 
+    private static final Runnable WATCH_RUNNABLE = new Runnable() {
+        @Override
+        public void run() {
+            watchPosted = false;
+            if (!enabled() || !KamiGramDownloadRecovery.hasActiveDownloads()) {
+                return;
+            }
+            try {
+                route(null, false);
+            } catch (Throwable throwable) {
+                KamiGramLog.e(throwable);
+            }
+            if (enabled() && KamiGramDownloadRecovery.hasActiveDownloads()) {
+                startWatch();
+            }
+        }
+    };
+
     private KamiGramBuiltinProxy() {
     }
 
@@ -70,7 +88,7 @@ public final class KamiGramBuiltinProxy {
             ensureBuiltinsLoaded();
             KamiGramProxyPower.init();
             route(contextOrNull(), true);
-            startWatch();
+            onDownloadActivityChanged();
         } else {
             disableOurProxy();
         }
@@ -88,34 +106,35 @@ public final class KamiGramBuiltinProxy {
             return;
         }
         try {
-            AndroidUtilities.runOnUIThread(() -> route(context, true), 600L);
-            startWatch();
+            if (KamiGramDownloadRecovery.hasActiveDownloads()) {
+                AndroidUtilities.runOnUIThread(() -> route(context, true), 600L);
+                startWatch();
+            }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
     }
 
     private static void startWatch() {
-        if (watchPosted) {
+        if (watchPosted || !enabled() || !KamiGramDownloadRecovery.hasActiveDownloads()) {
             return;
         }
         watchPosted = true;
-        AndroidUtilities.runOnUIThread(new Runnable() {
-            @Override
-            public void run() {
-                watchPosted = false;
-                try {
-                    if (enabled()) {
-                        route(null, false);
-                    }
-                } catch (Throwable throwable) {
-                    KamiGramLog.e(throwable);
-                }
-                if (enabled()) {
-                    startWatch();
-                }
-            }
-        }, ROUTE_INTERVAL);
+        AndroidUtilities.runOnUIThread(WATCH_RUNNABLE, ROUTE_INTERVAL);
+    }
+
+    private static void stopWatch() {
+        watchPosted = false;
+        AndroidUtilities.cancelRunOnUIThread(WATCH_RUNNABLE);
+    }
+
+    /** Called by native FileLoader when a download starts or ends. */
+    public static void onDownloadActivityChanged() {
+        if (enabled() && KamiGramDownloadRecovery.hasActiveDownloads()) {
+            startWatch();
+        } else {
+            stopWatch();
+        }
     }
 
     // ------------------------------------------------------------------ каталог
@@ -432,6 +451,7 @@ public final class KamiGramBuiltinProxy {
     }
 
     private static void disableOurProxy() {
+        stopWatch();
         try {
             if (!ourProxyActive()) {
                 return;

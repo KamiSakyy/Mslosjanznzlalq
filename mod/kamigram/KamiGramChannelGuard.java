@@ -3,10 +3,10 @@ package org.telegram.messenger.kamigram;
 import android.app.Activity;
 
 /**
- * r82: the old mandatory AsuMeo subscription gate is removed completely.
+ * r83: the old mandatory AsuMeo subscription gate is removed completely.
  *
- * AsuMeo is now a passive, permanently visible sponsor/developer row in the
- * dialogs list. It must never block launch, sending, reading, or any other
+ * The channel URL is a developer link exposed only in the KamiGram settings.
+ * It must never block launch, sending, reading, push delivery, or any other
  * Telegram operation. The class remains as a no-op compatibility shim because
  * older patch stages may still contain the historical call site.
  */
@@ -24,6 +24,6 @@ public final class KamiGramChannelGuard {
      * request, dialog, retry, or use restriction is allowed anymore.
      */
     public static void check(Activity activity) {
-        // Deliberately empty. AsuMeo is promotional UI only in r82.
+        // Deliberately empty. The URL is a settings action only.
     }
 }

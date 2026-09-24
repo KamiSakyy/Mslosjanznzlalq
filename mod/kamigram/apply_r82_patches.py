@@ -8,15 +8,15 @@ them with another scheduler. Telegram's own SendMessageParams.scheduleDate is
 left untouched, so ordinary text and every native media/forward path use the
 same code as upstream.
 
-This pass also makes the local economy/Ghost gates conditional: only the
-ordinary outbound message-request classifier bypasses them. The sticker,
-premium-emoji, GIF and other non-message filters remain active, including the
-FileLoader document policy.
+This pass also makes the local economy/Ghost gates conditional: ordinary
+message requests and Telegram push/background synchronisation keep the native
+path. The sticker, premium-emoji, GIF and other non-message filters remain
+active, including the FileLoader document policy. Push registration and update
+requests are never swallowed by the module.
 """
 
 import io
 import os
-import re
 import sys
 
 TG = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("TG_DIR", ".")
@@ -82,10 +82,17 @@ def patch_native_send():
 
 def patch_request_gates():
     rel = "tgnet/ConnectionsManager.java"
-    # Keep the existing filter for every non-message request. A message request
-    # is the only thing allowed to pass the local economy gate, and the same
-    # classifier is used for the Ghost hook. This is deliberately narrower than
-    # deleting KamiGramNetFilter from ConnectionsManager altogether.
+    # Keep the existing filter for optional economy features, but never put
+    # Telegram's FCM registration/update synchronisation behind it. The push
+    # classifier is deliberately separate from ordinary message sends.
+    once(
+        rel,
+        "KAMIGRAM_PUSH_NATIVE_BYPASS_R83",
+        "        final boolean kamigramMessageRequest = org.telegram.messenger.kamigram.KamiGramProxyPower.isMessageRequest(object);\n",
+        "        final boolean kamigramMessageRequest = org.telegram.messenger.kamigram.KamiGramProxyPower.isMessageRequest(object);\n"
+        "        final boolean kamigramPushRequest = org.telegram.messenger.kamigram.KamiGramNetFilter.isPushCriticalRequest(object); /* KAMIGRAM_PUSH_NATIVE_BYPASS_R83 */\n",
+        "push: classify FCM registration and background update requests before local filters",
+    )
     once(
         rel,
         "KAMIGRAM_NATIVE_MESSAGE_FILTER_BYPASS_R82",
@@ -96,7 +103,7 @@ def patch_request_gates():
             return;
         }
 """,
-        """        if (!kamigramMessageRequest && org.telegram.messenger.kamigram.KamiGramNetFilter.blockRequest(object)) {
+        """        if (!kamigramMessageRequest && !kamigramPushRequest && org.telegram.messenger.kamigram.KamiGramNetFilter.blockRequest(object)) {
             if (BuildVars.LOGS_ENABLED) {
                 FileLog.d("KamiGram: запрос не отправлен (экономия трафика) " + object);
             }
@@ -112,7 +119,7 @@ def patch_request_gates():
             return;
         }
 """,
-        """        if (!kamigramMessageRequest && org.telegram.messenger.kamigram.KamiGramGhost.interceptRequest(object, onComplete)) {
+        """        if (!kamigramMessageRequest && !kamigramPushRequest && org.telegram.messenger.kamigram.KamiGramGhost.interceptRequest(object, onComplete)) {
             return;
         } /* KAMIGRAM_NATIVE_GHOST_BYPASS_R82: message requests use Telegram's native path */
         """,
@@ -133,7 +140,7 @@ def patch_remove_gate_and_trigger_cleanup():
         }
 """,
         """        /* KAMIGRAM_CHANNEL_GUARD / KAMIGRAM_CHANNEL_GATE_R82_DISABLED:
-           AsuMeo is promotional UI only; it never blocks the application. */
+           the channel is a settings link only; it never blocks the application. */
         try {
             org.telegram.messenger.kamigram.KamiGramAutoArchive.checkNow(currentAccount);
         } catch (Throwable ignore) {
@@ -143,97 +150,15 @@ def patch_remove_gate_and_trigger_cleanup():
     )
 
 
-def patch_dialogs_sponsor():
-    rel = "ui/Adapters/DialogsAdapter.java"
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_IMPORT",
-        "import org.telegram.messenger.UserConfig;\n",
-        "import org.telegram.messenger.UserConfig;\nimport org.telegram.messenger.kamigram.KamiGramSponsorCell; // KAMIGRAM_ASUMEO_SPONSOR_R82_IMPORT\n",
-        "sponsor: import passive AsuMeo row",
-    )
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_TYPE",
-        "            VIEW_TYPE_DIALOG_COMMUNITY = 23;",
-        "            VIEW_TYPE_DIALOG_COMMUNITY = 23,\n            VIEW_TYPE_KAMIGRAM_SPONSOR = 24; /* KAMIGRAM_ASUMEO_SPONSOR_R82_TYPE */",
-        "sponsor: add a dedicated top-row view type",
-    )
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_DISABLED",
-        "                viewType != VIEW_TYPE_REQUIREMENTS && viewType != VIEW_TYPE_REQUIRED_EMPTY && viewType != VIEW_TYPE_STORIES && viewType != VIEW_TYPE_ARCHIVE_FULLSCREEN && viewType != VIEW_TYPE_GRAY_SECTION;",
-        "                viewType != VIEW_TYPE_REQUIREMENTS && viewType != VIEW_TYPE_REQUIRED_EMPTY && viewType != VIEW_TYPE_STORIES && viewType != VIEW_TYPE_ARCHIVE_FULLSCREEN && viewType != VIEW_TYPE_GRAY_SECTION && viewType != VIEW_TYPE_KAMIGRAM_SPONSOR; /* KAMIGRAM_ASUMEO_SPONSOR_R82_DISABLED */",
-        "sponsor: keep the passive row out of dialog click/swipe handling",
-    )
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_CREATE",
-        """        switch (viewType) {
-            case VIEW_TYPE_DIALOG_COMMUNITY:
-""",
-        """        switch (viewType) {
-            case VIEW_TYPE_KAMIGRAM_SPONSOR: /* KAMIGRAM_ASUMEO_SPONSOR_R82_CREATE */
-                view = new KamiGramSponsorCell(mContext);
-                break;
-            case VIEW_TYPE_DIALOG_COMMUNITY:
-""",
-        "sponsor: create the clickable AsuMeo developer row",
-    )
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_BIND",
-        """    public void onBindViewHolder(RecyclerView.ViewHolder holder, int i) {
-        switch (holder.getItemViewType()) {
-""",
-        """    public void onBindViewHolder(RecyclerView.ViewHolder holder, int i) {
-        switch (holder.getItemViewType()) {
-            case VIEW_TYPE_KAMIGRAM_SPONSOR: /* KAMIGRAM_ASUMEO_SPONSOR_R82_BIND */
-                ((KamiGramSponsorCell) holder.itemView).bindTheme();
-                break;
-""",
-        "sponsor: bind persistent label and current Telegram colors",
-    )
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_ITEM",
-        """        dialogsCount = array.size();
-        isEmpty = false;
-        if (dialogsCount == 0 && parentFragment.isArchive()) {
-""",
-        """        dialogsCount = array.size();
-        isEmpty = false;
-        if (dialogsType == DialogsActivity.DIALOGS_TYPE_DEFAULT && folderId == 0
-            && !isOnlySelect && communityId == 0 && !parentFragment.isArchive()) {
-            itemInternals.add(new ItemInternal(VIEW_TYPE_KAMIGRAM_SPONSOR)); /* KAMIGRAM_ASUMEO_SPONSOR_R82_ITEM */
-        }
-        if (dialogsCount == 0 && parentFragment.isArchive()) {
-""",
-        "sponsor: keep AsuMeo permanently above the main dialogs list only",
-    )
-    once(
-        rel,
-        "KAMIGRAM_ASUMEO_SPONSOR_R82_HEIGHT",
-        """    public int getItemHeight(int position) {
-        if (itemInternals.get(position).viewType == VIEW_TYPE_DIALOG) {
-""",
-        """    public int getItemHeight(int position) {
-        if (itemInternals.get(position).viewType == VIEW_TYPE_KAMIGRAM_SPONSOR) { /* KAMIGRAM_ASUMEO_SPONSOR_R82_HEIGHT */
-            return AndroidUtilities.dp(68);
-        }
-        if (itemInternals.get(position).viewType == VIEW_TYPE_DIALOG) {
-""",
-        "sponsor: reserve the passive row's native height",
-    )
-
 
 def validate():
     checks = [
         ("messenger/SendMessagesHelper.java", "KAMIGRAM_NATIVE_SEND_R82", "native send entry"),
         ("tgnet/ConnectionsManager.java", "KAMIGRAM_NATIVE_MESSAGE_FILTER_BYPASS_R82", "message-only economy bypass"),
         ("tgnet/ConnectionsManager.java", "KAMIGRAM_NATIVE_GHOST_BYPASS_R82", "message-only Ghost bypass"),
+        ("tgnet/ConnectionsManager.java", "KAMIGRAM_PUSH_NATIVE_BYPASS_R83", "push/background native bypass"),
         ("ui/LaunchActivity.java", "KAMIGRAM_CHANNEL_GATE_R82_DISABLED", "subscription gate removed"),
-        ("ui/Adapters/DialogsAdapter.java", "KAMIGRAM_ASUMEO_SPONSOR_R82", "passive AsuMeo sponsor row"),
+        ("messenger/kamigram/KamiGramNetFilter.java", "KAMIGRAM_PUSH_SAFE_R83", "push-safe request classifier"),
     ]
     for rel, marker, what in checks:
         try:
@@ -270,6 +195,8 @@ def validate():
             MISS.append("tgnet/ConnectionsManager.java: Ghost hook still unconditionally intercepts requests")
         if "KamiGramNetFilter.blockRequest(object)" not in connections:
             MISS.append("tgnet/ConnectionsManager.java: non-message filter was removed instead of scoped")
+        if "!kamigramMessageRequest && !kamigramPushRequest" not in connections:
+            MISS.append("tgnet/ConnectionsManager.java: push requests are not exempt from local filters")
     except OSError as exc:
         MISS.append("tgnet/ConnectionsManager.java: %s (request validation)" % exc)
 
@@ -292,7 +219,6 @@ def main():
     patch_native_send()
     patch_request_gates()
     patch_remove_gate_and_trigger_cleanup()
-    patch_dialogs_sponsor()
     validate()
     print("r82: changes — %d" % len(DONE))
     for item in DONE:

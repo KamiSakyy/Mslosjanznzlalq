@@ -3,8 +3,10 @@ package org.telegram.messenger.kamigram;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -18,6 +20,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.ProxyListActivity;
 
@@ -293,6 +296,16 @@ public final class KamiGramCenter {
         card(root, context, new Row[]{
             Row.toggle("Применять KamiGram ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
+        card(root, context, new Row[]{
+            Row.action("Разработчик KamiGram", () -> openDeveloperChannel(context)),
+            Row.action(SharedConfig.archiveHidden ? "Показать архив" : "Скрыть архив", () -> {
+                SharedConfig.toggleArchiveHidden();
+                KamiGramUi.notify(context, SharedConfig.archiveHidden ? "Архив скрыт" : "Архив показан");
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            })
+        });
     }
 
     // ------------------------------------------------------------------ кэш по категориям
@@ -410,6 +423,19 @@ public final class KamiGramCenter {
     }
 
     // ------------------------------------------------------------------ экраны
+
+    /** Ссылка разработчика находится только в центре настроек KamiGram. */
+    private static void openDeveloperChannel(Context context) {
+        try {
+            final Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(KamiGramChannelGuard.CHANNEL_URL));
+            if (!(context instanceof Activity)) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            context.startActivity(intent);
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+    }
 
     public static void openProxyScreen(Context context) {
         try {

@@ -2113,7 +2113,7 @@ fi
 #      Overlay/PiP r70 удалён следующим пакетом r76: он больше не копируется
 #      и не подключается. Остальные функции r70 остаются.
 #      1)  исторический AsuMeo guard (совместимость прошлых патчей): r82
-#          превращает его в no-op, а канал показывается только как sponsor row;
+#          превращает его в no-op; developer link остаётся только в настройках;
 #      3)  «Подключение…» как в оригинале: нет сети — надпись, есть — пропадает;
 #      4)  иконка загрузок анимируется только пока реально идут байты;
 #      5)  иконка призрака минималистичная, белая: контур / заполнена;
@@ -2249,7 +2249,7 @@ fi
 #         only stickers, premium emoji and GIFs remain deny-able;
 #      2) the selected proxy route is leased while an ordinary message is sent;
 #      3) the old AsuMeo auto-join marker is retained only for compatibility;
-#         r82 removes its live gate and uses a passive sponsor row;
+#         r82 removes its live gate; no dialog-list sponsor row is injected;
 #      4) archive safety explicitly protects private dialogs and contacts;
 #      5) every folder tab, including «Все личные», uses the KamiGram palette.
 # =============================================================================
@@ -2384,7 +2384,7 @@ fi
 #         token on response, exception, retry, or cancellation;
 #      4) the cleaner and its private/contact safety markers are present;
 #      5) the former AsuMeo gate remains only as a compatibility marker (r82
-#         replaces its live call with a no-op and a passive sponsor row);
+#         replaces its live call with a no-op; the link is settings-only);
 #      6) «Тема Telegram» is a persistent two-way KamiGram/native-theme toggle.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
@@ -2425,15 +2425,12 @@ fi
 #      2) let only ordinary message requests bypass the local economy/Ghost
 #         gates, while the sticker/premium-emoji/GIF filter remains installed;
 #      3) remove the mandatory AsuMeo call and run the >500 cleaner on resume;
-#      4) show a permanent, non-blocking AsuMeo / «Разработчик» sponsor row at
-#         the top of the ordinary main dialogs list;
+#      4) remove the legacy permanent sponsor row from the ordinary dialogs list;
+#         the developer channel is exposed only in KamiGram settings;
 #      5) keep the independent built-in KamiProxy catalog, including akenai.tg.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
-    [ -f "$KAMIGRAM_SRC/KamiGramSponsorCell.java" ] || die "P106: нет KamiGramSponsorCell.java"
-    cp -f "$KAMIGRAM_SRC/KamiGramSponsorCell.java" "$KAMI_PKG/KamiGramSponsorCell.java"
-    [ -f "$KAMI_PKG/KamiGramSponsorCell.java" ] || die "P106: sponsor cell не скопирован"
     [ -f "$KAMIGRAM_SRC/apply_r82_patches.py" ] || die "P106: нет apply_r82_patches.py"
     TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r82_patches.py" || die "P106: патчи r82 не применились"
 
@@ -2450,8 +2447,8 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
 
     # Request gates: the condition must be scoped to the message classifier,
     # not replaced by a global removal of KamiGramNetFilter/Ghost.
-    grep -q 'if (!kamigramMessageRequest && org.telegram.messenger.kamigram.KamiGramNetFilter.blockRequest(object))' "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" || die "P106: message-only NetFilter bypass отсутствует"
-    grep -q 'if (!kamigramMessageRequest && org.telegram.messenger.kamigram.KamiGramGhost.interceptRequest(object, onComplete))' "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" || die "P106: message-only Ghost bypass отсутствует"
+    grep -q 'if (!kamigramMessageRequest && !kamigramPushRequest && org.telegram.messenger.kamigram.KamiGramNetFilter.blockRequest(object))' "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" || die "P106: message-only NetFilter bypass отсутствует"
+    grep -q 'if (!kamigramMessageRequest && !kamigramPushRequest && org.telegram.messenger.kamigram.KamiGramGhost.interceptRequest(object, onComplete))' "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" || die "P106: message-only Ghost bypass отсутствует"
     grep -q 'KamiGramNetFilter.blockDownload(document, parentObject)' "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" || die "P106: sticker/GIF download filter отключён"
     has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R78" || die "P106: media policy marker отсутствует"
 
@@ -2482,16 +2479,15 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'server=akenai.tg&port=853&secret=ee54ce330e4690cc297d2b031ff3f288b06d742e616b656e61692e636c69636b' "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P106: akenai.tg KamiProxy отсутствует"
     has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_PROXY_CATALOG_R76" || die "P106: built-in proxy catalog marker отсутствует"
 
-    # Sponsor UI: this is presentation only and sits before all normal dialogs
-    # in the default, non-selecting, non-archive list.
-    has "$KAMI_PKG/KamiGramSponsorCell.java" "AsuMeo" || die "P106: AsuMeo sponsor cell отсутствует"
-    has "$KAMI_PKG/KamiGramSponsorCell.java" "Разработчик" || die "P106: подпись «Разработчик» отсутствует"
-    has "$KAMI_PKG/KamiGramSponsorCell.java" "CHANNEL_URL" || die "P106: sponsor URL отсутствует"
-    has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java" "KAMIGRAM_ASUMEO_SPONSOR_R82_TYPE" || die "P106: sponsor view type отсутствует"
-    has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java" "KAMIGRAM_ASUMEO_SPONSOR_R82_ITEM" || die "P106: sponsor не добавлен сверху списка"
-    has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java" "KAMIGRAM_ASUMEO_SPONSOR_R82_BIND" || die "P106: sponsor row не bind-ится"
+    # The old sponsor view must not be copied or injected. The developer link
+    # is a settings-only action and the normal dialog adapter remains native.
+    if grep -q -E 'KamiGramSponsorCell|KAMIGRAM_ASUMEO_SPONSOR' "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java"; then
+        die "P106: legacy sponsor row остался в DialogsAdapter"
+    fi
+    has "$KAMI_PKG/KamiGramCenter.java" "Разработчик KamiGram" || die "P106: developer settings action отсутствует"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "https://t.me/AsuMeo" || die "P106: developer URL отсутствует"
 
-    ok "P106 r82: native Telegram send/schedule path restored, message-only request bypass, stickers/premium-emoji/GIF filter preserved, AsuMeo gate removed, >500 groups/channels cleaner active in main+archive, akenai.tg KamiProxy catalogued, permanent AsuMeo developer sponsor row"
+    ok "P106 r82: native Telegram send/schedule path restored, message/push request bypass, stickers/premium-emoji/GIF filter preserved, AsuMeo gate removed, >500 groups/channels cleaner active, akenai.tg KamiProxy catalogued, legacy sponsor row removed"
 else
     skip "P106 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2549,10 +2545,40 @@ PY
     has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST" || die "P107: download foreground service не объявлен"
     grep -q 'android.permission.FOREGROUND_SERVICE' "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" || die "P107: foreground service permission отсутствует"
     grep -q 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" || die "P107: dataSync foreground permission отсутствует"
-    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "startForeground" || die "P107: service не удерживает foreground lifetime"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "FOREGROUND_MIN_BYTES" || die "P107: порог foreground 10 МБ отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "START_NOT_STICKY" || die "P107: service не должен переживать завершённую загрузку"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "stopForeground(true)" || die "P107: foreground lifetime не освобождается"
     has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "setProgress" || die "P107: в уведомлении нет полосы прогресса"
-    has "$JAVA_ROOT/org/telegram/messenger/DownloadController.java" "KAMIGRAM_DOWNLOAD_SERVICE_START" || die "P107: сервис не стартует на скачивании"
-    ok "P107: видео продолжаются с сохранённого места после смены proxy, работают в foreground с размером/процентом/полосой, медленный маршрут автоматически меняется"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_SERVICE_OPERATION" || die "P107: сервис не привязан к native operation/size"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_ACTIVE_DOWNLOADS_API_R83" || die "P107: active FileLoader API отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_CANCEL_OPERATION_STATE_R83" || die "P107: native cancel не освобождает lifecycle"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_MAX_PARALLEL_DOWNLOADS_R83" || die "P107: лимит шести параллельных операций отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadRecovery.java" "KAMIGRAM_THERMAL_LIMIT_R83" || die "P107: thermal/power-save limit отсутствует"
+    ok "P107: native FileLoader продолжает temp/parts после proxy switch, foreground только для >10 МБ с прогрессом и idle-stop, до 6 native операций с thermal/power-save ограничением"
 else
     skip "P107 безобрывные фоновые скачивания отключены (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P108. r83 — archive/developer/push cleanup and legacy sponsor removal.
+#      This is deliberately the final compatibility pass: it can also strip a
+#      sponsor row from a tree produced by an older r82 installer.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    [ -f "$KAMIGRAM_SRC/apply_r83_patches.py" ] || die "P108: нет apply_r83_patches.py"
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r83_patches.py" "$TG_DIR" || die "P108: патчи r83 не применились"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_ARCHIVE_HIDE_BUTTON_R83" || die "P108: кнопка «Скрыть архив» отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramCenter.java" "Разработчик KamiGram" || die "P108: кнопка разработчика отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramNetFilter.java" "KAMIGRAM_PUSH_SAFE_R83" || die "P108: FCM-safe classifier отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramGhost.java" "KAMIGRAM_PUSH_GHOST_SAFE_R83" || die "P108: Ghost не пропускает push lifecycle"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PUSH_NATIVE_BYPASS_R83" || die "P108: push native bypass отсутствует"
+    if grep -q -E 'KamiGramSponsorCell|KAMIGRAM_ASUMEO_SPONSOR|Спонсор KamiProxy' "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java"; then
+        die "P108: permanent sponsor row всё ещё попадает в основной список"
+    fi
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83" || die "P108: proxy watchdog не ограничен active downloads"
+    has "$KAMI_PKG/KamiGramBuiltinProxy.java" "onDownloadActivityChanged" || die "P108: built-in proxy timer не останавливается"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "event/resume driven" || die "P108: auto-archive оставил постоянный timer"
+    ok "P108 r83: «Скрыть архив» работает, developer link только в настройках, sponsor row удалён, штатный FCM/push path защищён, proxy/watchdog idle, custom и built-in proxy каталоги независимы"
+else
+    skip "P108 r83 отключено (ZERO_TRAFFIC=0)"
 fi

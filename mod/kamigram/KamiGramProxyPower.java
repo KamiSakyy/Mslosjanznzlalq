@@ -3,6 +3,8 @@ package org.telegram.messenger.kamigram;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
 import android.os.SystemClock;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -34,7 +36,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     private static final long SWITCH_DELAY = 180L;
     private static final long DEAD_DELAY = 120L;
     private static final long CURRENT_FRESHNESS = 8_000L;
-    private static final long LOOP_DELAY = 1_000L;
+    private static final long LOOP_DELAY = 5_000L;
     private static final long SPEED_MARGIN = 25L;
     /* KAMIGRAM_PROXY_SEND_LEASE_R78 is retained only as a compatibility marker.
        r80 tracks real native request tokens instead of holding a fixed timer. */
@@ -83,7 +85,8 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             final NotificationCenter global = NotificationCenter.getGlobalInstance();
             global.addObserver(this, NotificationCenter.proxyCheckDone);
             global.addObserver(this, NotificationCenter.proxySettingsChanged);
-            startLoop();
+            /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83: no permanent proxy timer;
+               FileLoader starts it only while a native download is active. */
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
@@ -160,11 +163,39 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     private void startLoop() {
-        if (loopPosted) {
+        if (loopPosted || !downloadsActive()) {
             return;
         }
         loopPosted = true;
         AndroidUtilities.runOnUIThread(loopRunnable, LOOP_DELAY);
+    }
+
+    private void stopLoop() {
+        loopPosted = false;
+        AndroidUtilities.cancelRunOnUIThread(loopRunnable);
+        cancelSwitch();
+    }
+
+    private static boolean downloadsActive() {
+        try {
+            return KamiGramDownloadRecovery.hasActiveDownloads();
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** Native FileLoader activity is the only reason to run proxy checks. */
+    public static void onDownloadActivityChanged() {
+        try {
+            if (downloadsActive() && enabled() && smartEnabled()) {
+                INSTANCE.startLoop();
+            } else {
+                INSTANCE.stopLoop();
+            }
+            KamiGramBuiltinProxy.onDownloadActivityChanged();
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
     }
 
     private final Runnable loopRunnable = new Runnable() {
@@ -172,13 +203,13 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         public void run() {
             loopPosted = false;
             try {
-                if (enabled() && smartEnabled()) {
+                if (downloadsActive() && enabled() && smartEnabled()) {
                     tickInternal();
                 }
             } catch (Throwable throwable) {
                 KamiGramLog.e(throwable);
             }
-            if (enabled() && smartEnabled()) {
+            if (downloadsActive() && enabled() && smartEnabled()) {
                 startLoop();
             }
         }
@@ -186,6 +217,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     private void tickInternal() {
         try {
+            if (!downloadsActive()) {
+                return; /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83 */
+            }
             /* KAMIGRAM_PROXY_SEND_GUARD_R78: never rotate a route in the
                middle of an ordinary message send/retry. */
             if (messageSendInFlight()) {
@@ -311,7 +345,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     /** Called when a large native download is stalled or demonstrably too slow. */
     public static void onSlowDownload(FileLoadOperation operation) {
         try {
-            if (operation == null || !enabled() || !smartEnabled() || messageSendInFlight()) {
+            if (operation == null || !downloadsActive() || !enabled() || !smartEnabled() || messageSendInFlight()) {
                 return;
             }
             final long now = SystemClock.elapsedRealtime();
@@ -333,6 +367,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     private void onLoadFailure() {
+        if (!downloadsActive()) {
+            return; /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83 */
+        }
         final long now = SystemClock.elapsedRealtime();
         if (now - loadFailureTime > 45_000L) {
             loadFailures = 0;
@@ -477,7 +514,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     public static void tick(Context context) {
         try {
-            if (!enabled() || !smartEnabled()) {
+            if (!downloadsActive() || !enabled() || !smartEnabled()) {
                 return;
             }
             INSTANCE.tickInternal();
@@ -547,6 +584,15 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
         try {
+            if (id != NotificationCenter.proxySettingsChanged
+                && (id == NotificationCenter.didUpdateConnectionState
+                    || id == NotificationCenter.proxyCheckDone
+                    || id == NotificationCenter.fileLoadFailed
+                    || id == NotificationCenter.httpFileDidFailedLoad)
+                && !downloadsActive()) {
+                cancelSwitch();
+                return; /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83 */
+            }
             if (id == NotificationCenter.didUpdateConnectionState) {
                 if (account != UserConfig.selectedAccount || !enabled() || !smartEnabled()) {
                     return;
@@ -619,13 +665,42 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     public static void refreshNow(Context context) {
-        if (!enabled() || !smartEnabled()) {
+        if (!downloadsActive() || !enabled() || !smartEnabled()) {
             return;
         }
         KamiGramBuiltinProxy.ensureBuiltinsLoaded();
         pingAll();
         INSTANCE.switchToBest(context);
         KamiGramBuiltinProxy.route(context, true);
+    }
+
+    /**
+     * KAMIGRAM_THERMAL_LIMIT_R83: retain six native FileLoader operations on a
+     * normal device, but let Android power/thermal policy lower concurrency
+     * without deleting temp/parts or changing resume offsets.
+     */
+    public static int downloadParallelLimit(int normal) {
+        int limit = Math.min(6, Math.max(1, normal));
+        try {
+            final Context context = contextOrNull();
+            if (context == null) {
+                return limit;
+            }
+            final PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            if (power != null && power.isPowerSaveMode()) {
+                return Math.min(limit, 2);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && power != null) {
+                final int thermal = power.getCurrentThermalStatus();
+                if (thermal >= PowerManager.THERMAL_STATUS_SEVERE) {
+                    return Math.min(limit, 2);
+                } else if (thermal >= PowerManager.THERMAL_STATUS_MODERATE) {
+                    return Math.min(limit, 4);
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return limit;
     }
 
     /**

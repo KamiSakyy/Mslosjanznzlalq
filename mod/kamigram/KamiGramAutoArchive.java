@@ -17,7 +17,8 @@ import org.telegram.tgnet.TLRPC;
 import java.util.HashMap;
 
 /**
- * KamiGram r82: remove overloaded group/channel dialogs automatically.
+ * KamiGram r83: remove overloaded group/channel dialogs automatically
+ * without a permanent timer; sweeps are event/resume driven.
  *
  * A dialog is eligible when Telegram's own unread_count is strictly greater
  * than 500. Channels and group chats are left immediately wherever they are
@@ -35,15 +36,13 @@ import java.util.HashMap;
 public final class KamiGramAutoArchive implements NotificationCenter.NotificationCenterDelegate {
 
     private static final int LIMIT = 500;
-    private static final long MIN_INTERVAL = 1_000L;
+    private static final long MIN_INTERVAL = 5_000L;
     private static final long DELAY = 0L;
-    private static final long PERIOD = 30_000L;
 
     private static final KamiGramAutoArchive INSTANCE = new KamiGramAutoArchive();
     private static final HashMap<Integer, Boolean> POSTED = new HashMap<>();
     private static final HashMap<Integer, Long> LAST_RUN = new HashMap<>();
     private static boolean initialized;
-    private static boolean periodicPosted;
 
     private KamiGramAutoArchive() {
     }
@@ -59,7 +58,6 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 NotificationCenter.getInstance(account).addObserver(INSTANCE, NotificationCenter.updateInterfaces);
                 schedule(account);
             }
-            startPeriodicSweep();
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
@@ -101,24 +99,6 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
             }
             INSTANCE.sweep(account);
         }, DELAY);
-    }
-
-    private static synchronized void startPeriodicSweep() {
-        if (periodicPosted) {
-            return;
-        }
-        periodicPosted = true;
-        AndroidUtilities.runOnUIThread(() -> {
-            synchronized (KamiGramAutoArchive.class) {
-                periodicPosted = false;
-            }
-            if (KamiGramConfig.autoArchive()) {
-                for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
-                    schedule(account);
-                }
-            }
-            startPeriodicSweep();
-        }, PERIOD);
     }
 
     /**

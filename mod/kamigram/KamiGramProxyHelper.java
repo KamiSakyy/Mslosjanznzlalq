@@ -219,7 +219,10 @@ public final class KamiGramProxyHelper {
      * direct connection. A proxy that is still connecting is never dropped.
      */
     public static void watchProxy(final Context context) {
-        if (!KamiGramConfig.proxyFallback() || !proxyEnabled()) {
+        /* KAMIGRAM_DOWNLOAD_WATCH_ONLY_R83: proxy watchdogs are useful only
+           while FileLoader has a live download; app launch/login stays quiet. */
+        if (!KamiGramDownloadRecovery.hasActiveDownloads()
+            || !KamiGramConfig.proxyFallback() || !proxyEnabled()) {
             return;
         }
         try {
@@ -232,7 +235,10 @@ public final class KamiGramProxyHelper {
         final int account = UserConfig.selectedAccount;
         AndroidUtilities.runOnUIThread(() -> {
             try {
-                if (!proxyEnabled() || !ApplicationLoader.isNetworkOnline()) {
+                /* The download may finish during the delay; do not leave a
+                   delayed idle proxy action behind or alter an idle user route. */
+                if (!KamiGramDownloadRecovery.hasActiveDownloads()
+                    || !proxyEnabled() || !ApplicationLoader.isNetworkOnline()) {
                     return;
                 }
                 final int state = ConnectionsManager.getInstance(account).getConnectionState();

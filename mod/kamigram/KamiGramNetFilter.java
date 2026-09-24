@@ -98,6 +98,49 @@ public final class KamiGramNetFilter {
     private KamiGramNetFilter() {
     }
 
+    /**
+     * KAMIGRAM_PUSH_SAFE_R83: Telegram's FCM/background path is always native.
+     * These requests register the device or fetch the update/dialog delta after
+     * a push wakes the process. They must not be swallowed by optional traffic
+     * filters, even when a user has enabled the economy or Ghost switches.
+     */
+    public static boolean isPushCriticalRequest(TLObject object) {
+        if (object == null) {
+            return false;
+        }
+        try {
+            final String[] names = requestNames(object);
+            if (names == null) {
+                return false;
+            }
+            final String simple = names[0];
+            final String full = names[1];
+            final String[] safe = {
+                "TL_account_registerDevice",
+                "TL_account_unregisterDevice",
+                "TL_account_updateDeviceLocked",
+                "TL_account_getNotifySettings",
+                "TL_account_getNotifyExceptions",
+                "TL_account_updateNotifySettings",
+                "TL_updates_getDifference",
+                "TL_updates_getState",
+                "TL_updates_getChannelDifference",
+                "TL_messages_getDifference",
+                "TL_messages_getDialogs",
+                "TL_messages_getPeerDialogs",
+                "TL_messages_getMessages",
+                "TL_messages_getHistory",
+                "TL_messages_getPinnedDialogs",
+                "TL_messages_getUnreadMentions",
+                "TL_messages_getUnreadReactions",
+                "TL_messages_getScheduledHistory"
+            };
+            return hit(safe, simple) || hit(safe, full);
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
     public static boolean blockRequest(TLObject object) {
         if (object == null) {
             return false;
