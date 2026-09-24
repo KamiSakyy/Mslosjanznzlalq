@@ -2472,6 +2472,39 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P107: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
+
+    # DrKLO moved ProxySettings from org.telegram.proxy to
+    # org.telegram.utils.proxy after the pinned 12.10.3 tree. Keep the source
+    # files on the modern package and adapt only the copied target classes, so
+    # both the pinned workflow ref and current master compile.
+    if [ -f "$JAVA_ROOT/org/telegram/utils/proxy/ProxySettings.java" ]; then
+        KAMIGRAM_PROXY_SETTINGS_PACKAGE="org.telegram.utils.proxy"
+    else
+        KAMIGRAM_PROXY_SETTINGS_PACKAGE="org.telegram.proxy"
+    fi
+    KAMIGRAM_PROXY_SETTINGS_PACKAGE="$KAMIGRAM_PROXY_SETTINGS_PACKAGE" python3 - "$KAMI_PKG" <<'PY' || die "P107: ProxySettings package не согласован с upstream"
+import io
+import os
+import re
+import sys
+
+root = sys.argv[1]
+package = os.environ["KAMIGRAM_PROXY_SETTINGS_PACKAGE"]
+for name in ("KamiGramBuiltinProxy.java", "KamiGramProxyHelper.java", "KamiGramProxyPower.java"):
+    path = os.path.join(root, name)
+    if not os.path.isfile(path):
+        continue
+    text = io.open(path, encoding="utf-8").read()
+    text = re.sub(
+        r"import org\.telegram\.(?:utils\.)?proxy\.ProxySettings;",
+        "import %s.ProxySettings;" % package,
+        text,
+    )
+    io.open(path, "w", encoding="utf-8").write(text)
+PY
+    for f in KamiGramBuiltinProxy KamiGramProxyHelper KamiGramProxyPower; do
+        grep -q "import ${KAMIGRAM_PROXY_SETTINGS_PACKAGE}\\.ProxySettings;" "$KAMI_PKG/$f.java" || die "P107: $f использует несовместимый ProxySettings package"
+    done
     python3 "$KAMIGRAM_SRC/apply_download_resilience.py" "$TG_DIR" || die "P107: безобрывная загрузка не применилась"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoadOperation.java" "KAMIGRAM_PROXY_REBIND_OPERATION" || die "P107: операция не умеет продолжать загрузку после proxy switch"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_PROXY_RETRY_DELEGATE" || die "P107: retry загрузки после proxy switch не встал"
