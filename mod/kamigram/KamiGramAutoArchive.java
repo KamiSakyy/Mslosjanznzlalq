@@ -8,7 +8,6 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DialogObject;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
@@ -62,7 +61,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
             }
             startPeriodicSweep();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -81,7 +80,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
             }
             schedule(account);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -185,7 +184,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 controller.deleteParticipantFromChat(-dialogId, selfPeer, false, false);
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 }

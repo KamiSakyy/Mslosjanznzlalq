@@ -2,7 +2,6 @@ package org.telegram.messenger.kamigram;
 
 import android.content.Context;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -83,7 +82,7 @@ public final class KamiGramGhost {
             }
             return false;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
             return false;
         }
     }
@@ -124,7 +123,7 @@ public final class KamiGramGhost {
             fake.pts_count = 0;
             onComplete.run(fake, null);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -142,7 +141,7 @@ public final class KamiGramGhost {
             refreshAll();
             KamiGramUi.notify(context, enabled ? "Призрак включён" : "Призрак выключен");
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -304,7 +303,7 @@ public final class KamiGramGhost {
                 }
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 
@@ -340,7 +339,7 @@ public final class KamiGramGhost {
                 controller.markMessageAsRead2(dialogId, owner.id, null, 0, 0, false);
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 }

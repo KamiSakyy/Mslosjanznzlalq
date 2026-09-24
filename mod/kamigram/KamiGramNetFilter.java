@@ -1,6 +1,5 @@
 package org.telegram.messenger.kamigram;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -140,7 +139,7 @@ public final class KamiGramNetFilter {
             }
             return (hit(TRASH, simple) || hit(TRASH, full)) && deny();
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
         return false;
     }
@@ -178,7 +177,7 @@ public final class KamiGramNetFilter {
                 return denyFile(document);
             }
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
         return false;
     }

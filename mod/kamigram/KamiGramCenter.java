@@ -18,7 +18,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.ProxyListActivity;
 
@@ -151,7 +150,7 @@ public final class KamiGramCenter {
                         try {
                             sections[index].fill(content, context, onChanged);
                         } catch (Throwable throwable) {
-                            FileLog.e(throwable);
+                            KamiGramLog.e(throwable);
                         }
                         scroll.scrollTo(0, 0);
                     }
@@ -175,7 +174,7 @@ public final class KamiGramCenter {
                 }
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -419,7 +418,7 @@ public final class KamiGramCenter {
                 ((LaunchActivity) activity).presentFragment(new ProxyListActivity());
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -449,7 +448,7 @@ public final class KamiGramCenter {
             }
             dismissAll();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -621,7 +620,7 @@ public final class KamiGramCenter {
                             click.run();
                         }
                     } catch (Throwable throwable) {
-                        FileLog.e(throwable);
+                        KamiGramLog.e(throwable);
                     }
                 });
             }

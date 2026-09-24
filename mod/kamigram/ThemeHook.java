@@ -10,7 +10,6 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.Theme;
 
 import java.lang.ref.WeakReference;
@@ -79,7 +78,7 @@ public final class ThemeHook {
             telegramOriginalTheme = copy;
             return copy;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
             return null;
         }
     }
@@ -97,7 +96,7 @@ public final class ThemeHook {
             telegramThemeApplied = true;
             darkThemeApplied = false;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -126,7 +125,7 @@ public final class ThemeHook {
             recreateScreensOnce();
             KamiGramUi.notify(context, enabled ? "Оригинальная тема Telegram" : "Тема KamiGram восстановлена");
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -166,7 +165,7 @@ public final class ThemeHook {
                 darkThemeApplied = true;
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -361,7 +360,7 @@ public final class ThemeHook {
             applySecureFlag(activity);
             KamiGramTweaks.apply();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
