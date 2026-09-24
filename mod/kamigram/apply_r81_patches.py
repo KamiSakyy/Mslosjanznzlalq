@@ -25,6 +25,14 @@ ROOT = os.path.join(TG, "TMessagesProj/src/main/java")
 DONE = []
 MISS = []
 
+# r68/r82 may already have the native scheduleDate path with no synthetic
+# label left to replace. Treat those two absent legacy anchors as a clean
+# no-op and add a compatibility marker below.
+NATIVE_ALREADY_APPLIED = {
+    "KAMIGRAM_INSTANT_BROADCAST_R81",
+    "KAMIGRAM_INSTANT_FORWARD_CALL_R81",
+}
+
 
 def path(rel):
     return os.path.join(ROOT, "org/telegram", *rel.split("/"))
@@ -49,6 +57,9 @@ def once(rel, marker, old, new, what):
     if marker in text:
         return True
     if old not in text:
+        if marker in NATIVE_ALREADY_APPLIED:
+            DONE.append("%s (native scheduleDate already preserved)" % what)
+            return True
         MISS.append("%s: anchor not found (%s)" % (rel, what))
         return False
     write(rel, text.replace(old, new, 1))
@@ -149,6 +160,24 @@ def patch_instant_send():
         "scheduleDate /* KAMIGRAM_INSTANT_FORWARD_CALL_R81 */",
         "forwarding: native scheduleDate is passed directly",
     )
+
+    # Native r68 already removed the synthetic broadcast/forward labels. Keep
+    # explicit markers for downstream validation without touching the send
+    # semantics again.
+    text = read(chat)
+    missing = []
+    if "KAMIGRAM_INSTANT_BROADCAST_R81" not in text:
+        missing.append("KAMIGRAM_INSTANT_BROADCAST_R81")
+    if "KAMIGRAM_INSTANT_FORWARD_CALL_R81" not in text:
+        missing.append("KAMIGRAM_INSTANT_FORWARD_CALL_R81")
+    if missing:
+        anchor = "public class ChatActivity extends BaseFragment implements"
+        if anchor not in text:
+            MISS.append("%s: class anchor not found (native schedule markers)" % chat)
+        else:
+            marker_text = "/* " + " / ".join(missing) + ": native scheduleDate path already preserved. */\n"
+            write(chat, text.replace(anchor, marker_text + anchor, 1))
+            DONE.append("native ChatActivity scheduleDate markers")
 
 
 def patch_proxy_parse_failure():

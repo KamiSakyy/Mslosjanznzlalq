@@ -37,6 +37,21 @@ public final class KamiGramProxyHelper {
     /** last link we already activated, so we do not restart the same proxy over and over */
     private static String lastActivatedLink;
 
+    /* Login diagnostics are intentionally kept in memory only: they let the
+       login screen recover from a stuck request without creating a log viewer
+       or persisting network/server details. */
+    private static volatile int loginStage;
+    private static volatile String loginStageError;
+
+    public static void traceLogin(int stage, String error) {
+        loginStage = stage;
+        loginStageError = error;
+    }
+
+    public static int loginStage() {
+        return loginStage;
+    }
+
     private static final long PROXY_WATCH_DELAY = 25_000L;
 
     private KamiGramProxyHelper() {

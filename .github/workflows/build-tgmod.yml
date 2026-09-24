@@ -102,7 +102,7 @@ jobs:
       APP_PACKAGE: ${{ inputs.app_package || 'com.kami.gram' }}
       APP_VERSION_SUFFIX: ${{ inputs.version_suffix || '-mod' }}
       ABIS: ${{ inputs.abis || 'arm64-v8a' }}
-      TG_REF: ${{ inputs.tg_ref || 'master' }}
+      TG_REF: ${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
       MAX_ECONOMY: ${{ inputs.max_economy || '0' }}
       NO_STICKERS: ${{ inputs.no_stickers || '0' }}
@@ -139,7 +139,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: DrKLO/Telegram
-          ref: ${{ inputs.tg_ref || 'master' }}
+          ref: ${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}
           path: telegram-src
           fetch-depth: 1
           submodules: recursive
@@ -185,9 +185,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ inputs.tg_ref || 'master' }}-${{ inputs.abis || 'arm64-v8a' }}-${{ github.sha }}
+          key: ccache-${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}-${{ inputs.abis || 'arm64-v8a' }}-${{ github.sha }}
           restore-keys: |
-            ccache-${{ inputs.tg_ref || 'master' }}-${{ inputs.abis || 'arm64-v8a' }}-
+            ccache-${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}-${{ inputs.abis || 'arm64-v8a' }}-
 
       - name: Кэш Gradle
         uses: gradle/actions/setup-gradle@v6

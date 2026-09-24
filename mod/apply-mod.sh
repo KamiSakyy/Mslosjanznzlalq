@@ -216,22 +216,49 @@ LC="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/LocaleController.
 if [ "$BRAND_STRINGS" = "1" ]; then
     MARKER="/* MSLGRAM_BRAND */"
     if has "$LC" "$MARKER"; then
-        sed_i "s|if (res == R.string.AppName) return \"[^\"]*\"; $MARKER|if (res == R.string.AppName) return \"$APP_NAME\"; $MARKER|" "$LC"
+        python3 - "$LC" "$APP_NAME" <<'PY'
+import io, re, sys
+path, name = sys.argv[1], sys.argv[2]
+src = io.open(path, encoding='utf-8').read()
+src, count = re.subn(
+    r'if \((?:res|stringRes) == R\.string\.AppName\) return "[^"]*"; /\* MSLGRAM_BRAND \*/',
+    lambda match: 'if (' + ('stringRes' if 'stringRes' in match.group(0) else 'res') + ' == R.string.AppName) return "' + name + '"; /* MSLGRAM_BRAND */',
+    src,
+    count=1,
+)
+if count != 1:
+    raise SystemExit('P3: existing branding marker shape not found')
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
         ok "P3 брендинг UI обновлён на '$APP_NAME'"
     else
         ANCHOR='        String value = BuildVars.USE_CLOUD_STRINGS ? localizationExternal.getByResNameOrResId(ApplicationLoader.applicationContext, key, res) : null;'
-        has "$LC" "$ANCHOR" || die "P3: не нашёл точку внедрения в LocaleController.java (изменился upstream)"
+        NEW_ANCHOR='    private String getStringV2(String key, @StringRes int stringRes, String fallback) {'
+        NEW_ANCHOR_NULL='    private @Nullable String getStringV2(String key, @StringRes int stringRes, String fallback) {'
+        if ! has "$LC" "$ANCHOR" && ! has "$LC" "$NEW_ANCHOR" && ! has "$LC" "$NEW_ANCHOR_NULL"; then
+            die "P3: не нашёл точку внедрения в LocaleController.java (изменился upstream)"
+        fi
         python3 - "$LC" "$APP_NAME" "$MARKER" <<'PY'
 import sys, io
 path, name, marker = sys.argv[1], sys.argv[2], sys.argv[3]
-anchor = '        String value = BuildVars.USE_CLOUD_STRINGS ? localizationExternal.getByResNameOrResId(ApplicationLoader.applicationContext, key, res) : null;'
-inject = (
-    '        if (res == R.string.AppName) return "%s"; %s\n' % (name, marker)
-)
 src = io.open(path, encoding='utf-8').read()
 if marker not in src:
-    idx = src.index(anchor)
-    src = src[:idx] + inject + src[idx:]
+    old_anchor = '        String value = BuildVars.USE_CLOUD_STRINGS ? localizationExternal.getByResNameOrResId(ApplicationLoader.applicationContext, key, res) : null;'
+    new_anchors = (
+        '    private String getStringV2(String key, @StringRes int stringRes, String fallback) {',
+        '    private @Nullable String getStringV2(String key, @StringRes int stringRes, String fallback) {'
+    )
+    if old_anchor in src:
+        inject = '        if (res == R.string.AppName) return "%s"; %s\n' % (name, marker)
+        idx = src.index(old_anchor)
+        src = src[:idx] + inject + src[idx:]
+    else:
+        anchor = next((item for item in new_anchors if item in src), None)
+        if anchor is None:
+            raise SystemExit('P3: LocaleController branding anchor disappeared')
+        inject = '        if (stringRes == R.string.AppName) return "%s"; %s\n' % (name, marker)
+        idx = src.index(anchor) + len(anchor)
+        src = src[:idx] + '\n' + inject + src[idx:]
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
         has "$LC" "$MARKER" || die "P3: не удалось внедрить брендинг"
@@ -528,9 +555,14 @@ fi
 if [ "$BUILD_LEAN" = "1" ]; then
     JNICMAKE="$TG_DIR/TMessagesProj/jni/CMakeLists.txt"
     if [ -f "$JNICMAKE" ]; then
-        sed_i 's#set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID -g")#set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID")#' "$JNICMAKE"
-        sed_i 's#set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -g -Wno-error=implicit-function-declaration")#set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -Wno-error=implicit-function-declaration")#' "$JNICMAKE"
-        has "$JNICMAKE" 'set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID")' || die "P15: не удалось убрать -g из CMAKE_CXX_FLAGS"
+        # CMake changed the initial flag order between Telegram releases;
+        # remove debug info from every C/C++ flag assignment rather than
+        # depending on one historical line shape.
+        sed_i 's/ -g//g' "$JNICMAKE"
+        if grep -qE 'CMAKE_(C|CXX)_FLAGS[^\n]*-g' "$JNICMAKE"; then
+            die "P15: не удалось убрать -g из C/CXX flags"
+        fi
+        has "$JNICMAKE" 'CMAKE_CXX_FLAGS' || die "P15: CMAKE_CXX_FLAGS не найден"
         ok "P15 нативная сборка без -g (объекты и .so легче, линковка быстрее)"
     else
         warn "P15: не нашёл jni/CMakeLists.txt — пропускаю"
@@ -552,39 +584,34 @@ else
 fi
 
 # =============================================================================
-# P16. ТЕМА YORU (2026). Берём РОДНУЮ тёмную тему Telegram (assets/night.attheme
-#      — там автор Telegram согласовал каждый текст со своим фоном) и переписываем
-#      ТОЛЬКО цвета из mod/kamigram/apply_theme_pro.py на палитру приложения Yoru
-#      (yoru-android: Ui.BG/CARD/SURFACE/PURPLE/TEXT/MUTED/LINE):
-#      фон #0D0B12, карточки #1C1724, поверхности #15111C, обводки #352A43,
-#      текст #F7F0FF и приглушённый #A99BB8, облака #1C1724 (вход) и #2A2138 (исход),
-#      акцент и переключатели — фиолетовый Yoru #C8A7FF.
-#      Никакого чёрного #000000, никакого «стекла», никаких градиентов.
-#      Тот же набор уходит в bluebubbles.attheme и darkblue.attheme, поэтому
-#      даже светлая системная тема приложения выглядит тёмной — чёрный
-#      текст на чёрном фоне физически невозможен.
+# P16. ТЕМА YORU (2026): отдельная тема KamiGram на базе родной night.attheme.
+#      Встроенные темы Telegram не перезаписываются, поэтому пользователь может
+#      вернуть оригинальную тему без потери данных.
 # =============================================================================
 if [ "$IOS_THEME" = "1" ]; then
     KAMIGRAM_PY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/kamigram"
-    python3 "$KAMIGRAM_PY/apply_theme_pro.py" "$TG_DIR/TMessagesProj/src/main/assets" \
+    ASSET_ROOT="$TG_DIR/TMessagesProj/src/main/assets"
+    python3 "$KAMIGRAM_PY/apply_theme_pro.py" "$ASSET_ROOT" \
         || die "P16: не удалось применить iOS-палитру"
-    for theme_name in bluebubbles.attheme darkblue.attheme night.attheme; do
-        theme_file="$TG_DIR/TMessagesProj/src/main/assets/$theme_name"
-        grep -q '^windowBackgroundWhiteBlackText=-528129' "$theme_file" || die "P16: $theme_name — основной текст не #F7F0FF"
-        grep -q '^windowBackgroundWhite=-14936284' "$theme_file"  || die "P16: $theme_name — поверхность не #1C1724 (Yoru CARD)"
-        grep -q '^windowBackgroundGray=-15922414' "$theme_file"   || die "P16: $theme_name — фон не #0D0B12 (Yoru BG)"
-        grep -q '^actionBarDefaultTitle=-528129' "$theme_file"    || die "P16: $theme_name — заголовок шапки не #F7F0FF"
-        grep -q '^chat_outBubble=-14016200' "$theme_file"         || die "P16: $theme_name — исходящее облако не #2A2138"
-        grep -q '^switchTrackChecked=-3627009' "$theme_file"      || die "P16: $theme_name — переключатель не #C8A7FF"
-        grep -qE '^windowBackgroundGray=-16777216' "$theme_file" && die "P16: $theme_name — остался чёрный фон #000000"
-    done
-    [ -f "$TG_DIR/TMessagesProj/src/main/assets/kamigram_telegram_original_night.attheme" ] \
-        || die "P16: не сохранена оригинальная тема Telegram для обратного переключателя"
-    ok "P16 ТЕМА YORU: фон #0D0B12, карточки #1C1724, текст #F7F0FF, акцент #C8A7FF (из yoru-android)"
+    THEME_FILE="$ASSET_ROOT/kamigram.attheme"
+    [ -f "$THEME_FILE" ] || die "P16: kamigram.attheme не создан"
+    python3 "$KAMIGRAM_PY/apply_theme_registration.py" \
+        "$TG_DIR/TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java" \
+        || die "P16: не удалось зарегистрировать тему KamiGram"
+    grep -q 'KAMIGRAM_THEME_REGISTRATION' \
+        "$TG_DIR/TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java" \
+        || die "P16: регистрация темы KamiGram не найдена"
+    grep -q '^windowBackgroundWhiteBlackText=-528129' "$THEME_FILE" || die "P16: KamiGram основной текст не #F7F0FF"
+    grep -q '^windowBackgroundWhite=-14936284' "$THEME_FILE"  || die "P16: KamiGram поверхность не #1C1724"
+    grep -q '^windowBackgroundGray=-15922414' "$THEME_FILE"   || die "P16: KamiGram фон не #0D0B12"
+    grep -q '^actionBarDefaultTitle=-528129' "$THEME_FILE"    || die "P16: KamiGram заголовок не #F7F0FF"
+    grep -q '^chat_outBubble=-14016200' "$THEME_FILE"         || die "P16: KamiGram исходящее облако не #2A2138"
+    grep -q '^switchTrackChecked=-3627009' "$THEME_FILE"      || die "P16: KamiGram switch не #C8A7FF"
+    ok "P16 ТЕМА YORU: отдельный kamigram.attheme; родные темы Telegram сохранены"
 else
     skip "P16 тема Yoru не применяется (IOS_THEME=0)"
 fi
-# =============================================================================
+
 # P17. ПЛОСКИЙ ДИЗАЙН: тяжёлый узор чата (496 КБ) заменяем минимальным SVG
 # =============================================================================
 PATTERN="$TG_DIR/TMessagesProj/src/main/res/raw/default_pattern.svg"
@@ -1296,19 +1323,30 @@ if os.path.isfile(passkeys_path):
             sys.stderr.write('P26: не нашёл строки запроса в PasskeysController\n')
             sys.exit(1)
 
-# 3) в отчёте о входе видно, какой официальный ключ используется
+# 3) make the selected official key available to the login diagnostics.
+#    Older helper revisions already have a text report; newer revisions keep
+#    the UI deliberately quiet, so expose the same information as a lazy
+#    in-memory method instead of requiring one historical report line.
 src = io.open(helper_path, encoding='utf-8').read()
 if 'KamiGramAuthKeys.describe()' not in src:
     anchor = '            text.append("SafetyNet key: ")'
     idx = src.find(anchor)
-    if idx < 0:
-        sys.stderr.write('P26: не найдена строка диагностики в KamiGramProxyHelper\n')
-        sys.exit(1)
-    line_start = src.rfind('\n', 0, idx) + 1
-    src = (src[:line_start]
-           + '            text.append("Telegram key: ").append(KamiGramAuthKeys.describe()).append(" / in connection: ").append(KamiGramAuthKeys.connectionKey()).append(\'\\n\');\n'
-
-           + src[line_start:])
+    if idx >= 0:
+        line_start = src.rfind(chr(10), 0, idx) + 1
+        src = (src[:line_start]
+               + '            text.append("Telegram key: " ).append(KamiGramAuthKeys.describe()).append(" / in connection: " );\n'
+               + src[line_start:])
+    else:
+        quiet_anchor = '    /** Show a short actionable login message without exposing technical diagnostics. */'
+        if quiet_anchor not in src:
+            sys.stderr.write('P26: no diagnostic insertion point in KamiGramProxyHelper\n')
+            sys.exit(1)
+        method = ('    /** Selected official API key, kept in memory for the login retry explanation. */\n'
+                  '    public static String loginKeyDiagnostics() {\n'
+                  '        return "Telegram key: " + KamiGramAuthKeys.describe()\n'
+                  '            + " / in connection: " + KamiGramAuthKeys.connectionKey();\n'
+                  '    }\n\n')
+        src = src.replace(quiet_anchor, method + quiet_anchor, 1)
     io.open(helper_path, 'w', encoding='utf-8').write(src)
 print('auth keys patched')
 PY
@@ -2058,14 +2096,13 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     cp -f "$KAMIGRAM_SRC/KamiGramAutoArchive.java" "$KAMI_PKG/KamiGramAutoArchive.java"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KamiGramAutoArchive" || die "P99: нет класса авто-архива"
     python3 "$KAMIGRAM_SRC/apply_r68_patches.py" "$TG_DIR" "$APP_NAME" || die "P99: патчи r68 не применились"
-    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_AUTO_SCHEDULE" || die "P99: отправка отложкой при призраке не встала"
-    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_AUTO_SCHEDULE_FWD" || die "P99: пересылки отложкой не встали"
+    # r68 deliberately keeps Telegram's native scheduleDate path unchanged;
+    # the old synthetic auto-scheduler markers are no longer expected.
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_AUTO_ARCHIVE" || die "P99: авто-архив не запускается"
     has "$JAVA_ROOT/org/telegram/ui/Components/FilterTabsView.java" "KAMIGRAM_TAB_UNREAD_COLOR" || die "P99: цвет счётчика у папок не встал"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_IDLE" || die "P99: покой иконки загрузок не встал"
     has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA2" || die "P99: медиа одноразовых не защищено"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_AUTO_SCHEDULE_FORWARD" || die "P99: пересылка отложкой в чате не встала"
-    ok "P99 r68: отправка отложкой при призраке, авто-архив 100+, счётчик папок нашего цвета, фото не исчезают, иконка загрузок в покое статичная"
+    ok "P99 r68: native scheduleDate сохранён, авто-архив 100+, счётчик папок нашего цвета, фото не исчезают, иконка загрузок в покое статичная"
 else
     skip "P99 отключено (ZERO_TRAFFIC=0)"
 fi

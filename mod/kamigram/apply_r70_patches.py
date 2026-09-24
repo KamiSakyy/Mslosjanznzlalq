@@ -162,8 +162,7 @@ def connecting_subtitle():
             '        /* KAMIGRAM_TITLE_LOCK: на главном экране заголовок (имя KamiGram) не подменяется\n'
             '           ничем: ни «Подключением к прокси…», ни стрелками, ни состоянием сети. */\n'
             '        if (parentFragment instanceof org.telegram.ui.DialogsActivity) {\n'
-            '            /* KAMIGRAM_TITLE_REFRESH: главный экран — заголовок (имя KamiGram)\n'
-            '               не подменяется ничем. Если его всё же кто-то тронул — вернуть. */\n'
+            '            /* KAMIGRAM_TITLE_REFRESH: главный экран не подменяет заголовок. */\n'
             '            org.telegram.messenger.kamigram.KamiGramProxyStatus.refresh();\n'
             '            return;\n'
             '        }',

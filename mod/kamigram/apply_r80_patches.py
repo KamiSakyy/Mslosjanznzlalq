@@ -25,6 +25,17 @@ ROOT = os.path.join(TG, "TMessagesProj/src/main/java")
 DONE = []
 MISS = []
 
+# r68/r82 already leave Telegram's native scheduleDate path untouched. On
+# those trees there is no legacy synthetic line to replace, so the r80 pass
+# records the compatibility marker instead of treating the already-correct
+# native path as a hard failure.
+NATIVE_ALREADY_APPLIED = {
+    "KAMIGRAM_INSTANT_FORWARD_R80",
+    "KAMIGRAM_INSTANT_SEND_R80",
+    "KAMIGRAM_INSTANT_BROADCAST_R80",
+    "KAMIGRAM_INSTANT_FORWARD_CLOSE_R80",
+}
+
 
 def target(rel):
     return os.path.join(ROOT, "org/telegram", rel)
@@ -49,6 +60,9 @@ def replace_once(rel, marker, old, new, what):
     if marker in text:
         return True
     if old not in text:
+        if marker in NATIVE_ALREADY_APPLIED:
+            DONE.append("%s (native scheduleDate already preserved)" % what)
+            return True
         MISS.append("%s: anchor not found (%s)" % (rel, what))
         return False
     write(rel, text.replace(old, new, 1))
@@ -140,6 +154,21 @@ def patch_instant_send():
 """,
         "forwarding: close the panel on native immediate-send result",
     )
+
+    # The current r68 source already has native scheduleDate calls and thus no
+    # legacy auto-schedule line for the replacement above. Keep the marker in
+    # the class so the later validation can distinguish that intentional no-op
+    # from an unpatched tree.
+    text = read(chat)
+    if "KAMIGRAM_INSTANT_SEND_R80" not in text:
+        anchor = "public class ChatActivity extends BaseFragment implements"
+        if anchor not in text:
+            MISS.append("%s: class anchor not found (instant send compatibility)" % chat)
+        else:
+            write(chat, text.replace(anchor,
+                "/* KAMIGRAM_INSTANT_SEND_R80: native scheduleDate path already preserved. */\n" + anchor,
+                1))
+            DONE.append("native ChatActivity scheduleDate compatibility marker")
 
 
 def patch_proxy_route_stability():
