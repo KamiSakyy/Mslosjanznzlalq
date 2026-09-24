@@ -49,6 +49,7 @@ public final class KamiGramBuiltinProxy {
 
     private static boolean inited;
     private static boolean watchPosted;
+    private static boolean loadingProxyList;
     private static long lastRoute;
 
     private KamiGramBuiltinProxy() {
@@ -159,6 +160,13 @@ public final class KamiGramBuiltinProxy {
      * Метод публичный специально для патча SharedConfig.loadProxyList().
      */
     public static synchronized void ensureBuiltinsLoaded() {
+        /* KAMIGRAM_PROXY_CATALOG_REENTRANT_R76: SharedConfig.loadProxyList()
+           calls back into this method after deserialization. Do not recurse
+           through the loader thousands of times on first app start. */
+        if (loadingProxyList) {
+            return;
+        }
+        loadingProxyList = true;
         try {
             buildPresets();
             /* Ensure persisted custom rows are loaded before the catalog is
@@ -181,6 +189,8 @@ public final class KamiGramBuiltinProxy {
             }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
+        } finally {
+            loadingProxyList = false;
         }
     }
 
