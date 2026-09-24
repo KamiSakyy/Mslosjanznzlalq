@@ -227,6 +227,22 @@ def patch_file_loader():
 """,
     )
 
+    # A video preload can later be promoted to an explicit user download and
+    # then returns through the existing-operation branch. Attach the same
+    # threshold check there without creating another downloader or operation.
+    insert_after_in_method(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_SERVICE_EXISTING_OPERATION_R83",
+        "        if (operation != null) {\n",
+        "            operation.setStream(stream, streamPriority, streamOffset);\n",
+        """            if (cacheType != 10 && operation.kamigramIsLargeDownload()) {
+                org.telegram.messenger.kamigram.KamiGramDownloadService.ensureStartedForLargeDownload(
+                    org.telegram.messenger.ApplicationLoader.applicationContext, operation.totalBytesCount);
+            }
+            org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_SERVICE_EXISTING_OPERATION_R83 */
+""",
+    )
+
     # The foreground lifetime is started only after FileLoader has created a
     # real native operation and knows its actual size. This covers documents,
     # videos, photos, and web files without starting a service for thumbnails.

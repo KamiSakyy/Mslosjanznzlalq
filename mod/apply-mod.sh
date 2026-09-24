@@ -2550,6 +2550,7 @@ PY
     has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "stopForeground(true)" || die "P107: foreground lifetime не освобождается"
     has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "setProgress" || die "P107: в уведомлении нет полосы прогресса"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_SERVICE_OPERATION" || die "P107: сервис не привязан к native operation/size"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_SERVICE_EXISTING_OPERATION_R83" || die "P107: preload-to-download lifecycle не покрыт"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_ACTIVE_DOWNLOADS_API_R83" || die "P107: active FileLoader API отсутствует"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_CANCEL_OPERATION_STATE_R83" || die "P107: native cancel не освобождает lifecycle"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_MAX_PARALLEL_DOWNLOADS_R83" || die "P107: лимит шести параллельных операций отсутствует"
