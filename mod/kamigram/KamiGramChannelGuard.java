@@ -1,15 +1,14 @@
 package org.telegram.messenger.kamigram;
 
 import android.app.Activity;
-import android.content.Intent;
-import android.net.Uri;
 
 /**
- * Compatibility holder for the overlay permission helper.
+ * r82: the old mandatory AsuMeo subscription gate is removed completely.
  *
- * KamiGram never requires a subscription, auto-joins a channel, or blocks the
- * Telegram UI behind a gate. The old AsuMeo subscription guard was removed;
- * the handle is exposed only as a developer link in KamiGram settings.
+ * AsuMeo is now a passive, permanently visible sponsor/developer row in the
+ * dialogs list. It must never block launch, sending, reading, or any other
+ * Telegram operation. The class remains as a no-op compatibility shim because
+ * older patch stages may still contain the historical call site.
  */
 public final class KamiGramChannelGuard {
 
@@ -20,30 +19,11 @@ public final class KamiGramChannelGuard {
     }
 
     /**
-     * Kept for the native floating-window feature. This only opens Android's
-     * own permission screen; it never performs a join or shows a blocking gate.
+     * KAMIGRAM_CHANNEL_GATE_R81 / KAMIGRAM_AUTO_JOIN_R78 compatibility marker.
+     * KAMIGRAM_CHANNEL_GATE_R82_DISABLED: intentionally no-op; no subscription
+     * request, dialog, retry, or use restriction is allowed anymore.
      */
-    public static void requestOverlayPermission(Activity activity) {
-        if (activity == null) {
-            return;
-        }
-        try {
-            final Intent intent = new Intent(
-                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:" + activity.getPackageName()));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            activity.startActivity(intent);
-        } catch (Throwable ignore) {
-            try {
-                final Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                activity.startActivity(intent);
-            } catch (Throwable ignoredAgain) {
-            }
-        }
-    }
-
-    /** No-op compatibility hook: there is deliberately no subscription gate. */
     public static void check(Activity activity) {
+        // Deliberately empty. AsuMeo is promotional UI only in r82.
     }
 }

@@ -241,8 +241,27 @@ def patch_manifest():
     manifest = os.path.join(TG, "TMessagesProj/src/main/AndroidManifest.xml")
     text = io.open(manifest, encoding="utf-8").read()
     marker = "KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST"
+
+    # Android 14 requires both the base foreground-service permission and the
+    # type-specific dataSync permission. Older Telegram branches may only have
+    # the base permission, so add each line idempotently before <application>.
+    permission_lines = (
+        '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n',
+        '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />\n',
+    )
+    permission_block = "".join(line for line in permission_lines if line not in text)
+    if permission_block:
+        app_start = text.find("<application")
+        if app_start < 0:
+            raise RuntimeError("AndroidManifest.xml: application start not found")
+        text = text[:app_start] + permission_block + text[app_start:]
+
     if marker in text:
+        # A tree patched by an earlier P107 revision may already contain the
+        # service while still missing the API 34 type permission.
+        io.open(manifest, "w", encoding="utf-8").write(text)
         return
+
     service = """        <!-- KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST: resumable background downloads -->
         <service
             android:name="org.telegram.messenger.kamigram.KamiGramDownloadService"
@@ -256,6 +275,7 @@ def patch_manifest():
     text = text.replace("</application>", service + "    </application>", 1)
     io.open(manifest, "w", encoding="utf-8").write(text)
     DONE.append(marker)
+    DONE.append("KAMIGRAM_DOWNLOAD_SERVICE_PERMISSIONS")
 
 
 def main():

@@ -85,8 +85,6 @@ public final class KamiGramConfig {
     // ------------------------------------------------------------- внешний вид
     /** iOS-дизайн: графит, скругления, плоская шапка. */
     public static final String KEY_IOS_DESIGN = "kamigram_ios_design";
-    /** Переключатель «Тема Telegram»: true возвращает родную тему Telegram. */
-    public static final String KEY_TELEGRAM_THEME = "kamigram_telegram_theme";
     /** iOS-скругления облаков сообщений. */
     public static final String KEY_IOS_BUBBLES = "kamigram_ios_bubbles";
     /** Акцентный цвет: 0 — iOS-синий, 1 — бирюзовый, 2 — зелёный, 3 — оранжевый, 4 — красный, 5 — графит, 6 — розовый. */
@@ -107,11 +105,21 @@ public final class KamiGramConfig {
     public static final String KEY_ALLOW_BLUR = "kamigram_allow_blur";
     /** Отправка сообщения по Enter. */
     public static final String KEY_ENTER_TO_SEND = "kamigram_enter_to_send";
+    /** Тема Telegram: true — временно использовать оригинальную палитру Telegram. */
+    public static final String KEY_TELEGRAM_THEME = "kamigram_telegram_theme";
     /** Тихая отправка (без звука). */
     public static final String KEY_SILENT_SEND = "kamigram_silent_send";
 
     // ------------------------------------------------------------- r68
-    /** Группы и каналы со свыше 500 непрочитанных сами уходят в архив. */
+    /**
+     * Призрак + отправка через «Отложенные» (как в AyuGram).
+     *
+     * Сообщение уходит не в момент нажатия, а через несколько секунд (сервер
+     * доставляет его по расписанию), поэтому по времени прихода сообщения
+     * нельзя понять, когда мы реально были в сети.
+     */
+    public static final String KEY_AUTO_SCHEDULE = "kamigram_auto_schedule";
+    /** Чаты со «100+» непрочитанных сами уходят в архив. */
     public static final String KEY_AUTO_ARCHIVE = "kamigram_auto_archive";
 
     // ------------------------------------------------------------- r70
@@ -123,8 +131,6 @@ public final class KamiGramConfig {
     public static final String KEY_FORWARD_NO_NAME = "kamigram_forward_no_name";
     /** Сгорающие и по таймеру можно пересылать. */
     public static final String KEY_FORWARD_EPHEMERAL = "kamigram_forward_ephemeral";
-    /** Плавающее окно: поверх других приложений (PiP + летающий круглешок). */
-    public static final String KEY_FLOAT_WINDOW = "kamigram_float_window";
     /** Точечный буст: нажатое фото/файл качает первым, со всеми потоками. */
     public static final String KEY_NET_FOCUS = "kamigram_net_focus";
 
@@ -232,15 +238,22 @@ public final class KamiGramConfig {
         // Выключено по умолчанию — то, что меняет обычное поведение Telegram:
         //   * призрак (пользователь включает сам, когда нужно);
         //   * «только текст» (самый жёсткий режим экономии);
-        //   * стикеры и премиум-эмодзи ВКЛЮЧЕНЫ, как в обычном Telegram;
-        //   * прочие переключатели, которые не должны ничего менять без спроса.
+        //   * обычные фото, видео, аудио, голосовые, кружочки и документы
+        //     всегда проходят native FileLoader;
+        //   * единственные медиакатегории с ограничением — stickers, premium
+        //     emoji и GIFs;
+        //   * noStories не является media block и по умолчанию выключен.
+        if (KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_NO_GIFS.equals(key)) {
+            return true;
+        }
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
-            || KEY_TEXT_ONLY.equals(key) || KEY_TELEGRAM_THEME.equals(key)
+            || KEY_TELEGRAM_THEME.equals(key)
+            || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
-            || KEY_NO_PREMIUM_UI.equals(key)
-            || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_NO_PREMIUM_UI.equals(key) || KEY_NO_STORIES.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
             return false;
         }
@@ -327,9 +340,12 @@ public final class KamiGramConfig {
         return value(KEY_SHOW_IDS);
     }
 
-    /** Удалённые сообщения остаются в чате. */
+    /**
+     * r80: retained key for settings/database compatibility, but native Telegram
+     * deletion is always authoritative and the old keep-deleted behaviour is off.
+     */
     public static boolean keepDeleted() {
-        return value(KEY_KEEP_DELETED);
+        return false; /* KAMIGRAM_NATIVE_DELETE_R80 */
     }
 
     /** Одноразовые сообщения смотрим без пометки «просмотрено» (сервер не удаляет). */
@@ -378,6 +394,14 @@ public final class KamiGramConfig {
     /** Встроенные прокси сборки (KamiProxy) с моментальным авто-роутингом. */
     public static boolean builtinProxy() {
         return value(KEY_BUILTIN_PROXY);
+    }
+
+    /**
+     * r80: retained key for old preferences; normal sends never become
+     * Scheduled messages, regardless of the stored legacy value.
+     */
+    public static boolean autoSchedule() {
+        return false; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     /** Авто-архив чатов со «100+» непрочитанных (r68). */
@@ -438,11 +462,6 @@ public final class KamiGramConfig {
 
     public static boolean iosDesign() {
         return value(KEY_IOS_DESIGN);
-    }
-
-    /** true — родная тема Telegram, false — отдельная тема KamiGram. */
-    public static boolean telegramTheme() {
-        return value(KEY_TELEGRAM_THEME);
     }
 
 
@@ -594,12 +613,12 @@ public final class KamiGramConfig {
     }
 
     /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
-    /** «Плавающее окно»: поверх других приложений (по умолчанию включено). */
-    public static boolean floatWindow() {
-        return value(KEY_FLOAT_WINDOW);
-    }
-
     public static boolean netFocus() {
         return value(KEY_NET_FOCUS);
+    }
+
+    /** Двусторонний переключатель «Тема Telegram», сохраняемый между запусками. */
+    public static boolean telegramTheme() {
+        return value(KEY_TELEGRAM_THEME);
     }
 }

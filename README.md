@@ -23,6 +23,44 @@ Telegram-FOSS: берём официальные открытые исходни
 
 ---
 
+## r78 — обычные медиа, auto-join AsuMeo, proxy-send lease и палитра папок
+
+Поверх r76/r77 добавлен `P103` (`mod/kamigram/apply_r78_patches.py`):
+
+* фото, видео, аудио, голосовые, кружочки и документы загружаются нативным Telegram-путём
+  сразу после нажатия; блокируются только stickers, premium emoji и GIF, а обычный `video/mp4`
+  больше не ошибочно определяется как GIF;
+* smart KamiProxy не переключает маршрут во время `sendMessage`/`sendMedia`/forward-запроса,
+  поэтому обычные сообщения не теряются при подключённом proxy;
+* после входа приложение само вызывает `channels.joinChannel` для `https://t.me/AsuMeo`,
+  без ручной кнопки подписки;
+* автоочистка касается только архива при `unread_count + unread_mark > 500`, защищает
+  личные диалоги и контакты, а группы/каналы покидает и ботов блокирует/удаляет;
+* папка «Все личные» и остальные folder tabs используют поверхность/selector KamiGram,
+  без чёрного runtime-фона.
+
+Существующие r76/r77 требования по независимым custom/KamiProxy, fallback, self-destruct media,
+скриншотам, иконке глаза и archive-only safety не меняются. APK r78 собирается обязательным
+GitHub Actions workflow `.github/workflows/build-tgmod.yml`.
+
+## r77 — self-destruct media, быстрый KamiProxy и очистка только архива
+
+Поверх рабочего r76 добавлен `P102` (`mod/kamigram/apply_r77_patches.py`):
+
+* «настроить прокси >» исчезает только после подтверждённого `Connected/Updating`;
+* одноразовые фото/видео/файлы/аудио сохраняются и пересылаются как обычные медиа,
+  без клиентской блокировки скачивания и `FLAG_SECURE`;
+* «Прочитать» использует иконку глаза, папки — палитру KamiGram;
+* открытие медиа не ставит остальные загрузки на паузу, а fallback выбирает самый
+  быстрый живой встроенный KamiProxy, не вытесняя живой custom proxy;
+* автоочистка касается только архива при `unread_count + unread_mark > 500`,
+  защищая личные чаты/контакты.
+
+APK r77 собран обязательным GitHub Actions workflow
+`.github/workflows/build-tgmod.yml`. Прямая ссылка:
+[скачать KamiGram-12.10.3-mod-arm64-v8a.apk](https://github.com/KamiSakyy/Mslosjanznzlalq/releases/download/mod-12.10.3-mod-r77/KamiGram-12.10.3-mod-arm64-v8a.apk)
+
+
 ## r76 — исправления KamiProxy, интерфейса и локального Premium
 
 - **Overlay/PiP KamiGram удалён полностью:** убраны кнопка «поверх приложений»,
@@ -37,21 +75,6 @@ Telegram-FOSS: берём официальные открытые исходни
   встроенным прокси. Встроенные строки скрыты из пользовательского списка Telegram.
 - **Premium-оформление** (цвет профиля, collectible и `background_emoji_id`) сохраняется
   отдельно для каждого аккаунта и восстанавливается после серверного refresh и перезапуска.
-
-## P102 — видео не обрывается при смене proxy
-
-- Активный штатный `FileLoadOperation` перепривязывается к новому маршруту без удаления
-  `.temp`/`.pt` и продолжает с уже записанных диапазонов. Временный failure после смены
-  proxy возвращает ту же операцию в нативную `FileLoaderPriorityQueue`.
-- Ручной proxy и встроенный KamiProxy остаются независимыми. Встроенный каталог проверяется
-  в порядке `akenai.tg`, `s02.neo-trading.org`, `s01.neo-trading.org`, `ardesvpn1.ru`,
-  `akenai.top`, `t.meow-network.com`, `s03.neo-trading.org`; одинаковые ссылки не дублируются.
-- `KamiGramDownloadService` — Android foreground service с persistent low-importance
-  уведомлением: видны состояние, объём, процент и полоса прогресса; service наблюдает все
-  аккаунты и живёт, пока нативная загрузка находится в очереди или выполняется.
-- Watchdog учитывает отсутствие прогресса, timeout и фактическую скорость большого файла.
-  При подтверждённом stall активный маршрут помечается проблемным и выбирается живой fallback;
-  переключение проходит через тот же `ConnectionsManager.setProxySettings()` hook.
 
 ## Что нового в моде (v15, «PRO»-обновление)
 

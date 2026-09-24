@@ -11,18 +11,17 @@
 https://github.com/KamiSakyy/Mslosjanznzlalq/tree/arena/01a0ce71-mslosjanznzlalq
 ```
 
-Текущий r76-патчсет находится в ветке выше. APK r76 ещё не публиковался: старые APK ниже
-сохраняются как архив и не содержат новых r76-исправлений. В веб-интерфейсе открой ветку
-и нужный файл → кнопка **Download**.
+Текущий r78-патчсет находится в ветке выше: обычные фото/видео/аудио/голосовые/кружочки/
+документы не блокируются и стартуют по нажатию, proxy-send не ротается посреди отправки,
+AsuMeo подписывается автоматически, а папки используют палитру KamiGram. Self-destruct
+media, `FLAG_SECURE`, queue, eye icon и archive-cleaner r77 сохранены.
 
-## P102 — безобрывные фоновые видео-загрузки
+APK r78 публикуется обязательным GitHub Actions workflow после push этого патчсета.
+До завершения workflow предыдущий прямой APK r77 остаётся доступен:
+[`KamiGram-12.10.3-mod-arm64-v8a.apk`](https://github.com/KamiSakyy/Mslosjanznzlalq/releases/download/mod-12.10.3-mod-r77/KamiGram-12.10.3-mod-arm64-v8a.apk)
 
-Новый `P102` подключает native recovery к `ConnectionsManager.setProxySettings()` и
-`FileLoader`: `.temp`/`.pt` и ranges не удаляются, а transient failure возвращает ту же
-операцию в штатную очередь. `KamiGramDownloadService` объявлен как Android foreground
-service и показывает persistent low-importance progress notification с размером,
-процентом, полосой и состоянием. Watchdog измеряет отсутствие прогресса, timeout и
-низкую фактическую скорость; подтверждённо медленный маршрут меняется на живой fallback.
+Старые APK ниже сохраняются как архив; после успешной сборки ссылка r78 будет добавлена
+в этот раздел workflow/handoff-коммитом.
 
 ## Проверенные версии (самая стабильная сборка)
 

@@ -66,7 +66,6 @@ JAVA = os.path.join(TG, 'TMessagesProj/src/main/java/org/telegram')
 
 GHOST = 'org.telegram.messenger.kamigram.KamiGramGhost'
 GUARD = 'org.telegram.messenger.kamigram.KamiGramChannelGuard'
-FLOAT = 'org.telegram.messenger.kamigram.KamiGramFloat'
 BOOST = 'org.telegram.messenger.kamigram.KamiGramNetBoost'
 SPEED = 'org.telegram.messenger.kamigram.KamiGramSpeed'
 CFG = 'org.telegram.messenger.kamigram.KamiGramConfig'
@@ -594,17 +593,28 @@ def always_hd():
 # 5. подписка на канал (только после входа)
 # =============================================================================
 def channel_guard():
-    # Compatibility hook only. Mandatory subscription/auto-join/blocking gates
-    # are intentionally not wired into LaunchActivity.
-    return
+    patch('ui/LaunchActivity.java', 'KAMIGRAM_CHANNEL_GUARD',
+          '        /* KAMIGRAM_SMART_PROXY */\n'
+          '        try {\n'
+          '            org.telegram.messenger.kamigram.KamiGramProxyHelper.activateFromClipboard(this);\n'
+          '            org.telegram.messenger.kamigram.KamiGramProxyHelper.watchProxy(this);\n'
+          '        } catch (Throwable ignore) {\n'
+          '        }',
+          '\n        /* KAMIGRAM_CHANNEL_GUARD (r70): после входа в аккаунт проверяем\n'
+          '           подписку на канал — без подписки пользоваться нельзя. */\n'
+          '        try {\n'
+          '            ' + GUARD + '.check(this);\n'
+          '        } catch (Throwable ignore) {\n'
+          '        }',
+          'подписка: проверка после входа в аккаунт')
 
 
 # =============================================================================
-# 1. (МАСШТАБНОЕ) поверх приложений: PiP + летающий круглешок
+# Overlay/PiP был удалён в r76 по просьбе пользователя.
+# Оставляем совместимое имя функции только для старых локальных запусков патчера:
+# она намеренно ничего не добавляет в исходники Telegram.
 # =============================================================================
 def float_window():
-    # Telegram's own overlay/PiP implementation remains untouched. In
-    # particular, do not inject a reduced bubble or replace PipRoundVideoView.
     return
 
 
@@ -617,7 +627,6 @@ def main():
     premium_local()
     always_hd()
     channel_guard()
-    float_window()
 
     print('r70: изменений — %d' % len(DONE))
     for what in DONE:

@@ -3,9 +3,7 @@ package org.telegram.messenger.kamigram;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Typeface;
-import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -17,10 +15,10 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.ProxyListActivity;
 
@@ -153,7 +151,7 @@ public final class KamiGramCenter {
                         try {
                             sections[index].fill(content, context, onChanged);
                         } catch (Throwable throwable) {
-                            KamiGramLog.e(throwable);
+                            FileLog.e(throwable);
                         }
                         scroll.scrollTo(0, 0);
                     }
@@ -177,7 +175,7 @@ public final class KamiGramCenter {
                 }
             }
         } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
+            FileLog.e(throwable);
         }
     }
 
@@ -223,9 +221,10 @@ public final class KamiGramCenter {
     private static void fillPrivacy(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Призрак", KamiGramConfig.KEY_GHOST, onChanged),
-            Row.toggle("Авто-архив групп и каналов (500+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
+            // KAMIGRAM_INSTANT_SEND_R80: legacy auto-schedule is intentionally not exposed.
+            Row.toggle("Авто-архив (500+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
             Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
-            Row.toggle("Удалённые сообщения", KamiGramConfig.KEY_KEEP_DELETED, onChanged),
+            // KAMIGRAM_NATIVE_DELETE_R80: legacy keep-deleted is intentionally not exposed.
             Row.toggle("Одноразовые без пометки", KamiGramConfig.KEY_VIEW_ONCE, onChanged),
             Row.toggle("Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged)
         });
@@ -240,7 +239,13 @@ public final class KamiGramCenter {
     private static void fillLook(LinearLayout root, final Context context, final Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Плавные анимации", KamiGramConfig.KEY_SMOOTH_ANIMATIONS, onChanged),
-            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged)
+            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged),
+            Row.action("Тема Telegram", () -> {
+                ThemeHook.toggleTelegramTheme(context);
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            })
         });
         textSizeCard(root, context, onChanged);
         fontCard(root, context, onChanged);
@@ -287,19 +292,8 @@ public final class KamiGramCenter {
             Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Применять KamiGram ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged),
-            Row.toggle("Тема Telegram", KamiGramConfig.KEY_TELEGRAM_THEME, onChanged),
-            Row.action("Разработчик · @AsuMeo", () -> openDeveloper(context))
+            Row.toggle("Применять KamiGram ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
-    }
-
-    private static void openDeveloper(Context context) {
-        try {
-            context.startActivity(new Intent(Intent.ACTION_VIEW,
-                Uri.parse(KamiGramChannelGuard.CHANNEL_URL)));
-        } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
-        }
     }
 
     // ------------------------------------------------------------------ кэш по категориям
@@ -425,7 +419,7 @@ public final class KamiGramCenter {
                 ((LaunchActivity) activity).presentFragment(new ProxyListActivity());
             }
         } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
+            FileLog.e(throwable);
         }
     }
 
@@ -455,7 +449,7 @@ public final class KamiGramCenter {
             }
             dismissAll();
         } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
+            FileLog.e(throwable);
         }
     }
 
@@ -601,27 +595,25 @@ public final class KamiGramCenter {
                 // «Стикеры», «Премиум-эмодзи» и т.п. хранят ЗАПРЕТ, а переключатель
                 // показывает «включено» — так пользователю понятнее.
                 final boolean invert = invertible(key);
-                // Native Android switch: Telegram's own accessible control keeps
-                // the row familiar and handles touch, keyboard and TalkBack input.
-                final Switch toggle = new Switch(context);
-                toggle.setShowText(false);
-                toggle.setChecked(invert ? !KamiGramConfig.value(key) : KamiGramConfig.value(key));
-                toggle.setOnCheckedChangeListener((button, checked) -> {
-                    KamiGramConfig.set(key, invert ? !checked : checked);
-                    if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
-                        ThemeHook.setTelegramTheme(checked);
-                    } else {
-                        KamiGramGhost.refreshAll();
-                    }
+                final KamiGramUi.Toggle toggle = new KamiGramUi.Toggle(context);
+                toggle.setChecked(invert ? !KamiGramConfig.value(key) : KamiGramConfig.value(key), false);
+                final Runnable apply = () -> {
+                    final boolean shown = toggle.isChecked();
+                    KamiGramConfig.set(key, invert ? !shown : shown);
+                    KamiGramGhost.refreshAll();
                     if (onChanged != null) {
                         onChanged.run();
                     }
+                };
+                toggle.setOnToggleListener(checked -> {
+                    toggle.setChecked(checked, false);
+                    apply.run();
                 });
-                final LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                switchParams.leftMargin = dp(8);
-                row.addView(toggle, switchParams);
-                row.setOnClickListener(v -> toggle.setChecked(!toggle.isChecked()));
+                row.addView(toggle, new LinearLayout.LayoutParams(dp(42), dp(25)));
+                row.setOnClickListener(v -> {
+                    toggle.setChecked(!toggle.isChecked(), true);
+                    apply.run();
+                });
             } else {
                 row.setOnClickListener(v -> {
                     try {
@@ -629,7 +621,7 @@ public final class KamiGramCenter {
                             click.run();
                         }
                     } catch (Throwable throwable) {
-                        KamiGramLog.e(throwable);
+                        FileLog.e(throwable);
                     }
                 });
             }

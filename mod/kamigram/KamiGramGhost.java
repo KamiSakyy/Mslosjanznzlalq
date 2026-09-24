@@ -2,6 +2,7 @@ package org.telegram.messenger.kamigram;
 
 import android.content.Context;
 
+import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -82,7 +83,7 @@ public final class KamiGramGhost {
             }
             return false;
         } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
+            FileLog.e(throwable);
             return false;
         }
     }
@@ -123,7 +124,7 @@ public final class KamiGramGhost {
             fake.pts_count = 0;
             onComplete.run(fake, null);
         } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
+            FileLog.e(throwable);
         }
     }
 
@@ -141,7 +142,7 @@ public final class KamiGramGhost {
             refreshAll();
             KamiGramUi.notify(context, enabled ? "Призрак включён" : "Призрак выключен");
         } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
+            FileLog.e(throwable);
         }
     }
 
@@ -158,6 +159,32 @@ public final class KamiGramGhost {
         } catch (Throwable ignore) {
             return false;
         }
+    }
+
+    /** Дата отправки никогда не подменяется (иначе ломались отложенные). */
+    public static int sendDate(int scheduleDate) {
+        return scheduleDate;
+    }
+
+    // ---------------------------------------------------- r80: instant sending
+
+    /**
+     * Compatibility hook kept for the r68 call sites. It deliberately returns
+     * Telegram's original schedule date unchanged: KamiGram must never turn an
+     * ordinary send or forward into a delayed message.
+     */
+    public static int autoScheduleDate(int scheduleDate, long peer, boolean hasPhoto, boolean hasDocument) {
+        return scheduleDate; /* KAMIGRAM_INSTANT_SEND_R80 */
+    }
+
+    /** Forwarding compatibility overload: no artificial timer, no queue hop. */
+    public static int autoScheduleDate(int scheduleDate, long peer, java.util.ArrayList<org.telegram.messenger.MessageObject> messages) {
+        return scheduleDate; /* KAMIGRAM_INSTANT_FORWARD_R80 */
+    }
+
+    /** Always false because r80 no longer moves messages to Scheduled. */
+    public static boolean consumeAutoScheduled() {
+        return false; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     // ------------------------------------------------------------------ совместимость
@@ -277,7 +304,7 @@ public final class KamiGramGhost {
                 }
             }
         } catch (Throwable t) {
-            KamiGramLog.e(t);
+            FileLog.e(t);
         }
     }
 
@@ -313,7 +340,7 @@ public final class KamiGramGhost {
                 controller.markMessageAsRead2(dialogId, owner.id, null, 0, 0, false);
             }
         } catch (Throwable t) {
-            KamiGramLog.e(t);
+            FileLog.e(t);
         }
     }
 }

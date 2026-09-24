@@ -90,7 +90,8 @@ PALETTE = {
     # как у разделов в центре мода (светлая «пилюля» + тёмный текст)
     'actionBarTabLine': ACCENT,
     'actionBarTabActiveText': 'FFFFFF',
-    'actionBarTabSelector': CARD2,
+    # A folder row is a KamiGram surface, never a black/transparent native tab.
+    'actionBarTabSelector': CARD,
     # непрочитанные у папок: спокойный наш цвет вместо красного.
     # r68: у НЕвыбранной папки счётчик теперь такой же, как у выбранной — раньше он
     # был тёмно-фиолетовым (3A2E50) на тёмной панели, и число не было видно вообще.
@@ -416,6 +417,14 @@ def to_int(hexstr):
 def build(assets, base_name='night.attheme'):
     base_path = os.path.join(assets, base_name)
     src = io.open(base_path, encoding='utf-8').read()
+
+    # r81: keep a pristine Telegram Night asset beside the generated palette.
+    # The settings switch uses this private copy for a reversible preview; it
+    # must be created before any built-in theme is overwritten and must remain
+    # stable on idempotent reruns.
+    original_path = os.path.join(assets, 'kamigram_telegram_original_night.attheme')
+    if not os.path.isfile(original_path):
+        io.open(original_path, 'w', encoding='utf-8').write(src)
 
     # 1. запоминаем родные ключи и значения (они гарантированно согласованы)
     values = {}

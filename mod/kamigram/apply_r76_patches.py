@@ -92,48 +92,66 @@ def all_regex(rel, pattern, replacement, what, flags=re.S):
 
 
 def remove_overlay_wiring():
-    """Keep native Telegram PiP and the restored overlay path intact.
-
-    r76 used to delete these declarations and callbacks. The corrected pass
-    only moves Ghost to the overflow menu; SYSTEM_ALERT_WINDOW, PiP callbacks,
-    the native activity declaration, and KamiGramFloat are deliberately kept.
-    """
     dialogs = "ui/DialogsActivity.java"
-    # Ghost is menu-only, while the neighboring floating-window item remains.
-    all_regex(
-        dialogs,
-        r"\n\s*/\* KAMIGRAM_GHOST_HEADER.*?KamiGramGhost\.addHeaderItem\(menu, null\);\n",
-        "\n            /* KAMIGRAM_NO_GHOST_HEADER_R76: ghost is overflow-only */\n",
-        "ghost: remove old header button; preserve overlay item",
-    )
-    all_regex(
-        dialogs,
-        r"\n\s*org\.telegram\.messenger\.kamigram\.KamiGramGhost\.addHeaderItem\(menu, null\);\n",
-        "\n            /* KAMIGRAM_NO_GHOST_HEADER_R76: ghost is overflow-only */\n",
-        "ghost: remove stale header call; preserve overlay item",
-    )
+    launch = "ui/LaunchActivity.java"
 
-    # On trees produced by an earlier r76 run, reintroduce the upstream
-    # permission/declarations from the checkout only when they are absent.
-    manifest = os.path.join(TG, "TMessagesProj/src/main/AndroidManifest.xml")
-    try:
-        text = read(manifest)
-        permission = '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />'
-        if permission not in text:
-            application = "    <application"
-            if application in text:
-                text = text.replace(application, "    " + permission + "\n\n" + application, 1)
-                write(manifest, text)
-                DONE.append("overlay: restore SYSTEM_ALERT_WINDOW permission")
-            else:
-                MISS.append("AndroidManifest.xml: application anchor not found (overlay permission)")
-    except OSError as exc:
-        MISS.append("AndroidManifest.xml: %s (overlay permission)" % exc)
+    # r54 header ghost and r70 overlay item both used bounded marker blocks.
+    regex_once(dialogs, "KAMIGRAM_NO_GHOST_HEADER_R76",
+               r"\n\s*/\* KAMIGRAM_GHOST_HEADER.*?KamiGramGhost\.addHeaderItem\(menu, null\);\n",
+               "\n            /* KAMIGRAM_NO_GHOST_HEADER_R76: ghost is overflow-only */\n",
+               "ghost: remove the old header button")
+    # The call may have been inserted without the old comment on a partial build.
+    all_regex(dialogs, r"\n\s*/\* KAMIGRAM_FLOAT_HEADER.*?KamiGramFloat\.addHeaderItem\(menu\);\n", "\n", "overlay: remove header PiP item")
+    all_regex(dialogs, r"\n\s*org\.telegram\.messenger\.kamigram\.KamiGramGhost\.addHeaderItem\(menu, null\);\n", "\n", "ghost: remove stale header call")
+    all_regex(dialogs, r"\n\s*org\.telegram\.messenger\.kamigram\.KamiGramFloat\.addHeaderItem\(menu\);\n", "\n", "overlay: remove stale header call")
 
+    # Remove only the r70 callbacks; Telegram's own video-call PiP hooks remain
+    # intact because they are not KamiGram's "over other apps" feature.
+    all_regex(launch,
+              r"\n\s*/\* KAMIGRAM_FLOAT_STOP.*?KamiGramFloat\.onAppStop\(\);\n\s*\} catch \(Throwable ignore\) \{\n\s*\}\n",
+              "\n", "overlay: remove floating bubble onStop")
+    all_regex(launch,
+              r"\n\s*/\* KAMIGRAM_FLOAT_PIP.*?KamiGramFloat\.onPipModeChanged\(isInPictureInPictureMode\);\n\s*\} catch \(Throwable ignore\) \{\n\s*\}\n",
+              "\n", "overlay: remove custom PiP callback")
+    all_regex(launch,
+              r"\n\s*/\* KAMIGRAM_FLOAT_RESUME.*?KamiGramFloat\.onAppResume\(\);\n\s*\} catch \(Throwable ignore\) \{\n\s*\}\n",
+              "\n", "overlay: remove floating bubble onResume")
+    # A partially applied source can retain an unmarked one-line call.
+    all_regex(launch, r"\n\s*org\.telegram\.messenger\.kamigram\.KamiGramFloat\.[^;]+;\n", "\n", "overlay: remove stale float call")
 
-def remove_old_float_config_rows():
-    """No-op compatibility name: the user explicitly restored this feature."""
-    return
+    # Remove a permission if an older local build had added it. Do not touch
+    # unrelated permissions or native Telegram video-call declarations.
+    for root, _, files in os.walk(os.path.join(TG, "TMessagesProj/src/main")):
+        for filename in files:
+            if not filename.endswith(".xml"):
+                continue
+            path = os.path.join(root, filename)
+            try:
+                text = read(path)
+            except OSError:
+                continue
+            result, count = re.subn(
+                r"\s*<uses-permission\s+android:name=\"android\.permission\.SYSTEM_ALERT_WINDOW\"\s*/>\s*\n?",
+                "\n", text)
+            if count:
+                write(path, result)
+                DONE.append("overlay: remove SYSTEM_ALERT_WINDOW permission")
+
+    for rel in ("messenger/kamigram/KamiGramFloat.java",):
+        path = p(rel)
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                DONE.append("overlay: remove KamiGramFloat.java")
+            except OSError as exc:
+                MISS.append("%s: %s" % (rel, exc))
+    resource = os.path.join(RES, "drawable/kamigram_float.xml")
+    if os.path.exists(resource):
+        try:
+            os.remove(resource)
+            DONE.append("overlay: remove kamigram_float drawable")
+        except OSError as exc:
+            MISS.append("res/drawable/kamigram_float.xml: %s" % exc)
 
 
 def ghost_overflow():
@@ -165,6 +183,20 @@ def ghost_overflow():
                 text = text[:show] + insertion + text[show:]
                 write(path, text)
                 DONE.append("ghost: add overflow menu action")
+
+
+def remove_old_float_config_rows():
+    # P100 copies the cleaned Config/Center. These are safeguards for rerunning
+    # r76 over a tree patched by an older r70 installer.
+    all_regex("messenger/kamigram/KamiGramCenter.java",
+              r"\s*Row\.toggle\(\"Плавающее окно.*?\),\n", "\n",
+              "overlay: remove Center toggle")
+    all_regex("messenger/kamigram/KamiGramConfig.java",
+              r"\s*/\*[^*]*плавающ[^*]*\*/\s*public static final String KEY_FLOAT_WINDOW[^;]*;\s*\n",
+              "\n", "overlay: remove float config key")
+    all_regex("messenger/kamigram/KamiGramConfig.java",
+              r"\s*/\*[^*]*Плавающее окно[^*]*\*/\s*public static boolean floatWindow\(\)\s*\{.*?\n\s*\}\s*\n",
+              "\n", "overlay: remove float config accessor")
 
 
 # --------------------------------------------------------------------------- download icon
