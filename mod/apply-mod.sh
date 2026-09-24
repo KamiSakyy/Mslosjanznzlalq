@@ -2093,7 +2093,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2132,7 +2132,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
 
-    for f in KamiGramConfig KamiGramCenter KamiGramGhost KamiGramChannelGuard KamiGramBuiltinProxy KamiGramProxyPower KamiGramProxyHelper KamiGramPremiumState; do
+    for f in KamiGramConfig KamiGramCenter KamiGramGhost KamiGramChannelGuard KamiGramBuiltinProxy KamiGramProxyPower KamiGramProxyHelper KamiGramPremiumState KamiGramLog; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P101: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
