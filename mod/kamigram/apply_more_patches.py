@@ -251,22 +251,26 @@ def downloads():
                      'CacheControlActivity'))
     io.open(p, 'w', encoding='utf-8').write(src)
 
-    # при очистке кэша активные загрузки на паузе: ничего не удаляется в процессе
+    # Не меняем MessagesStorage.cleanupInternal: это штатная очистка базы,
+    # а не media-cache policy. Если дерево уже было собрано r93, удаляем
+    # оставленный там условный guard, чтобы он не вмешивался в native lifecycle.
     mc = os.path.join(JAVA, 'messenger/MessagesStorage.java')
     try:
         src = io.open(mc, encoding='utf-8').read()
     except Exception as e:
         FAILED.append('MessagesStorage: %s' % e)
         return
-    anchor2 = '    private void cleanupInternal(boolean deleteFiles) {\n'
-    if anchor2 in src and 'KAMIGRAM_CLEANUP_SAFE' not in src:
-        src = src.replace(anchor2, anchor2 +
-                          '        /* KAMIGRAM_CLEANUP_SAFE: чистка базы не трогает файлы медиа */\n'
-                          '        if (' + CACHE + '.keep()) {\n'
-                          '            deleteFiles = false;\n'
-                          '        }\n', 1)
+    legacy = ('        /* KAMIGRAM_CLEANUP_SAFE: чистка базы не трогает файлы медиа */\n'
+              '        if (' + CACHE + '.keep()) {\n'
+              '            deleteFiles = false;\n'
+              '        }\n')
+    if 'KAMIGRAM_CLEANUP_SAFE' in src:
+        if legacy not in src:
+            FAILED.append('MessagesStorage: legacy cleanup guard shape changed')
+            return
+        src = src.replace(legacy, '', 1)
         io.open(mc, 'w', encoding='utf-8').write(src)
-        DONE.append(('Загрузки', 'чистка базы не удаляет файлы медиа', 'MessagesStorage'))
+        DONE.append(('Загрузки', 'старый условный cleanup guard удалён из MessagesStorage', 'MessagesStorage'))
 
 
 # =============================================================================

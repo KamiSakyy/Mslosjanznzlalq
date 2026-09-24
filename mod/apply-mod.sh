@@ -1907,8 +1907,9 @@ fi
 #         поэтому больше нет «чёрного текста на чёрном фоне» и пропавших
 #         названий чатов: палитру берём из assets, а код трогает только акценты;
 #      2) иконка настроек — iOS-шестерёнка (настоящий ресурс, а не Drawable);
-#      3) кэш: обычная очистка работает всегда, защита скачанного — по галочке;
-#      4) новый центр мода: карточки, акценты, размеры кэша по категориям,
+#      3) кэш: автоматическая очистка отключена, ручная очистка остаётся
+#         только в штатном CacheControlActivity Telegram;
+#      4) новый центр мода: карточки, акценты, native-экран кэша,
 #         ID и ссылки, менеджер загрузок, прокси.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
@@ -2582,4 +2583,37 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     ok "P108 r83: «Скрыть архив» работает, developer link только в настройках, sponsor row удалён, штатный FCM/push path защищён, proxy/watchdog idle, custom и built-in proxy каталоги независимы"
 else
     skip "P108 r83 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P109. r94 — media-cache safety. AutoDeleteMediaTask вызывается из
+#      LaunchActivity при старте/resume, поэтому его no-op обязан быть
+#      безусловным. Native CacheControlActivity/FileLoader остаётся единственным
+#      destructive path и получает полный список выбранных файлов.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    AUTO_DELETE="$JAVA_ROOT/org/telegram/messenger/AutoDeleteMediaTask.java"
+    FILE_LOADER="$JAVA_ROOT/org/telegram/messenger/FileLoader.java"
+    CACHE_CENTER="$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramCenter.java"
+    MESSAGES_STORAGE="$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java"
+    has "$AUTO_DELETE" "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" || die "P109: AutoDeleteMediaTask no-op marker отсутствует"
+    if grep -q 'KamiGramCache.keep' "$AUTO_DELETE"; then
+        die "P109: AutoDeleteMediaTask всё ещё зависит от галочки KamiGram"
+    fi
+    if grep -q -E 'lastKeepMediaCheckTime|SharedPreferences.*cache_limit|Utilities\.clearDir' "$AUTO_DELETE"; then
+        die "P109: автоматическая очистка по сроку/лимиту/sticker cache осталась"
+    fi
+    if grep -q -E 'KAMIGRAM_PROTECT_DOWNLOAD|KAMIGRAM_PROTECT_TAG|KamiGramCache\.isProtected|KamiGramCache\.protectByName' "$FILE_LOADER"; then
+        die "P109: protected-file filter блокирует штатную очистку FileLoader"
+    fi
+    if grep -q -E 'KamiGramCache\.(clear|clearAll|freeMemory)' "$CACHE_CENTER"; then
+        die "P109: центр KamiGram содержит собственную очистку кэша"
+    fi
+    has "$CACHE_CENTER" "openCacheSettings" || die "P109: центр не открывает штатный CacheControlActivity"
+    if grep -q 'KAMIGRAM_CLEANUP_SAFE' "$MESSAGES_STORAGE"; then
+        die "P109: custom MessagesStorage cleanup guard вмешивается в native lifecycle"
+    fi
+    ok "P109 r94: media auto-cleanup полностью отключён независимо от настройки, temp/parts/resume не трогаются на startup, очистка оставлена штатному Telegram CacheControlActivity"
+else
+    skip "P109 r94 отключено (ZERO_TRAFFIC=0)"
 fi

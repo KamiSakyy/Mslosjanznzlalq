@@ -256,29 +256,12 @@ public final class KamiGramCenter {
     // ------------------------------------------------------------------ ПАМЯТЬ
 
     private static void fillMemory(LinearLayout root, final Context context, Runnable onChanged) {
+        // Кэш не очищается из центра KamiGram. Единственный destructive path —
+        // родной CacheControlActivity Telegram, где пользователь выбирает
+        // категории и подтверждает штатную кнопку очистки.
         card(root, context, new Row[]{
-            Row.toggle("Скачанное вручную не удалять", KamiGramConfig.KEY_KEEP_DOWNLOADS, onChanged),
-            Row.action("Загрузки", () -> openDownloads(context)),
-            Row.action("Всего занято · " + KamiGramCache.human(KamiGramCache.total()), () -> {
-                KamiGramCache.clearAll();
-                KamiGramUi.notify(context, "Кэш очищен");
-            }),
-            Row.action("Освободить память", () -> {
-                KamiGramCache.freeMemory();
-                KamiGramUi.notify(context, "Память освобождена");
-            })
-        });
-        cacheCategories(root, context);
-        card(root, context, new Row[]{
-            Row.action("Очистить весь кэш", () -> KamiGramDialog.create(context)
-                .title("Очистить кэш?")
-                .message("Скачанное вручную не удаляется.")
-                .positive("Очистить", () -> {
-                    KamiGramCache.clearAll();
-                    KamiGramUi.notify(context, "Кэш очищен");
-                })
-                .negative("Отмена", null)
-                .show())
+            Row.action("Открыть настройки кэша Telegram", () -> openCacheSettings(context)),
+            Row.action("Загрузки", () -> openDownloads(context))
         });
     }
 
@@ -306,21 +289,6 @@ public final class KamiGramCenter {
                 }
             })
         });
-    }
-
-    // ------------------------------------------------------------------ кэш по категориям
-
-    private static void cacheCategories(LinearLayout root, final Context context) {
-        final Row[] rows = new Row[KamiGramCache.TYPE_COUNT];
-        for (int i = 0; i < KamiGramCache.TYPE_COUNT; i++) {
-            final int type = i;
-            rows[i] = Row.action(KamiGramCache.nameOf(type) + " · " + KamiGramCache.human(KamiGramCache.sizeOf(type)),
-                () -> {
-                    KamiGramCache.clear(type);
-                    KamiGramUi.notify(context, KamiGramCache.nameOf(type) + " очищено");
-                });
-        }
-        card(root, context, rows);
     }
 
     // ------------------------------------------------------------------ размер текста (полоска)
@@ -442,6 +410,22 @@ public final class KamiGramCenter {
             final Activity activity = AndroidUtilities.findActivity(context);
             if (activity instanceof LaunchActivity) {
                 ((LaunchActivity) activity).presentFragment(new ProxyListActivity());
+            }
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+    }
+
+    /**
+     * Родной экран Telegram — единственное место, где KamiGram разрешает
+     * пользователю очищать кэш и выбранные категории.
+     */
+    public static void openCacheSettings(Context context) {
+        try {
+            final Activity activity = AndroidUtilities.findActivity(context);
+            if (activity instanceof LaunchActivity) {
+                dismissAll();
+                ((LaunchActivity) activity).presentFragment(new org.telegram.ui.CacheControlActivity());
             }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);

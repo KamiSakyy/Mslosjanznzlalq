@@ -19,8 +19,9 @@ KamiGram «PRO» пакет (P60) - большое обновление мода
     * ещё больше отсечек лишних запросов.
 
   КЭШ
-    * автоочистка медиа выключена, скачанное остаётся;
-    * защита вручную скачанных файлов от удаления.
+    * автоматическая очистка медиа полностью отключена (без условий);
+    * ручная очистка остаётся только в штатном CacheControlActivity Telegram;
+    * KamiGram не блокирует штатное удаление выбранных файлов.
 
   ИНТЕРФЕЙС
     * ID чатов и пользователей реально показывается (в шапке и в меню);
@@ -89,10 +90,116 @@ def replace_once(file_name, marker, old, new, category, what):
         return
     if marker in src:
         return
+    # A few legacy patches predate their marker. If the requested replacement
+    # is already present, treat that shape as applied instead of failing on a
+    # second installer run.
+    if new in src:
+        return
     if old not in src:
         FAILED.append('%s: не найдено (%s)' % (file_name, what))
         return
     write(p, src.replace(old, new, 1))
+    DONE.append((category, what, file_name.split('/')[-1]))
+
+
+def method_end(src, start):
+    """Return the end offset of the Java method beginning at start.
+
+    The small lexer ignores strings and comments so braces in diagnostics or
+    comments cannot make the replacement stop in the wrong place.
+    """
+    brace = src.find('{', start)
+    if brace < 0:
+        return -1
+    depth = 0
+    i = brace
+    state = 'code'
+    while i < len(src):
+        ch = src[i]
+        nxt = src[i + 1] if i + 1 < len(src) else ''
+        if state == 'code':
+            if ch == '/' and nxt == '/':
+                state = 'line'
+                i += 2
+                continue
+            if ch == '/' and nxt == '*':
+                state = 'block'
+                i += 2
+                continue
+            if ch == '"':
+                state = 'string'
+                i += 1
+                continue
+            if ch == "'":
+                state = 'char'
+                i += 1
+                continue
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    return i + 1
+            i += 1
+            continue
+        if state == 'line':
+            if ch == '\n':
+                state = 'code'
+            i += 1
+            continue
+        if state == 'block':
+            if ch == '*' and nxt == '/':
+                state = 'code'
+                i += 2
+            else:
+                i += 1
+            continue
+        if state in ('string', 'char'):
+            if ch == '\\':
+                i += 2
+            elif (state == 'string' and ch == '"') or (state == 'char' and ch == "'"):
+                state = 'code'
+                i += 1
+            else:
+                i += 1
+    return -1
+
+
+def replace_method(file_name, marker, signature, replacement, category, what):
+    p = path(*file_name.split('/'))
+    try:
+        src = read(p)
+    except Exception as e:
+        FAILED.append('%s: %s' % (file_name, e))
+        return
+    if marker in src:
+        return
+    start = src.find(signature)
+    if start < 0:
+        FAILED.append('%s: не найдено (%s)' % (file_name, what))
+        return
+    end = method_end(src, start)
+    if end < 0:
+        FAILED.append('%s: конец метода не найден (%s)' % (file_name, what))
+        return
+    write(p, src[:start] + replacement + src[end:])
+    DONE.append((category, what, file_name.split('/')[-1]))
+
+
+def remove_block(file_name, marker, block, category, what):
+    """Remove a legacy KamiGram block when upgrading an already patched tree."""
+    p = path(*file_name.split('/'))
+    try:
+        src = read(p)
+    except Exception as e:
+        FAILED.append('%s: %s' % (file_name, e))
+        return
+    if marker not in src:
+        return
+    if block not in src:
+        FAILED.append('%s: legacy block shape not found (%s)' % (file_name, what))
+        return
+    write(p, src.replace(block, '', 1))
     DONE.append((category, what, file_name.split('/')[-1]))
 
 
@@ -252,21 +359,26 @@ def speed():
 
 
 # =============================================================================
-# 5. КЭШ: СКАЧАННОЕ ОСТАЁТСЯ
+# 5. КЭШ: НЕТ АВТОМАТИЧЕСКОЙ ОЧИСТКИ, РУЧНАЯ — ТОЛЬКО В TELEGRAM
 # =============================================================================
 
 def cache():
-    # 5.1 автоочистка медиа выключена
-    replace_once('messenger/AutoDeleteMediaTask.java', 'KAMIGRAM_KEEP_DOWNLOADS',
-                 '    public static void run() {\n',
-                 '    public static void run() {\n'
-                 '        /* KAMIGRAM_KEEP_DOWNLOADS: скачанное не удаляем - это была жалоба «кэш пропал» */\n'
-                 '        if (' + CACHE + '.keep()) {\n'
-                 '            return;\n'
-                 '        }\n',
-                 'Кэш', 'автоудаление медиа (по сроку и по размеру кэша) отключено')
+    # 5.1 отключаем именно автоматическую задачу целиком. Она вызывается из
+    # LaunchActivity при старте/возврате и содержит три независимых удаления:
+    # срок хранения, cache_limit и sticker cache. Галочка мода не должна
+    # решать, запустится ли этот watchdog: он всегда no-op.
+    replace_method('messenger/AutoDeleteMediaTask.java', 'KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94',
+                   '    public static void run() {\n',
+                   '    public static void run() {\n'
+                   '        /* KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94: автоматическая очистка\n'
+                   '         * по сроку, cache_limit и sticker cache запрещена. Чистить\n'
+                   '         * выбранные категории может только штатный CacheControlActivity. */\n'
+                   '        return;\n'
+                   '    }',
+                   'Кэш', 'автоочистка медиа безусловно отключена (старт/resume, срок, лимит и stickers)')
 
-    # 5.2 медиа по умолчанию хранится вечно
+    # 5.2 медиа по умолчанию хранится вечно там, где Telegram создаёт новые
+    # настройки. Уже сохранённые сроки всё равно безопасны: run() выше no-op.
     replace_once('messenger/CacheByChatsController.java', 'KAMIGRAM_KEEP_FOREVER',
                  '    public static int getDefault(int type) {\n',
                  '    public static int getDefault(int type) {\n'
@@ -275,31 +387,34 @@ def cache():
                  '            || type == KEEP_MEDIA_TYPE_CHANNEL)) {\n'
                  '            return KEEP_MEDIA_FOREVER;\n'
                  '        }\n',
-                 'Кэш', 'медиа личных чатов, групп и каналов хранится без срока')
+                 'Кэш', 'медиа личных чатов, групп и каналов получает бессрочный default')
 
-    # 5.3 защита файлов, скачанных вручную
-    replace_once('messenger/FileLoader.java', 'KAMIGRAM_PROTECT_DOWNLOAD',
-                 '    public void deleteFiles(final ArrayList<File> files, final int type) {\n',
-                 '    public void deleteFiles(final ArrayList<File> files, final int type) {\n'
-                 '        /* KAMIGRAM_PROTECT_DOWNLOAD: файлы, скачанные вручную, не удаляем */\n'
-                 '        if (files != null && ' + CACHE + '.keep()) {\n'
-                 '            for (int kamigramIndex = files.size() - 1; kamigramIndex >= 0; kamigramIndex--) {\n'
-                 '                if (' + CACHE + '.isProtected(files.get(kamigramIndex))) {\n'
-                 '                    files.remove(kamigramIndex);\n'
-                 '                }\n'
-                 '            }\n'
-                 '        }\n',
-                 'Кэш', 'файлы, скачанные пользователем, защищены от удаления')
+    # 5.3 старый r93 фильтр удаляем при обновлении дерева. Нативный
+    # FileLoader.deleteFiles обязан получить полный список от ручной кнопки
+    # Telegram, даже если в старых настройках осталась галочка защиты.
+    legacy_delete_filter = (
+        '        /* KAMIGRAM_PROTECT_DOWNLOAD: файлы, скачанные вручную, не удаляем */\n'
+        '        if (files != null && ' + CACHE + '.keep()) {\n'
+        '            for (int kamigramIndex = files.size() - 1; kamigramIndex >= 0; kamigramIndex--) {\n'
+        '                if (' + CACHE + '.isProtected(files.get(kamigramIndex))) {\n'
+        '                    files.remove(kamigramIndex);\n'
+        '                }\n'
+        '            }\n'
+        '        }\n'
+    )
+    remove_block('messenger/FileLoader.java', 'KAMIGRAM_PROTECT_DOWNLOAD', legacy_delete_filter,
+                 'Кэш', 'старый фильтр защиты не блокирует штатную очистку FileLoader')
 
-    # 5.4 помечаем скачанное
-    replace_once('messenger/FileLoader.java', 'KAMIGRAM_PROTECT_TAG',
-                 '    public void loadFile(TLRPC.Document document, Object parentObject, int priority, int cacheType) {\n',
-                 '    public void loadFile(TLRPC.Document document, Object parentObject, int priority, int cacheType) {\n'
-                 '        /* KAMIGRAM_PROTECT_TAG: пользователь качает сам - файл остаётся навсегда */\n'
-                 '        if (priority >= PRIORITY_HIGH && document != null) {\n'
-                 '            ' + CACHE + '.protectByName(FileLoader.getAttachFileName(document));\n'
-                 '        }\n',
-                 'Кэш', 'вручную скачанные файлы помечаются защищёнными')
+    # 5.4 сама отметка оставалась только для старого фильтра, поэтому при
+    # обновлении убираем и её: ручной native путь не имеет обходных исключений.
+    legacy_tag = (
+        '        /* KAMIGRAM_PROTECT_TAG: пользователь качает сам - файл остаётся навсегда */\n'
+        '        if (priority >= PRIORITY_HIGH && document != null) {\n'
+        '            ' + CACHE + '.protectByName(FileLoader.getAttachFileName(document));\n'
+        '        }\n'
+    )
+    remove_block('messenger/FileLoader.java', 'KAMIGRAM_PROTECT_TAG', legacy_tag,
+                 'Кэш', 'старые protected-file метки не участвуют в native удалении')
 
 
 # =============================================================================
@@ -498,8 +613,8 @@ SHIPPED_PRO = [
     'если прокси всего один и он умер — сразу прямое подключение',
     'оживший прокси включается обратно автоматически',
     'ID чата видно в шапке, в меню — копирование ID',
-    'скачанное не удаляется: автоочистка медиа выключена',
-    'вручную скачанные файлы защищены от удаления',
+    'скачанное не удаляется: автоматическая очистка медиа безусловно выключена',
+    'штатная кнопка Telegram очищает выбранные категории без KamiGram-фильтра',
     'загрузки качаются крупными блоками и в 6-8 потоков',
     'GIF и анимации не скачиваются (0 байт)',
     'разрешения на контакты и телефон больше не спрашиваются',
