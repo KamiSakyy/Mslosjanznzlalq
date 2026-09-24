@@ -446,21 +446,16 @@ def build(assets, base_name='night.attheme'):
     # 3. собираем ответ
     out = '\n'.join('%s=%s' % (k, values[k]) for k in order) + '\n'
 
-    # 4. пишем во ВСЕ встроенные темы (r70: включая Day и Arctic) —
-    #    чтобы в чатах (и во всём приложении) была наша тема Yoru при ЛЮБОЙ
-    #    системной настройке «светлый/тёмный». Пользовательские темы
-    #    (свои .attheme-файлы и обои) НЕ трогаем — они работают как обычно.
-    written = []
-    for name in ('bluebubbles.attheme', 'darkblue.attheme', 'night.attheme',
-                 'arctic.attheme', 'day.attheme'):
-        path = os.path.join(assets, name)
-        if not os.path.isfile(path):
-            continue
-        io.open(path, 'w', encoding='utf-8').write(out)
-        written.append(name)
+    # 4. Сохраняем отдельную встроенную тему KamiGram. Родные Blue, Night,
+    #    Dark Blue, Day и Arctic намеренно НЕ перезаписываем: переключатель
+    #    «Тема Telegram» должен вернуть настоящую тему Telegram, а не копию,
+    #    которую мод уже изменил. Theme.java регистрирует этот asset как
+    #    отдельный ключ KamiGram.
+    target = os.path.join(assets, 'kamigram.attheme')
+    io.open(target, 'w', encoding='utf-8').write(out)
 
-    print('KamiGram: iOS-тема применена к %s; ключей перекрыто %d, дописано новых %d'
-          % (', '.join(written), applied, len(added)))
+    print('KamiGram: отдельная тема записана в %s; ключей перекрыто %d, дописано новых %d'
+          % (os.path.basename(target), applied, len(added)))
     if added:
         print('  (дописаны новые ключи: %s)' % ', '.join(added))
     return 0

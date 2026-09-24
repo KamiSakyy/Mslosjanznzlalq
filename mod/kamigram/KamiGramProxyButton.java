@@ -21,7 +21,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
@@ -80,7 +79,7 @@ public final class KamiGramProxyButton {
             });
             return item;
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
             return null;
         }
     }
@@ -113,7 +112,7 @@ public final class KamiGramProxyButton {
                там же, где в обычном Telegram — в «Настройках → Данные и память → Прокси»,
                а из центра мода открывается родной экран прокси. */
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 
@@ -143,7 +142,7 @@ public final class KamiGramProxyButton {
                 ((org.telegram.ui.LaunchActivity) activity).presentFragment(new org.telegram.ui.ProxyListActivity());
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -207,7 +206,7 @@ public final class KamiGramProxyButton {
             }));
             dialog.show();
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 

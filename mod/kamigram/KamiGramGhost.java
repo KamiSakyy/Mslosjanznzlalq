@@ -1,17 +1,11 @@
 package org.telegram.messenger.kamigram;
 
-import android.view.View;
+import android.content.Context;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
-import org.telegram.ui.ActionBar.ActionBarMenu;
-import org.telegram.ui.ActionBar.ActionBarMenuItem;
-import org.telegram.ui.ActionBar.Theme;
-
-import java.lang.ref.WeakReference;
 
 /**
  * KamiGram: «призрак» — сделан по образцу AyuGram (github.com/AyuGram/AyuGram4A).
@@ -36,16 +30,10 @@ import java.lang.ref.WeakReference;
  *     {@code channels.readMessageContents}) не уходят — сервер считает, что
  *     сообщение не просмотрено, и не запускает его удаление.
  *
- * Иконка призрака живёт в шапке ГЛАВНОГО экрана, рядом с «⋮» — там, где
- * название приложения. В чатах и каналах её нет.
+ * Иконка призрака живёт в меню «⋮» главного экрана и не занимает место в
+ * шапке. В чатах и каналах её нет.
  */
 public final class KamiGramGhost {
-
-    /** Идентификатор пункта-иконки призрака. */
-    public static final int HEADER_ITEM_ID = 0x4B4701;
-
-    private static WeakReference<ActionBarMenuItem> headerItem = new WeakReference<>(null);
-    private static WeakReference<Theme.ResourcesProvider> headerProvider = new WeakReference<>(null);
 
     private KamiGramGhost() {
     }
@@ -94,7 +82,7 @@ public final class KamiGramGhost {
             }
             return false;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
             return false;
         }
     }
@@ -135,73 +123,30 @@ public final class KamiGramGhost {
             fake.pts_count = 0;
             onComplete.run(fake, null);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
-    // ------------------------------------------------------------------ иконка
-
-    /** Пункт-иконка призрака рядом с «⋮» в шапке главного экрана. */
-    public static ActionBarMenuItem addHeaderItem(ActionBarMenu menu, Theme.ResourcesProvider provider) {
-        try {
-            final ActionBarMenuItem item = menu.addItem(HEADER_ITEM_ID,
-                org.telegram.messenger.R.drawable.kamigram_ghost);
-            item.setContentDescription("Призрак");
-            headerItem = new WeakReference<>(item);
-            headerProvider = new WeakReference<>(provider);
-            bindHeader(item, provider);
-            return item;
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-            return null;
-        }
-    }
-
-    /** Привязка касания и отрисовка состояния. */
-    public static void bindHeader(final ActionBarMenuItem item, final Theme.ResourcesProvider provider) {
-        if (item == null) {
-            return;
-        }
-        item.setOnClickListener(v -> toggle(item));
-        refreshHeader(item, provider);
-    }
-
-    private static void toggle(ActionBarMenuItem item) {
-        final boolean enabled = !KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
-        KamiGramConfig.set(KamiGramConfig.KEY_GHOST, enabled);
-        refreshHeader(item, null);
-        KamiGramUi.notify(item.getContext(), enabled ? "Призрак включён" : "Призрак выключен");
-    }
-
-    /** Обновить иконку (например, после переключения в настройках мода). */
-    public static void refreshAll() {
-        final ActionBarMenuItem item = headerItem == null ? null : headerItem.get();
-        if (item != null) {
-            refreshHeader(item, headerProvider == null ? null : headerProvider.get());
-        }
-    }
+    // ------------------------------------------------------------------ меню «⋮»
 
     /**
-     * Состояние видно сразу (r70 — минималистичный призрак, наш белый):
-     *   * призрак ВЫКЛЮЧЕН — тонкий белый КОНТУР (пустой призрак);
-     *   * призрак ВКЛЮЧЁН — ЗАПОЛНЕННЫЙ белый призрак.
+     * Переключатель, вызываемый из пункта меню «Призрак». Иконка создаётся
+     * заново при открытии overflow-меню, поэтому отдельная кнопка в шапке не
+     * нужна и не может занять её место.
      */
-    public static void refreshHeader(ActionBarMenuItem item, Theme.ResourcesProvider provider) {
-        if (item == null) {
-            return;
-        }
-        final boolean enabled = KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
+    public static void toggle(Context context) {
         try {
-            item.setIcon(enabled
-                ? org.telegram.messenger.R.drawable.kamigram_ghost_on
-                : org.telegram.messenger.R.drawable.kamigram_ghost);
-            item.setIconColor(0xFFFFFFFF);
-        } catch (Throwable ignore) {
+            final boolean enabled = !KamiGramConfig.value(KamiGramConfig.KEY_GHOST);
+            KamiGramConfig.set(KamiGramConfig.KEY_GHOST, enabled);
+            refreshAll();
+            KamiGramUi.notify(context, enabled ? "Призрак включён" : "Призрак выключен");
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
-        final View icon = item.getIconView();
-        if (icon != null) {
-            icon.setAlpha(enabled ? 1f : 0.9f);
-        }
+    }
+
+    /** Оставлен как совместимый хук для центра настроек; header-иконки больше нет. */
+    public static void refreshAll() {
     }
 
     // ------------------------------------------------------------------ прочее
@@ -213,106 +158,6 @@ public final class KamiGramGhost {
         } catch (Throwable ignore) {
             return false;
         }
-    }
-
-    /** Дата отправки никогда не подменяется (иначе ломались отложенные). */
-    public static int sendDate(int scheduleDate) {
-        return scheduleDate;
-    }
-
-    // ---------------------------------------------------- r68: отправка «отложкой»
-
-    /**
-     * Призрак: обычная отправка уходит через «Отложенные» — точно как в AyuGram
-     * (SendMessagesHelper: scheduleDate = currentTime + 10 + 1).
-     *
-     * Почему так: если отправить сообщение сразу, собеседник получает его в ту же
-     * секунду, когда мы нажали «отправить», — по времени прихода видно, что мы
-     * были в сети. Отложенное сообщение уходит по расписанию, и по нему нельзя
-     * понять, когда мы реально заходили.
-     *
-     * Telegram отправляет сообщение сразу, если до даты отправки меньше 10 секунд
-     * (в этом случае приходит обычный updateNewMessage) — поэтому берём +10 и ещё
-     * +1 секунду «окна ошибки». Картинке нужно время на загрузку (+10), документу
-     * тоже (+15) — иначе сообщение может «созреть» раньше, чем загрузится файл.
-     */
-    public static int autoScheduleDate(int scheduleDate, long peer, boolean hasPhoto, boolean hasDocument) {
-        try {
-            if (!KamiGramConfig.ghostMode() || !KamiGramConfig.autoSchedule()) {
-                return scheduleDate;
-            }
-            if (scheduleDate != 0) {
-                return scheduleDate;
-            }
-            if (org.telegram.messenger.DialogObject.isEncryptedDialog(peer)) {
-                // в секретных чатах отложенных сообщений нет
-                return scheduleDate;
-            }
-            int date = org.telegram.tgnet.ConnectionsManager.getInstance(account).getCurrentTime() + 10;
-            date += 1; // окно ошибки: < 10 секунд — Telegram отправит немедленно
-            if (hasDocument) {
-                date += 15;
-            } else if (hasPhoto) {
-                date += 10;
-            }
-            markAutoScheduled();
-            return date;
-        } catch (Throwable throwable) {
-            FileLog.e(throwable);
-            return scheduleDate;
-        }
-    }
-
-    /** То же для пересылок и медиа-пакетов: смотрим, что именно отправляем. */
-    public static int autoScheduleDate(int scheduleDate, long peer, java.util.ArrayList<org.telegram.messenger.MessageObject> messages) {
-        boolean photo = false;
-        boolean document = false;
-        try {
-            if (messages != null) {
-                for (int a = 0; a < messages.size(); a++) {
-                    final org.telegram.messenger.MessageObject object = messages.get(a);
-                    if (object == null || object.messageOwner == null) {
-                        continue;
-                    }
-                    if (object.isPhoto()) {
-                        photo = true;
-                    } else if (object.isDocument() || object.isVideo() || object.isVoice() || object.isMusic()) {
-                        document = true;
-                    }
-                }
-            }
-        } catch (Throwable ignore) {
-        }
-        return autoScheduleDate(scheduleDate, peer, photo, document);
-    }
-
-    private static boolean autoScheduled;
-    private static long autoScheduledTime;
-
-    private static boolean autoScheduleHintShown;
-
-    private static void markAutoScheduled() {
-        autoScheduled = true;
-        autoScheduledTime = System.currentTimeMillis();
-        if (!autoScheduleHintShown) {
-            // один раз за запуск: чтобы не было сюрприза «нажал отправить, а сообщения нет»
-            autoScheduleHintShown = true;
-            final android.content.Context context = org.telegram.messenger.ApplicationLoader.applicationContext;
-            if (context != null) {
-                org.telegram.messenger.AndroidUtilities.runOnUIThread(() ->
-                    KamiGramUi.notify(context, "Призрак: отправка через «Отложенные»"));
-            }
-        }
-    }
-
-    /**
-     * Была ли последняя отправка переведена в «отложенную» (флаг сбрасывается
-     * после прочтения — как AyuState.getAutomaticallyScheduled в AyuGram).
-     */
-    public static boolean consumeAutoScheduled() {
-        final boolean value = autoScheduled && System.currentTimeMillis() - autoScheduledTime < 5000L;
-        autoScheduled = false;
-        return value;
     }
 
     // ------------------------------------------------------------------ совместимость
@@ -432,7 +277,7 @@ public final class KamiGramGhost {
                 }
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 
@@ -468,7 +313,7 @@ public final class KamiGramGhost {
                 controller.markMessageAsRead2(dialogId, owner.id, null, 0, 0, false);
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 }

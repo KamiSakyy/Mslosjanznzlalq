@@ -4,7 +4,6 @@ import android.graphics.drawable.Drawable;
 import android.text.SpannableStringBuilder;
 
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.ActionBar;
 
 import java.lang.ref.WeakReference;
@@ -91,7 +90,7 @@ public final class KamiGramProxyStatus {
             actionBar.setTitle(base instanceof SpannableStringBuilder ? base : new SpannableStringBuilder(base),
                 rightDrawableRef);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

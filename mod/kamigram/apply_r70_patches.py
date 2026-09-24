@@ -48,13 +48,6 @@ KamiGram r70: патчи поверх исходников Telegram (DrKLO 12.10
   16. «Применять KamiGram ко всем аккаунтам» (включено по умолчанию): можно
       выключить — тогда настройки мода хранятся у каждого аккаунта отдельно.
 
-  1.  (МАСШТАБНОЕ) «Поверх приложений»: иконка рядом с призраком. Тап —
-      приложение сворачивается в PiP-окно поверх ЛЮБОГО приложения (интерактивное,
-      всё кликается, размер — ручкой системы); после выхода из PiP — маленький
-      летающий круглешок (перетаскивается, тап — открыть ТГ). Разрешение
-      «Поверх других приложений» запрашиваем сами (манифест уже разрешён).
-      (KamiGramFloat)
-
 Каждый патч идемпотентен: ищет свой маркер и второй раз ничего не делает.
 Если якорь не найден — патч попадает в отчёт, но сборка не падает.
 """
@@ -203,7 +196,7 @@ def download_icon_live():
           '    private boolean kamigramLiveCheckScheduled; /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_FIELD */',
           'загрузки: поля живого прогресса')
 
-    replace(icon, 'KAMIGRAM_DOWNLOAD_ANIM_LIVE',
+    replace(icon, 'KAMIGRAM_DOWNLOAD_ANIM_LIVE_UPDATE',
             '        progressDt = (progress - currentProgress) * 16f / 150f;\n'
             '        invalidate();\n'
             '    }',
@@ -601,74 +594,18 @@ def always_hd():
 # 5. подписка на канал (только после входа)
 # =============================================================================
 def channel_guard():
-    patch('ui/LaunchActivity.java', 'KAMIGRAM_CHANNEL_GUARD',
-          '        /* KAMIGRAM_SMART_PROXY */\n'
-          '        try {\n'
-          '            org.telegram.messenger.kamigram.KamiGramProxyHelper.activateFromClipboard(this);\n'
-          '            org.telegram.messenger.kamigram.KamiGramProxyHelper.watchProxy(this);\n'
-          '        } catch (Throwable ignore) {\n'
-          '        }',
-          '\n        /* KAMIGRAM_CHANNEL_GUARD (r70): после входа в аккаунт проверяем\n'
-          '           подписку на канал — без подписки пользоваться нельзя. */\n'
-          '        try {\n'
-          '            ' + GUARD + '.check(this);\n'
-          '        } catch (Throwable ignore) {\n'
-          '        }',
-          'подписка: проверка после входа в аккаунт')
+    # Compatibility hook only. Mandatory subscription/auto-join/blocking gates
+    # are intentionally not wired into LaunchActivity.
+    return
 
 
 # =============================================================================
 # 1. (МАСШТАБНОЕ) поверх приложений: PiP + летающий круглешок
 # =============================================================================
 def float_window():
-    patch('ui/DialogsActivity.java', 'KAMIGRAM_FLOAT_HEADER',
-          '            org.telegram.messenger.kamigram.KamiGramGhost.addHeaderItem(menu, null);',
-          '\n            /* KAMIGRAM_FLOAT_HEADER (r70): «поверх приложений» — рядом с призраком */\n'
-          '            ' + FLOAT + '.addHeaderItem(menu);',
-          'плавающее окно: иконка в шапке рядом с призраком')
-
-    replace('ui/LaunchActivity.java', 'KAMIGRAM_FLOAT_STOP',
-            '    protected void onStop() {\n'
-            '        super.onStop();\n'
-            '        isStarted = false;\n'
-            '        pipActivityHandler.onStop();',
-            '    protected void onStop() {\n'
-            '        super.onStop();\n'
-            '        isStarted = false;\n'
-            '        pipActivityHandler.onStop();\n'
-            '        /* KAMIGRAM_FLOAT_STOP (r70): на фоне — летающий круглешок поверх всего */\n'
-            '        try {\n'
-            '            ' + FLOAT + '.onAppStop();\n'
-            '        } catch (Throwable ignore) {\n'
-            '        }',
-            'плавающее окно: круглешок при уходе на фон')
-
-    replace('ui/LaunchActivity.java', 'KAMIGRAM_FLOAT_PIP',
-            '        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);\n'
-            '        pipActivityHandler.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);',
-            '        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);\n'
-            '        pipActivityHandler.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);\n'
-            '        /* KAMIGRAM_FLOAT_PIP (r70): вышли из PiP — показываем круглешок */\n'
-            '        try {\n'
-            '            ' + FLOAT + '.onPipModeChanged(isInPictureInPictureMode);\n'
-            '        } catch (Throwable ignore) {\n'
-            '        }',
-            'плавающее окно: реакция на выход из PiP')
-
-    # после channel_guard (один и тот же onResume)
-    patch('ui/LaunchActivity.java', 'KAMIGRAM_FLOAT_RESUME',
-          '        /* KAMIGRAM_CHANNEL_GUARD (r70): после входа в аккаунт проверяем\n'
-          '           подписку на канал — без подписки пользоваться нельзя. */\n'
-          '        try {\n'
-          '            ' + GUARD + '.check(this);\n'
-          '        } catch (Throwable ignore) {\n'
-          '        }',
-          '\n        /* KAMIGRAM_FLOAT_RESUME (r70): на переднем плане — круглешок прячем */\n'
-          '        try {\n'
-          '            ' + FLOAT + '.onAppResume();\n'
-          '        } catch (Throwable ignore) {\n'
-          '        }',
-          'плавающее окно: прячем круглешок на переднем плане')
+    # Telegram's own overlay/PiP implementation remains untouched. In
+    # particular, do not inject a reduced bubble or replace PipRoundVideoView.
+    return
 
 
 def main():

@@ -289,41 +289,11 @@ def hide_builtin_from_list():
 
 
 # =============================================================================
-# 9. ОТПРАВКА БЕЗ ВЫХОДА В СЕТЬ (призрак): сообщение уходит отложенным
+# 9. Нативная отправка: ghost никогда не подменяет дату или send path
 # =============================================================================
 
 def ghost_silent_send():
-    """Призрак: сообщение уходит отложенным, поэтому «в сети» не появляется.
-
-    Раньше правка стояла внутри sendMessageInternal и переписывала его
-    параметры — а они используются в лямбде, из-за чего код не компилировался
-    («must be final or effectively final»). Теперь дата отправки подставляется
-    в МЕСТАХ ВЫЗОВА: обычно это 0 (отправить сразу), при призраке — «сейчас + 5 с».
-    """
-    chat = 'ui/Components/ChatActivityEnterView.java'
-    try:
-        src = read(path(*chat.split('/')))
-    except Exception as e:
-        SKIPPED.append('%s: %s (призрак: тихая отправка)' % (chat, e))
-        return False
-    if 'KAMIGRAM_GHOST_SEND' in src:
-        return True
-    call = 'org.telegram.messenger.kamigram.KamiGramGhost.sendDate(0)'
-    before = src
-    # медиа и «оплаченные» отправки
-    src = src.replace('sendMessageInternal(true, 0, 0, payStars, false)',
-                      'sendMessageInternal(true, %s, 0, payStars, false) /* KAMIGRAM_GHOST_SEND */' % call)
-    # отправка «без звука» и с превью
-    src = src.replace('sendMessageInternal(false, 0, 0, 0, true)',
-                      'sendMessageInternal(false, %s, 0, 0, true) /* KAMIGRAM_GHOST_SEND */' % call)
-    # обычная отправка текста (кнопка отправки и Enter)
-    src = src.replace('return sendMessageInternal(true, 0, 0, 0, true);',
-                      'return sendMessageInternal(true, %s, 0, 0, true); /* KAMIGRAM_GHOST_SEND */' % call)
-    if src == before:
-        SKIPPED.append('%s: нет мест вызова отправки (призрак: тихая отправка)' % chat)
-        return False
-    write(path(*chat.split('/')), src)
-    DONE.append(('призрак: сообщения уходят отложенно (без отметки «в сети»)', 'ChatActivityEnterView.java'))
+    """Compatibility no-op: native Telegram sends are never rewritten."""
     return True
 
 

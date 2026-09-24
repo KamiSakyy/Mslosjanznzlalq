@@ -10,7 +10,6 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.Theme;
 
 import java.lang.ref.WeakReference;
@@ -36,8 +35,11 @@ import java.util.ArrayList;
  */
 public final class ThemeHook {
 
-    /** Встроенная тёмная тема Telegram, в которую P16 записал iOS-палитру. */
-    private static final String THEME_KEY = "Night";
+    /** Отдельная тема KamiGram; родные Telegram-темы не переписываются. */
+    private static final String THEME_KEY = "KamiGram";
+    private static final String PREF_ORIGINAL_THEME = "kamigram_original_theme";
+    private static final String PREF_ORIGINAL_NIGHT = "kamigram_original_theme_night";
+    private static final String PREF_THEME_SAVED = "kamigram_original_theme_saved";
 
     private static final ArrayList<WeakReference<Activity>> ACTIVITIES = new ArrayList<>();
 
@@ -46,43 +48,103 @@ public final class ThemeHook {
 
     // ------------------------------------------------------------------ тема
 
-    /**
-     * Держим тёмную iOS-тему. Если пользователь поставил свою тему — уважаем
-     * её и ничего не ломаем: тогда применяются только акценты мода.
-     */
-    private static boolean darkThemeApplied;
-
+    /** Last theme applied by this hook, used to avoid repeated refreshes. */
     private static String lastThemeName;
+    private static boolean applyingTheme;
 
+    /**
+     * Apply the selected side of the theme switch. The first time KamiGram is
+     * enabled, the currently active native Telegram theme and whether it is the
+     * night slot are persisted. Turning the switch on restores exactly that
+     * theme; no built-in Telegram asset is overwritten.
+     */
     public static void keepDarkTheme() {
-        if (uiHooksDisabled) {
+        if (uiHooksDisabled || applyingTheme) {
             return;
         }
         try {
-            /* Пользователь сменил тему — наши акценты нужно поставить заново
-               (но только по этому поводу, а не на каждом экране). */
+            final boolean telegram = KamiGramConfig.telegramTheme();
             final Theme.ThemeInfo active = Theme.getActiveTheme();
             final String activeName = active == null ? null : active.getKey();
-            if (activeName != null && !activeName.equals(lastThemeName)) {
-                lastThemeName = activeName;
-                accentApplied = false;
-                applyAccentsOnce();
-            }
-            if (darkThemeApplied && Theme.isCurrentThemeDark()) {
+            final String wanted = telegram ? originalThemeKey() : THEME_KEY;
+            if (wanted == null || wanted.equals(activeName)) {
+                if (activeName != null && !activeName.equals(lastThemeName)) {
+                    lastThemeName = activeName;
+                    accentApplied = false;
+                    applyAccentsOnce();
+                }
                 return;
             }
-            if (Theme.getActiveTheme() != null && Theme.isCurrentThemeDark()) {
-                darkThemeApplied = true;
+
+            final Theme.ThemeInfo info = Theme.getTheme(wanted);
+            if (info == null) {
+                // Builds made without the optional theme asset remain usable.
+                // Do not force Night or mutate the native theme in that case.
                 return;
             }
-            final Theme.ThemeInfo info = Theme.getTheme(THEME_KEY);
-            if (info != null) {
-                Theme.applyTheme(info, true);
-                darkThemeApplied = true;
+            if (!telegram) {
+                rememberOriginalTheme(active);
             }
+            applyingTheme = true;
+            try {
+                Theme.applyTheme(info, true, telegram ? originalThemeIsNight() : true);
+            } finally {
+                applyingTheme = false;
+            }
+            lastThemeName = wanted;
+            accentApplied = false;
+            applyAccentsOnce();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            applyingTheme = false;
+            KamiGramLog.e(throwable);
         }
+    }
+
+    private static android.content.SharedPreferences themePreferences() {
+        try {
+            return org.telegram.messenger.MessagesController.getGlobalMainSettings();
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
+    private static void rememberOriginalTheme(Theme.ThemeInfo active) {
+        try {
+            final android.content.SharedPreferences preferences = themePreferences();
+            if (preferences == null || preferences.getBoolean(PREF_THEME_SAVED, false)) {
+                return;
+            }
+            final String key = active == null ? "Blue" : active.getKey();
+            final boolean night = active != null && Theme.isCurrentThemeNight();
+            preferences.edit().putString(PREF_ORIGINAL_THEME, key == null ? "Blue" : key)
+                .putBoolean(PREF_ORIGINAL_NIGHT, night)
+                .putBoolean(PREF_THEME_SAVED, true)
+                .commit();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    private static String originalThemeKey() {
+        final android.content.SharedPreferences preferences = themePreferences();
+        if (preferences == null) {
+            return "Blue";
+        }
+        return preferences.getString(PREF_ORIGINAL_THEME, "Blue");
+    }
+
+    private static boolean originalThemeIsNight() {
+        final android.content.SharedPreferences preferences = themePreferences();
+        return preferences != null && preferences.getBoolean(PREF_ORIGINAL_NIGHT, false);
+    }
+
+    /** Called by the settings row immediately, without waiting for recreation. */
+    public static void setTelegramTheme(boolean enabled) {
+        KamiGramConfig.set(KamiGramConfig.KEY_TELEGRAM_THEME, enabled);
+        keepDarkTheme();
+    }
+
+    public static boolean telegramTheme() {
+        return KamiGramConfig.telegramTheme();
     }
 
     /** Тёмная тема сейчас? */
@@ -264,7 +326,7 @@ public final class ThemeHook {
             applySecureFlag(activity);
             KamiGramTweaks.apply();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -490,9 +552,9 @@ public final class ThemeHook {
         return "KamiGram iOS 2026.2";
     }
 
-    /** Включить/выключить принудительную тёмную тему (для экрана мода). */
+    /** Совместимость со старым вызовом: dark=true означает тему KamiGram. */
     public static void setDark(boolean dark) {
         KamiGramConfig.set(KamiGramConfig.KEY_IOS_DESIGN, dark);
-        keepDarkTheme();
+        setTelegramTheme(!dark);
     }
 }

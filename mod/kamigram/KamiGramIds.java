@@ -5,7 +5,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.widget.Toast;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 
 /**
@@ -70,7 +69,7 @@ public final class KamiGramIds {
             }
             menuItem.addSubItem(ID_COPY, 0, "ID: " + dialogId);
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 
@@ -88,7 +87,7 @@ public final class KamiGramIds {
                 }
             }
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
         return true;
     }

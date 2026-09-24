@@ -14,7 +14,6 @@ import android.widget.ImageView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -79,7 +78,7 @@ public final class KamiGramFloat {
             refreshHeader(item);
             return item;
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
             return null;
         }
     }
@@ -134,7 +133,7 @@ public final class KamiGramFloat {
             }
             enterPip(activity);
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 
@@ -158,7 +157,7 @@ public final class KamiGramFloat {
                 showBubble();
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 
@@ -216,7 +215,7 @@ public final class KamiGramFloat {
             builder.setSourceRectHint(rect);
             activity.enterPictureInPictureMode(builder.build());
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
             KamiGramUi.notify(activity, "Не удалось открыть плавающее окно");
         }
     }
@@ -325,7 +324,7 @@ public final class KamiGramFloat {
             windowManager.addView(bubble, params);
             bubbleView = bubble;
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 
@@ -351,7 +350,7 @@ public final class KamiGramFloat {
                 | android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             activity.startActivity(intent);
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 }

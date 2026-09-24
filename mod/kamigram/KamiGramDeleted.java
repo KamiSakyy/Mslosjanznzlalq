@@ -3,7 +3,6 @@ package org.telegram.messenger.kamigram;
 import android.content.SharedPreferences;
 
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 
 import java.util.ArrayList;
@@ -72,7 +71,7 @@ public final class KamiGramDeleted {
                     }
                 }
             } catch (Throwable throwable) {
-                FileLog.e(throwable);
+                KamiGramLog.e(throwable);
             }
         }
         return ids;
@@ -101,7 +100,7 @@ public final class KamiGramDeleted {
                     }
                 }
             } catch (Throwable throwable) {
-                FileLog.e(throwable);
+                KamiGramLog.e(throwable);
             }
         }
         return unknownIds;
@@ -130,7 +129,7 @@ public final class KamiGramDeleted {
                 editor.apply();
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -188,7 +187,7 @@ public final class KamiGramDeleted {
                 persist();
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -214,7 +213,7 @@ public final class KamiGramDeleted {
                 persist();
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -289,7 +288,7 @@ public final class KamiGramDeleted {
             }
             return kept;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
             return messages;
         }
     }

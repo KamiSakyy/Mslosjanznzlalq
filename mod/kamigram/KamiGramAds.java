@@ -171,7 +171,7 @@ public final class KamiGramAds {
                 .setPositiveButton("Закрыть", null)
                 .show();
         } catch (Throwable throwable) {
-            org.telegram.messenger.FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

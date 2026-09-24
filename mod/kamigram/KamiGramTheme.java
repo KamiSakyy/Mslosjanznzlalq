@@ -1,6 +1,5 @@
 package org.telegram.messenger.kamigram;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.Theme;
 
 /**
@@ -28,7 +27,7 @@ public final class KamiGramTheme {
         try {
             ThemeHook.applyAccent();
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 }

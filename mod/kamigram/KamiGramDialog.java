@@ -19,7 +19,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 
 /**
  * KamiGram: свои аккуратные диалоги вместо стандартных.
@@ -232,7 +231,7 @@ public final class KamiGramDialog {
                 dialog.show();
                 return dialog;
             } catch (Throwable throwable) {
-                FileLog.e(throwable);
+                KamiGramLog.e(throwable);
                 return null;
             }
         }
