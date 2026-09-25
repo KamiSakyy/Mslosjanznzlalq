@@ -192,6 +192,14 @@ jobs:
       - name: Кэш Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: ImageMagick для Android-вариантов существующего artwork
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          convert --version | head -1
+          identify --version | head -1
+
       - name: Свой ключ подписи (генерируется один раз и коммитится в repo)
         env:
           KS_ALIAS: kamigram
