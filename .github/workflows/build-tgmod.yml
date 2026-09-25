@@ -229,7 +229,9 @@ jobs:
           # Подпись — оригинальный ключ Telegram (android / androidkey), как просил заказчик:
           # сборка быстрее, ключ не генерируется и не хранится. Своя подпись отключается.
           echo "::notice title=Подпись::оригинальный ключ Telegram (android / androidkey)"
-          bash modrepo/mod/apply-mod.sh
+          # Keep the patcher output in the workspace so a pre-Gradle failure is
+          # diagnosable even when the Actions log-results URL expires.
+          bash modrepo/mod/apply-mod.sh 2>&1 | tee apply.log
 
       - name: Быстрая проверка кода (fail-fast, только по запросу)
         if: ${{ inputs.fail_fast == '1' || inputs.fail_fast == 'true' }}
@@ -259,20 +261,20 @@ jobs:
         run: |
           echo "### Свободное место"; df -h / || true
           echo "### Память"; free -h || true
-          for f in javac.log build.log; do
+          for f in apply.log javac.log build.log; do
             [ -f "$f" ] && { echo "### последние строки $f"; tail -n 25 "$f"; }
           done
           found=0
-          for f in javac.log build.log; do
+          for f in apply.log javac.log build.log; do
             if [ -f "$f" ]; then
               found=1
               echo "### Аннотации из $f (Checks API)"
-              grep -nE "error:|error;|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" | tail -n 6 | tr -d '\r' | while IFS= read -r line; do
-                echo "::error title=Gradle ${f}::${line:0:900}"
+              grep -nE "\[fail\]|Traceback|error:|error;|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" | tail -n 10 | tr -d '\r' | while IFS= read -r line; do
+                echo "::error title=Сбой ${f}::${line:0:900}"
               done
             fi
           done
-          [ "$found" = "0" ] && echo "::error title=Gradle::ни javac.log, ни build.log не найдены — сборка упала до запуска Gradle"
+          [ "$found" = "0" ] && echo "::error title=Сборка::ни apply.log, ни javac.log, ни build.log не найдены"
           exit 0
 
       - name: Загрузить лог сборки при падении
@@ -281,6 +283,7 @@ jobs:
         with:
           name: build-log-${{ github.run_number }}
           path: |
+            apply.log
             build.log
             javac.log
           if-no-files-found: ignore
