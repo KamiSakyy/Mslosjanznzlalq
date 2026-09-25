@@ -19,7 +19,7 @@ public final class KamiGramDeleteMyMessages {
      * actions are deliberately excluded. No confirmation dialog or timer is
      * inserted, and KamiGramDeleted records the local copy before deletion.
      */
-    public static int delete(Context context, int account, long dialogId, int topicId,
+    public static int delete(Context context, int account, long dialogId, long topicId,
                              int chatMode, ArrayList<MessageObject> loaded) {
         final ArrayList<Integer> ids = new ArrayList<>();
         if (loaded != null) {
@@ -40,7 +40,9 @@ public final class KamiGramDeleteMyMessages {
         try {
             KamiGramDeleted.beforeDelete(dialogId, ids);
             final MessagesController controller = MessagesController.getInstance(account);
-            controller.deleteMessages(ids, null, null, dialogId, topicId, true, chatMode);
+            // Telegram's own deleteMessages takes the topic as int; the chat
+            // passes threadMessageId (long), exactly like stock `(int) getTopicId()`.
+            controller.deleteMessages(ids, null, null, dialogId, (int) topicId, true, chatMode);
         } catch (Throwable ignored) {
         }
         return ids.size();

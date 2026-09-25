@@ -241,8 +241,11 @@ jobs:
           # diagnosable even when the Actions log-results URL expires.
           bash modrepo/mod/apply-mod.sh 2>&1 | tee apply.log
 
-      - name: Быстрая проверка кода (fail-fast, только по запросу)
-        if: ${{ inputs.fail_fast == '1' || inputs.fail_fast == 'true' }}
+      # На push этот шаг выполняется всегда (inputs пустой): javac падает за
+      # ~5 минут вместо 20+ минут полной сборки с NDK, и javac.log уходит в
+      # диагностику. В workflow_dispatch по умолчанию выключен (fail_fast=0).
+      - name: Быстрая проверка кода (javac до сборки APK)
+        if: ${{ inputs.fail_fast != '0' }}
         working-directory: telegram-src
         run: |
           set +e
@@ -297,7 +300,8 @@ jobs:
                 echo '```'
                 echo
               } >> "$SUMMARY"
-              grep -nE "error: |error; " "$f" | head -n 30 | tr -d '\r' | while IFS= read -r line; do
+              grep -nE "error: |error; " "$f" | grep -vE "C/C\+\+:|Multiple substitutions" \
+                | head -n 30 | tr -d '\r' | while IFS= read -r line; do
                 echo "::error title=javac ${f}::${line:0:900}"
               done
             fi
@@ -312,6 +316,7 @@ jobs:
               echo
             } >> "$SUMMARY"
             grep -nE "\[fail\]|Traceback|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" \
+              | grep -vE "C/C\+\+:|Multiple substitutions" \
               | tail -n 15 | tr -d '\r' | while IFS= read -r line; do
               echo "::error title=Сбой ${f}::${line:0:900}"
             done
