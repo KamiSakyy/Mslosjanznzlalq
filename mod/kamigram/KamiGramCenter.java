@@ -285,7 +285,18 @@ public final class KamiGramCenter {
                приложений требует системное разрешение «поверх других окон».
                Пункт ведёт на системную страницу разрешения и показывает статус. */
             Row.action("Видео поверх приложений · " + (isOverlayGranted(context) ? "разрешено" : "разрешить"),
-                () -> openOverlaySettings(context)),
+                () -> {
+                    /* r105: не тащим в настройки, если разрешение уже выдано —
+                       строка обновляется и больше не просит «включить». */
+                    if (isOverlayGranted(context)) {
+                        KamiGramUi.notify(context, "Разрешение уже выдано — видео работает поверх приложений");
+                        if (onChanged != null) {
+                            onChanged.run();
+                        }
+                        return;
+                    }
+                    openOverlaySettings(context);
+                }),
             /* r104: честный размер кэша прямо в центре; очистка — только в
                родном экране Telegram (openCacheSettings), без фейковых кнопок. */
             Row.action("Кэш сейчас · " + KamiGramCache.human(KamiGramCache.total()),
