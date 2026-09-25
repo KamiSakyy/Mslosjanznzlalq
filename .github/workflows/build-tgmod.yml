@@ -364,12 +364,20 @@ jobs:
           grep -q "name='$APP_PACKAGE'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверный package id (ждали $APP_PACKAGE)"; FAILED=1; }
           grep -q "application-label:'$APP_NAME'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверное название приложения (ждали $APP_NAME)"; FAILED=1; }
           [ -n "$VERSION" ] && grep -q "versionName='$VERSION'" /tmp/badging.txt || { echo "::warning title=Проверка::версия в APK отличается от gradle.properties ($VERSION)"; }
-          ICON_ENTRIES=$(unzip -l "$APK" 2>/dev/null | grep -cE 'mipmap-[^/]+/kamigram_launcher\.png' || true)
-          echo "Sakura launcher PNG entries in APK: $ICON_ENTRIES"
-          [ "$ICON_ENTRIES" -ge 5 ] || echo "::warning title=Проверка::фирменная Emilia/Sakura launcher-иконка не найдена по ожидаемому resource name; полный launcher список ниже"
-          ICON_LIST=$(unzip -Z1 "$APK" 2>/dev/null | grep -E '(^|/)(mipmap|drawable)[^/]*/.*(launcher|ic_launcher).*\.(png|xml)$' | tr '\n' ' ' || true)
+          # Иконка Sakura: имена файлов в release-APK обфусцированы (res/Ab3.png),
+          # поэтому проверяем не пути, а таблицу ресурсов aapt2: адаптивный
+          # foreground из существующего Emilia artwork и круглый legacy launcher
+          # обязаны присутствовать на всех плотностях.
+          "$AAPT2" dump resources "$APK" > /tmp/resources.txt 2>/tmp/resources.err || true
+          FG_CONFIGS=$(grep -A40 'mipmap/kamigram_icon_foreground' /tmp/resources.txt | grep -cE '\((default|mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi)\)' || true)
+          ROUND_CONFIGS=$(grep -A40 'mipmap/ic_launcher_round' /tmp/resources.txt | grep -cE '\((default|mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|anydpi-v26)\)' || true)
+          BADGING_ICONS=$(grep -cE '^application-icon-' /tmp/badging.txt || true)
+          echo "Emilia foreground configs: $FG_CONFIGS | ic_launcher_round configs: $ROUND_CONFIGS | badging icons: $BADGING_ICONS"
+          ICON_LIST=$(grep -E 'mipmap/(ic_launcher|ic_launcher_round|kamigram_icon_foreground)' /tmp/resources.txt | tr '\n' ' ' || true)
           echo "::notice title=APK launcher resources::${ICON_LIST:0:900}"
-          grep -q "kamigram_launcher" /tmp/badging.txt || echo "::notice title=Проверка::aapt2 badging не вывел имя alias, полный APK launcher список записан выше"
+          [ "$FG_CONFIGS" -ge 5 ] || { echo "::error title=Проверка::Emilia foreground иконки нет на всех плотностях (найдено $FG_CONFIGS)"; FAILED=1; }
+          [ "$ROUND_CONFIGS" -ge 5 ] || { echo "::error title=Проверка::круглого launcher-ресурса ic_launcher_round нет на всех плотностях (найдено $ROUND_CONFIGS)"; FAILED=1; }
+          [ "$BADGING_ICONS" -ge 1 ] || { echo "::error title=Проверка::aapt2 badging не видит application-icon — иконка не зарегистрирована"; FAILED=1; }
           [ "$FAILED" = "1" ] && exit 1
 
           # --- информационные проверки ---
