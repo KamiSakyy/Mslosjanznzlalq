@@ -59,14 +59,14 @@ DISABLE_UPDATER=${DISABLE_UPDATER:-1}
 DISABLE_BILLING=${DISABLE_BILLING:-0}
 USE_CCACHE=${USE_CCACHE:-1}
 # экономия трафика / размер
-AUTODOWNLOAD_OFF=${AUTODOWNLOAD_OFF:-1}   # автоскачивание медиа выключено по умолчанию
+AUTODOWNLOAD_OFF=${AUTODOWNLOAD_OFF:-0}   # r101: автоскачивание как в оригинале (фото/видео/документы грузятся сами)
 NO_STICKERS=${NO_STICKERS:-1}             # стикеры и премиум-эмодзи не загружаются вообще
 MAX_ECONOMY=${MAX_ECONOMY:-0}             # power-saver (0 = анимации и плавность остаются)
 RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
 SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
 PATCH_GS=${PATCH_GS:-1}                   # правка google-services.json под свой applicationId
 IOS_THEME=${IOS_THEME:-0}                 # legacy switch ignored: stock Telegram themes only
-FLAT_UI=${FLAT_UI:-1}                     # плоский дизайн: убрать тяжёлый узор чата
+FLAT_UI=${FLAT_UI:-0}                     # r101: узор чата остаётся оригинальным (фотообои выглядят как в Telegram)
 AUTO_PROXY=${AUTO_PROXY:-1}               # ссылка на прокси активирует его сразу
 DROP_APPINDEXING=${DROP_APPINDEXING:-1}   # вырезать Google App Indexing (меньше APK)
 IOS_UI=${IOS_UI:-1}                       # НАСТОЯЩИЙ КОД: собственный iOS-интерфейс Sakura
@@ -489,21 +489,25 @@ if marker not in src:
         if old_tail not in src:
             sys.stderr.write('P12: не найдено возвращение value в getValue\n')
             sys.exit(1)
-        new_tail = ('        ' + marker + ' iOS flat look + full UI smoothness */\n'
-                    '        // UI animations stay on, but the look is flat and traffic-free:\n'
-                    '        // liquid glass, blur, custom wallpaper and autoplay are off\n'
-                    '        return (value | PRESET_HIGH)\n'
-                    '            & ~FLAG_LIQUID_GLASS & ~FLAG_CHAT_BLUR & ~FLAG_CHAT_BACKGROUND\n'
-                    '            & ~FLAG_AUTOPLAY_VIDEOS & ~FLAG_AUTOPLAY_GIFS;\n'
+        # KAMIGRAM_DEFAULT_MEDIA_POLICY_R101: LiteMode больше не форсится.
+        # Прежняя маска гасила FLAG_CHAT_BACKGROUND (фотообои вообще перестали
+        # грузиться) и FLAG_AUTOPLAY_* — отсюда жалоба «фотообои не грузят».
+        # Размытие/«стекло» переключает сам пользователь в центре Sakura
+        # (KamiGramOptimize.apply), а обои и автоплей остаются стоковыми.
+        new_tail = ('        ' + marker + ' r101: LiteMode стоковый, фотообои и автоплей не гасятся */\n'
+                    '        return value;\n'
                     '    }\n\n    private static int lastBatteryLevelCached = -1;')
         src = src.replace(old_tail, new_tail, 1)
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
 has "$LM" "KAMIGRAM_FLAT_SMOOTH" || die "P12: маркер не внедрён"
+if sed -n '/KAMIGRAM_FLAT_SMOOTH/,/return value;/p' "$LM" | grep -q 'FLAG_CHAT_BACKGROUND'; then
+    die "P12: фотообои снова гасятся форсом (FLAG_CHAT_BACKGROUND)"
+fi
 if [ "$MAX_ECONOMY" = "1" ]; then
-    ok "P12 power-saver форсирован: анимации/автоплей/частицы/blur — off"
+    ok "P12 power-saver форсирован (опция): анимации/автоплей/частицы/blur — off"
 else
-    ok "P12 плоский и плавный режим: «стекло» и размытие выключены, анимации и прокрутка работают как в оригинале Tele"
+    ok "P12 LiteMode стоковый: фотообои, автоплей видео/GIF и анимации не гасятся; blur — тумблер в центре Sakura"
 fi
 
 # =============================================================================
@@ -2458,7 +2462,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_SAFETY_R78" || die "P105: private/contact safety marker отсутствует"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_THRESHOLD_R82" || die "P105: strict >500 cleaner marker отсутствует"
     has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R81" || die "P105: media filter может блокировать обычные emoji/media"
-    has "$KAMI_PKG/KamiGramCenter.java" "Тема Telegram" || die "P105: кнопка «Тема Telegram» отсутствует"
+    has "$KAMI_PKG/KamiGramCenter.java" "Темы оформления" || die "P105: кнопка тем оформления отсутствует (r101: без слова Telegram в UI)"
     ok "P105 r81: instant downloads/send, account-safe proxy guard, cleaner safety markers, no-op-compatible AsuMeo gate, native Telegram themes only"
 else
     skip "P105 r81 отключено (ZERO_TRAFFIC=0)"
@@ -2661,6 +2665,150 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     ok "P109 r94: media auto-cleanup полностью отключён независимо от настройки, temp/parts/resume не трогаются на startup, очистка оставлена штатному Telegram CacheControlActivity"
 else
     skip "P109 r94 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P111. r101 — БРЕНД SAKURA ВНУТРИ ПРИЛОЖЕНИЯ И «SAKURA КАНАЛ».
+#      Пользователь: «внутри приложения название должно быть Sakura, а не
+#      Telegram» и «кнопку "Возможности Telegram" переименуй в "Sakura канал",
+#      по нажатию открывай канал @AsuMeo».
+#      Два слоя:
+#        1) strings.xml всех локалей — видимый текст переписан (ссылки, домены,
+#           authority и идентификаторы не трогаются);
+#        2) KamiGramBranding в LocaleController — облачные языковые пакеты
+#           Telegram применяются поверх ресурсов уже после старта, поэтому
+#           строка фильтруется и в рантайме.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG"
+    for f in KamiGramBranding KamiGramUploads; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P111: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    python3 "$KAMIGRAM_SRC/apply_branding.py" "$TG_DIR/TMessagesProj/src/main" || die "P111: бренд Sakura не применился"
+    has "$JAVA_ROOT/org/telegram/messenger/LocaleController.java" "KamiGramBranding.localize" || die "P111: облачные переводы могут вернуть «Telegram»"
+    has "$JAVA_ROOT/org/telegram/ui/SettingsActivity.java" "KamiGramBranding.featuresTitle" || die "P111: строка «Sakura канал» не подставлена"
+    has "$JAVA_ROOT/org/telegram/ui/SettingsActivity.java" "KamiGramBranding.CHANNEL_URL" || die "P111: «Sakura канал» не открывает @AsuMeo"
+    has "$RES_ROOT/values/strings.xml" '<string name="TelegramFeaturesUrl">https://t.me/AsuMeo</string>' || die "P111: URL канала не заменён"
+    if grep -q '>Telegram<' "$RES_ROOT/values/strings.xml"; then
+        die "P111: в ресурсах осталось видимое название Telegram"
+    fi
+    ok "P111 r101: внутри приложения бренд Sakura (ресурсы + облачные переводы), «Sakura канал» открывает https://t.me/AsuMeo"
+else
+    skip "P111 бренд отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P112. r101 — ОТПРАВКА ФАЙЛОВ/ФОТО/ВИДЕО >10 МБ В ФОНЕ ЧЕРЕЗ СЕРВИС.
+#      Пользователь: «отправка файлов, фото, видео и т.д. больше 10 МБ тоже
+#      должна идти в фоне через сервис с уведомлением, как загрузка».
+#      Все отправки Telegram (фото, видео, кружочки, голосовые, документы)
+#      проходят через FileLoader.FileLoaderDelegate, реализация которого живёт
+#      в ImageLoader — там и ставится учёт KamiGramUploads. Нативный
+#      FileUploadOperation по-прежнему сам режет файл на части, повторяет
+#      запросы и умеет resume; сервис только держит процесс живым, показывает
+#      прогресс и останавливается сам, когда крупных отправок не осталось.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    for f in KamiGramUploads KamiGramDownloadService; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P112: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    python3 "$KAMIGRAM_SRC/apply_upload_service.py" "$JAVA_ROOT" || die "P112: учёт крупных отправок не применился"
+    has "$JAVA_ROOT/org/telegram/messenger/ImageLoader.java" "KamiGramUploads.onProgress" || die "P112: прогресс отправки не доходит до сервиса"
+    has "$KAMI_PKG/KamiGramDownloadService.java" "ensureStartedForLargeUpload" || die "P112: сервис не поднимается для крупных отправок"
+    has "$KAMI_PKG/KamiGramDownloadService.java" "stat_sys_upload" || die "P112: у уведомления отправки нет своей иконки"
+    has "$KAMI_PKG/KamiGramUploads.java" "FOREGROUND_MIN_BYTES" || die "P112: порог 10 МБ для отправки отсутствует"
+    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST" || die "P112: foreground service не объявлен"
+    ok "P112 r101: отправка фото/видео/файлов >10 МБ идёт в фоне через foreground-сервис с прогрессом и сама останавливается"
+else
+    skip "P112 фоновая отправка отключена (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P113. r101 — ПРОВЕРКА ПОЛИТИКИ ЗАГРУЗКИ ПО УМОЛЧАНИЮ.
+#      По умолчанию НЕ грузятся только стикеры, премиум-эмодзи и истории
+#      (истории — свой отдельный тумблер). Фотообои, аватары (включая видео- и
+#      эмодзи-аватары), фото, видео, документы, аудио и GIF идут штатно.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    SC="$JAVA_ROOT/org/telegram/messenger/SharedConfig.java"
+    DCC="$JAVA_ROOT/org/telegram/messenger/DownloadController.java"
+    has "$SC" 'fastWallpaperDisabled", false' || die "P113: фотообои снова отключены по умолчанию"
+    has "$SC" 'streamMedia", true' || die "P113: стриминг медиа выключен по умолчанию"
+    has "$SC" 'saveStreamMedia", true' || die "P113: стриминговое медиа не сохраняется"
+    has "$SC" 'direct_share", true' || die "P113: шеринг снова без аватарок и превью"
+    has "$SC" 'inappCamera", true' || die "P113: встроенная камера снова выключена"
+    has "$SC" 'keep_media", CacheByChatsController.KEEP_MEDIA_FOREVER' || die "P113: скачанное снова удаляется по сроку"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_STORIES_TOGGLE_R101" || die "P113: истории не отключаются отдельным тумблером"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_AVATAR_SAFE_R101" || die "P113: фильтр может блокировать аватары и фотообои"
+    has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_DEFAULT_MEDIA_POLICY_R101" || die "P113: дефолты медиа-политики не на месте"
+    has "$DCC" "KAMIGRAM_NO_STORIES_PRELOAD" || die "P113: предзагрузка историй не подчиняется тумблеру"
+    has "$DCC" "KAMIGRAM_NO_GIF_AUTO_R101" || die "P113: GIF блокируются без тумблера"
+    if [ "$FLAT_UI" != "1" ]; then
+        pattern_size=$(wc -c < "$RES_ROOT/raw/default_pattern.svg" 2>/dev/null || echo 0)
+        [ "$pattern_size" -gt 1000 ] || die "P113: узор чата подменён заглушкой — фотообои выглядят сломанными"
+    fi
+    ok "P113 r101: по умолчанию не грузятся только стикеры, премиум-эмодзи и истории; обои, аватары, фото, видео, GIF — штатно"
+else
+    skip "P113 проверка медиа-политики отключена (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P114. r101 — ГЛОБАЛЬНЫЙ ПОИСК БЕЗ ОГРАНИЧЕНИЙ + ФИЛЬТРЫ ФОТО/ВИДЕО/GIF.
+#      Жалоба: «глобальный поиск не работает, ищет только из существующих;
+#      глобальный поиск всегда приоритет, даже 1 буква — сразу результат;
+#      добавь фильтры (только фото и т.д., по #), бесконечная лента фото;
+#      убери любые ограничения».
+#      Причины и лечение:
+#        1) TL_contacts_search (глобальный поиск людей/каналов) блокировался
+#           фильтром «часто используемые» — убран из блок-листа, и весь поиск
+#           внесён в белый список KamiGramNetFilter (не блокируется ничем);
+#        2) нативные вкладки «Каналы / Боты / Посты / Публичные посты» и
+#           медиа-фильтры прятались при dialogsCount <= 10 и выключенных
+#           историях — теперь доступны всегда;
+#        3) добавлены отдельные фильтры «Фото», «Видео», «GIF»
+#           (бесконечная сетка медиа, поиск по всем каналам);
+#        4) лимиты 20 → 100 (searchGlobal/messages) и 20 → 50 (contacts),
+#           задержка поиска 300 мс → 0 (отклик с первого символа).
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    python3 "$KAMIGRAM_SRC/apply_search_power.py" "$TG_DIR/TMessagesProj/src/main" || die "P114: глобальный поиск не разблокирован"
+    grep -q '"TL_contacts_search"' "$KAMI_PKG/KamiGramNetFilter.java" && die "P114: глобальный поиск людей всё ещё блокируется фильтром"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_SEARCH_NO_LIMITS_R101" || die "P114: белый список поиска отсутствует"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "return onlySelect;" || die "P114: вкладки и фильтры поиска всё ещё прячутся"
+    has "$JAVA_ROOT/org/telegram/ui/Adapters/FiltersView.java" "TL_inputMessagesFilterPhotos" || die "P114: фильтр «Фото» не добавлен"
+    has "$JAVA_ROOT/org/telegram/ui/Components/SearchViewPager.java" "item.filterIndex = 7;" || die "P114: вкладки новых фильтров не добавлены"
+    has "$RES_ROOT/values/strings.xml" "SakuraPhotosFilter" || die "P114: нет названий новых фильтров"
+    has "$RES_ROOT/values-ru/strings.xml" "SakuraPhotosFilter" || die "P114: нет русских названий фильтров"
+    grep -q '}, 300);' "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" && die "P114: задержка поиска 300 мс не убрана"
+    ok "P114 r101: глобальный поиск без ограничений и всегда приоритет (1 символ → сразу результат), вкладки Каналы/Боты/Посты/Публичные посты видны всегда, фильтры Фото/Видео/GIF с бесконечной лентой, лимиты 100/50, отклик мгновенный"
+else
+    skip "P114 поиск отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P115. r101 — ИКОНКА SAKURA ВЕЗДЕ ВМЕСТО ИКОНКИ TELEGRAM.
+#      Жалоба: «иконка приложения должна быть везде, замени оригинальную иконку
+#      телеграм на нашу во всех местах». Лаунчер заменён ранее (P2A); здесь
+#      заменяются остальные оригинальные телеграм-ассеты: статус-бар
+#      (notification), крупная иконка уведомлений/VoIP (ic_launcher_dr),
+#      логотип в правилах (logo_middle), самолётик входа (intro_tg_plane),
+#      «пригласить в Telegram» (menu_invit_telegram), book_logo, menu_intro,
+#      menu_feature_intro. Форматы и размеры файлов сохраняются 1-в-1.
+# =============================================================================
+if [ -f "$KAMIGRAM_SRC/kamigram_icon_artwork.jpg" ]; then
+    python3 "$KAMIGRAM_SRC/apply_icons_everywhere.py" "$KAMIGRAM_SRC/kamigram_icon_artwork.jpg" "$RES_ROOT" || die "P115: иконки не заменены"
+    for asset in notification ic_launcher_dr logo_middle intro_tg_plane menu_invit_telegram book_logo menu_intro menu_feature_intro; do
+        ls "$RES_ROOT"/drawable*/$asset.* >/dev/null 2>&1 || die "P115: пропал ассет $asset"
+    done
+    ok "P115 r101: иконка Sakura во всех местах вместо иконки Telegram (статус-бар, уведомления, вход, логотипы, меню)"
+else
+    skip "P115 нет исходника арта"
 fi
 
 # =============================================================================

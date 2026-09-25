@@ -8,7 +8,9 @@ import org.telegram.tgnet.TLRPC;
  * Sakura: фильтр «нулевого трафика».
  *
  * Всё, что жрёт интернет впустую, отсекается ДО выхода в сеть - в одном месте:
- *   - стикеры, наборы эмодзи, premium emoji и GIF-файлы (только эти медиа);
+ *   - стикеры, премиум-эмодзи и истории — единственные категории, которые по
+ *     умолчанию НЕ загружаются (r101); каждая отключается своим тумблером;
+ *   - аватары, обои, фото, видео, документы, аудио и GIF идут штатно;
  *   - реклама: спонсорские сообщения, промо, Telegram Premium, Stars, бусты;
  *   - рекомендации, «часто используемые», превью ссылок, телефонная книга;
  *   - в режиме «призрак» - подтверждения прочтения, «печатает» и статус «в сети»
@@ -44,12 +46,16 @@ public final class KamiGramNetFilter {
         "TL_contacts_getSponsoredPeers"
     };
 
-    /** «Часто используемые» контакты и топ-пиры: лишний трафик и лишние данные о нас. */
+    /**
+     * «Часто используемые» контакты и топ-пиры: лишний трафик и лишние данные о нас.
+     * KAMIGRAM_SEARCH_NO_LIMITS_R101: TL_contacts_search здесь БОЛЬШЕ НЕТ — это
+     * запрос глобального поиска людей/каналов/групп, и именно из-за него
+     * «глобальный поиск не работал, искал только по своим».
+     */
     private static final String[] TOP_PEERS = {
         "TL_contacts_getTopPeers",
         "TL_contacts_toggleTopPeers",
-        "TL_contacts_resetTopPeerRating",
-        "TL_contacts_search"
+        "TL_contacts_resetTopPeerRating"
     };
 
     /** Поиск GIF, стикеров и инлайн-ботов при вводе текста. */
@@ -67,10 +73,7 @@ public final class KamiGramNetFilter {
         "TL_messages_getFactCheck"
     };
 
-    /**
-     * Чисто «телеграмовский» трафик, который моду не нужен: реклама Premium/Stars,
-     * бусты, наборы GIF и музыки. Ничего полезного в этих запросах нет.
-     */
+    /** Premium/Stars/boosts-запросы: отсекаются только вместе с витриной Premium. */
     /**
      * «Премиум-украшения» Telegram: тяжёлые файлы, которые моду не нужны.
      * Стикеры и премиум-эмодзи здесь БОЛЬШЕ НЕ лежат: они нужны пользователю
@@ -84,6 +87,29 @@ public final class KamiGramNetFilter {
         "TL_premium_getMyBoosts",
         "TL_payments_getStarsStatus",
         "TL_payments_getStarsTransactions"
+    };
+
+    /**
+     * KAMIGRAM_STORIES_TOGGLE_R101: истории — отдельный тумблер, не связанный со
+     * стикерами и премиум-эмодзи. По умолчанию истории НЕ загружаются.
+     * Здесь только читающие запросы ленты/архива: публикация, редактирование,
+     * удаление своей истории и выбор чата для публикации не блокируются
+     * никогда — иначе нельзя было бы выложить свою историю.
+     */
+    private static final String[] STORIES = {
+        "TL_stories_getAllStories",
+        "TL_stories_getStories",
+        "TL_stories_getPeerStories",
+        "TL_stories_getStoriesByID",
+        "TL_stories_getPeerMaxIDs",
+        "TL_stories_getPinnedStories",
+        "TL_stories_getArchive",
+        "TL_stories_getForyouFeed",
+        "TL_stories_getStoryViewsList",
+        "TL_stories_getStoryViewers",
+        "TL_stories_getStoryReactionsList",
+        "TL_stories_getPublicForwards",
+        "TL_stories_getOutboxReadDate"
     };
 
     /** Витрина Premium/Stars/TON — скрыта, пока пользователь не включит её сам. */
@@ -156,6 +182,13 @@ public final class KamiGramNetFilter {
                KamiGramGhost.interceptRequest() в ConnectionsManager.sendRequestInternal.
                Прежняя схема («выбросить запрос по имени класса») не срабатывала и ломала
                локальные счётчики непрочитанного. */
+            /* KAMIGRAM_SEARCH_NO_LIMITS_R101: поиск не блокируется НИЧЕМ —
+               ни тумблерами экономии, ни стикерами, ни премиум-эмодзи, ни
+               историями. Глобальный поиск всегда имеет приоритет и работает
+               с первого введённого символа. */
+            if (isSearchRequest(full, simple)) {
+                return false;
+            }
             if (KamiGramConfig.noStickers() && isStickerRequest(full, simple)) {
                 return deny();
             }
@@ -165,9 +198,12 @@ public final class KamiGramNetFilter {
             if (KamiGramConfig.noPremiumUi() && (hit(PREMIUM, simple) || hit(PREMIUM, full))) {
                 return deny();
             }
-            /* KAMIGRAM_MEDIA_POLICY_R78: stories are ordinary Telegram media.
-               Only sticker, premium-emoji, and GIF requests are media-blocked;
-               story/video/audio/document requests must reach Telegram. */
+            /* KAMIGRAM_STORIES_TOGGLE_R101: истории отключаются ОТДЕЛЬНЫМ
+               тумблером (по умолчанию включён). Всё остальное — фото, видео,
+               документы, аудио, аватары, обои, GIF — проходит штатно. */
+            if (KamiGramConfig.noStories() && (hit(STORIES, simple) || hit(STORIES, full))) {
+                return deny();
+            }
             if (KamiGramConfig.noAds() && (hit(ADS, simple) || hit(ADS, full))) {
                 return deny();
             }
@@ -180,7 +216,14 @@ public final class KamiGramNetFilter {
             if (KamiGramConfig.noLinkPreview() && (hit(LINK_PREVIEW, simple) || hit(LINK_PREVIEW, full))) {
                 return deny();
             }
-            return (hit(TRASH, simple) || hit(TRASH, full)) && deny();
+            /* KAMIGRAM_NOTHING_BLOCKED_R101: «мусорные» Premium/Stars/boosts
+               запросы отсекаются ТОЛЬКО вместе с витриной Premium (её тумблер по
+               умолчанию выключен). По умолчанию не блокируется ничего, кроме
+               стикеров, премиум-эмодзи и историй — как просил пользователь. */
+            if (KamiGramConfig.noPremiumUi() && (hit(TRASH, simple) || hit(TRASH, full))) {
+                return deny();
+            }
+            return false;
         } catch (Throwable e) {
             KamiGramLog.e(e);
         }
@@ -210,13 +253,19 @@ public final class KamiGramNetFilter {
                 && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
                 return false;
             }
-            /* KAMIGRAM_MEDIA_POLICY_R78: story media is not a blocked category. */
-            if (KamiGramConfig.noStickers()
-                && (isStickerDocument(document) || isStickerMessage(parentObject))) {
+            /* KAMIGRAM_MEDIA_POLICY_R78 → KAMIGRAM_AVATAR_SAFE_R101:
+               фильтры медиа применяются ТОЛЬКО к
+               сообщениям чата. Аватары, видео-аватары, премиум/эмодзи-аватары,
+               фотообои, обои-видео и медиа профиля приходят с другим
+               parentObject (не MessageObject) и никогда не блокируются —
+               иначе «аватарки не грузятся». */
+            if (!(parentObject instanceof MessageObject)) {
+                return false;
+            }
+            if (KamiGramConfig.noStickers() && isStickerMessage(parentObject)) {
                 return denyFile(document);
             }
-            if (KamiGramConfig.noGifs()
-                && (isGifDocument(document) || isGifMessage(parentObject))) {
+            if (KamiGramConfig.noGifs() && isGifMessage(parentObject)) {
                 return denyFile(document);
             }
         } catch (Throwable e) {
@@ -270,6 +319,27 @@ public final class KamiGramNetFilter {
             }
         }
         return false;
+    }
+
+    /**
+     * Любой поисковый запрос: глобальный поиск людей/каналов (contacts.search),
+     * поиск сообщений и постов (messages.search / searchGlobal), поиск по
+     * участникам канала, подбор эмодзи/GIF/стикеров по запросу и резолв
+     * @username. Ни один из них не может быть отсеян фильтрами экономии.
+     */
+    private static boolean isSearchRequest(String full, String simple) {
+        if (full != null && (full.contains("search") || full.contains("Search"))) {
+            return true;
+        }
+        if (simple != null && (simple.contains("search") || simple.contains("Search"))) {
+            return true;
+        }
+        if (full == null) {
+            return false;
+        }
+        return full.endsWith("resolveUsername") || full.endsWith("getParticipants")
+            || full.endsWith("getEmojiKeywords") || full.endsWith("getSearchResultsCalendar")
+            || full.endsWith("getSearchCounters");
     }
 
     /** Запросы про стикеры, наборы эмодзи и премиум-эмодзи. */
