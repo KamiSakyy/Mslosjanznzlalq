@@ -2167,7 +2167,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages KamiGramChatSearch; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2888,6 +2888,15 @@ grep -q "enableR8.fullMode=true" "$TG_DIR/gradle.properties" || die "P119: R8 fu
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_BULK_SELECTION_SHOW" || die "P119: массовый выбор не показывает тулбар"
 has "$KAMI_PKG/KamiGramBulkSelector.java" "matchesFilter" || die "P119: в массовом выборе нет фильтров по типам"
 ok "P119 r107: R8/обфускация подключены, массовый выбор показывает тулбар выделения"
+
+# P120. r109 — сгорающие медиа можно пересылать/сохранять + «Поиск Sakura» в чате.
+python3 "$KAMIGRAM_SRC/apply_r109_fixes.py" "$TG_DIR" || die "P120: блокировки сгорающих медиа не сняты"
+python3 "$KAMIGRAM_SRC/apply_chat_search.py" "$TG_DIR" || die "P120: «Поиск Sakura» не добавился"
+has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_TTL_MEDIA_R109" || die "P120: меню сгорающих медиа не разблокировано"
+has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_TTL_GALLERY_R109" || die "P120: галерея сгорающих медиа не разблокирована"
+has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CHAT_SEARCH_ACTION" || die "P120: пункт «Поиск Sakura» не встал"
+has "$KAMI_PKG/KamiGramChatSearch.java" "FilteredSearchView" || die "P120: фрагмент поиска не скопирован"
+ok "P120 r109: сгорающие медиа пересылаются/сохраняются, серверный «Поиск Sakura» в чате с фильтрами"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
