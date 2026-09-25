@@ -281,6 +281,17 @@ public final class KamiGramCenter {
             Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
         card(root, context, new Row[]{
+            /* r104: «видео поверх приложений» — плавающее окно поверх ВСЕХ
+               приложений требует системное разрешение «поверх других окон».
+               Пункт ведёт на системную страницу разрешения и показывает статус. */
+            Row.action("Видео поверх приложений · " + (isOverlayGranted(context) ? "разрешено" : "разрешить"),
+                () -> openOverlaySettings(context)),
+            /* r104: честный размер кэша прямо в центре; очистка — только в
+               родном экране Telegram (openCacheSettings), без фейковых кнопок. */
+            Row.action("Кэш сейчас · " + KamiGramCache.human(KamiGramCache.total()),
+                () -> openCacheSettings(context))
+        });
+        card(root, context, new Row[]{
             Row.action("Разработчик Sakura", () -> openDeveloperChannel(context)),
             Row.action(SharedConfig.archiveHidden ? "Показать архив" : "Скрыть архив", () -> {
                 SharedConfig.toggleArchiveHidden();
@@ -430,6 +441,38 @@ public final class KamiGramCenter {
             }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
+        }
+    }
+
+    /**
+     * r104: системное разрешение «Поверх других приложений». Без него плавающее
+     * окно видео живёт только внутри Telegram (inAppOnly), а с ним — НАД всеми
+     * приложениями. Жалоба r103: «куда делось разрешение поверх приложений?».
+     */
+    public static void openOverlaySettings(Context context) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                context.startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + context.getPackageName())));
+                return;
+            }
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+        try {
+            context.startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION));
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+    }
+
+    /** r104: выдано ли разрешение «поверх других приложений». */
+    public static boolean isOverlayGranted(Context context) {
+        try {
+            return android.os.Build.VERSION.SDK_INT < 23
+                || android.provider.Settings.canDrawOverlays(context);
+        } catch (Throwable throwable) {
+            return false;
         }
     }
 

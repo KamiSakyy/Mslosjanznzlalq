@@ -2812,6 +2812,34 @@ else
 fi
 
 # =============================================================================
+# P116. r104 — ВИДЕО ПОВЕРХ ПРИЛОЖЕНИЙ: приоритет overlay + запрос разрешения.
+#      Жалоба: «видео не работает поверх приложений, только картинка в картинке,
+#      куда делось разрешение поверх приложений?». Разбор: PipVideoOverlay
+#      переходит в режим «только внутри приложения», если выдано лишь системное
+#      PiP-разрешение, а штатный диалог запроса overlay не показывался никогда.
+#      Теперь: overlay выдано -> плавающее окно НАД всеми приложениями;
+#      не выдано -> один раз показываем системный диалог «поверх других
+#      приложений»; в центре Sakura есть пункт «Видео поверх приложений»
+#      со ссылкой на системную страницу разрешения и статусом.
+#      Кэш (жалоба «перезашёл - кэш сбросился / фейковый сброс»): автоочистка
+#      отсутствует безусловно (r94), cleanupInternal и FileLoader.deleteFiles
+#      родные, в центре Sakura нет фейковых кнопок очистки - только честный
+#      размер и ссылка на родной экран очистки Telegram.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    python3 "$KAMIGRAM_SRC/apply_r104_fixes.py" "$TG_DIR/TMessagesProj/src/main" || die "P116: overlay-режим видео не починен"
+    has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_OVERLAY_POWER_R104" || die "P116: нет overlay-приоритета в PhotoViewer"
+    has "$KAMI_PKG/KamiGramCenter.java" "overlayPromptShown" || die "P116: нет флага запроса overlay"
+    has "$KAMI_PKG/KamiGramCenter.java" "openOverlaySettings" || die "P116: в центре нет пункта «Видео поверх приложений»"
+    has "$JAVA_ROOT/org/telegram/messenger/AutoDeleteMediaTask.java" "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" || die "P116: автоочистка кэша не отключена"
+    ! grep -q "KAMIGRAM_CLEANUP_SAFE: чистка базы" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P116: фейковый cleanup guard жив"
+    ok "P116 r104: видео поверх приложений работает (overlay-приоритет + запрос разрешения + пункт в центре), кэш не сбрасывается сам и чистится только как в оригинальном TG"
+else
+    skip "P116 overlay отключён (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
 #      P100-патчи вставляли вызовы классов Sakura, а сами классы в дерево не
