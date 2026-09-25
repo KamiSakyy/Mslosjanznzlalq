@@ -121,21 +121,8 @@ def remove_overlay_wiring():
 
     # Remove a permission if an older local build had added it. Do not touch
     # unrelated permissions or native Telegram video-call declarations.
-    for root, _, files in os.walk(os.path.join(TG, "TMessagesProj/src/main")):
-        for filename in files:
-            if not filename.endswith(".xml"):
-                continue
-            path = os.path.join(root, filename)
-            try:
-                text = read(path)
-            except OSError:
-                continue
-            result, count = re.subn(
-                r"\s*<uses-permission\s+android:name=\"android\.permission\.SYSTEM_ALERT_WINDOW\"\s*/>\s*\n?",
-                "\n", text)
-            if count:
-                write(path, result)
-                DONE.append("overlay: remove SYSTEM_ALERT_WINDOW permission")
+    # r106: разрешение «поверх других окон» БОЛЬШЕ не удаляется: без него
+    # плавающее окно видео не может работать поверх приложений (жалоба r105).
 
     for rel in ("messenger/kamigram/KamiGramFloat.java",):
         path = p(rel)

@@ -69,6 +69,36 @@ public final class KamiGramBranding {
     }
 
     /** Заголовок строки «Возможности Telegram» → «Sakura канал». */
+    /**
+     * r106: канал разработчика открывается ВНУТРИ приложения (tg://resolve),
+     * а не в браузере.
+     */
+    public static void openChannelInApp(android.content.Context context) {
+        if (context == null) {
+            return;
+        }
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse("tg://resolve?domain=AsuMeo"));
+            intent.setPackage(context.getPackageName());
+            if (!(context instanceof android.app.Activity)) {
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            context.startActivity(intent);
+            return;
+        } catch (Throwable ignored) {
+        }
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse(CHANNEL_URL));
+            if (!(context instanceof android.app.Activity)) {
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            context.startActivity(intent);
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static String featuresTitle() {
         return isRussian() ? "Sakura канал" : "Sakura Channel";
     }

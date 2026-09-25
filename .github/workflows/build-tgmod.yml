@@ -24,8 +24,8 @@ on:
         default: "com.kami.gram"
         type: string
       version_suffix:
-        description: "Суффикс версии"
-        default: "-mod"
+        description: "Суффикс версии (r106: пусто — без надписи mod)"
+        default: ""
         type: string
       abis:
         description: "Какие ABI собирать (arm64-v8a — быстрее всего)"
@@ -100,7 +100,7 @@ jobs:
     env:
       APP_NAME: ${{ inputs.app_name || 'Sakura' }}
       APP_PACKAGE: ${{ inputs.app_package || 'com.kami.gram' }}
-      APP_VERSION_SUFFIX: ${{ inputs.version_suffix || '-mod' }}
+      APP_VERSION_SUFFIX: ${{ inputs.version_suffix || '' }}
       ABIS: ${{ inputs.abis || 'arm64-v8a' }}
       TG_REF: ${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}

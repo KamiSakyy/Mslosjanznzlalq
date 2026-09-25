@@ -249,7 +249,7 @@ def patch_settings_activity(java_root):
         ),
         (
             "                    Browser.openUrl(getContext(), LocaleController.getString(R.string.TelegramFeaturesUrl));",
-            "                    Browser.openUrl(getContext(), org.telegram.messenger.kamigram.KamiGramBranding.CHANNEL_URL); /* %s: канал разработчика */" % MARKER,
+            "                    org.telegram.messenger.kamigram.KamiGramBranding.openChannelInApp(getContext()); /* %s: канал разработчика внутри приложения */" % MARKER,
         ),
     ]
     return patch_file(path, pairs, "SettingsActivity")

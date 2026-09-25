@@ -12,8 +12,8 @@ public final class KamiGramBuild {
     private KamiGramBuild() {
     }
 
-    /** Короткая подпись версии. */
+    /** Короткая подпись версии (r106: фиксированная, без технического номера). */
     public static String label() {
-        return "сборка " + NUMBER;
+        return "сборка k1";
     }
 }

@@ -343,6 +343,9 @@ public final class KamiGramDownloadService extends Service implements Notificati
                 : 0);
         final NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(icon)
+            /* r106: крупная цветная иконка Sakura в уведомлении о загрузке. */
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(),
+                org.telegram.messenger.R.drawable.ic_launcher_dr))
             .setContentTitle("Sakura")
             .setContentText(content.toString())
             .setOngoing(true)

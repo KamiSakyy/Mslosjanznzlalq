@@ -357,7 +357,8 @@ public final class KamiGramConfig {
     }
 
     public static boolean noScreenshots() {
-        return value(KEY_NO_SCREENSHOTS);
+        /* r106: скриншоты всегда разрешены, настройка убрана из интерфейса. */
+        return false;
     }
 
     public static boolean hideNotificationText() {
@@ -448,7 +449,13 @@ public final class KamiGramConfig {
     }
 
     public static boolean noAds() {
-        return value(KEY_NO_ADS);
+        /* r106: реклама выключена навсегда, включить обратно невозможно. */
+        return true;
+    }
+
+    /** r106: сгорающие и одноразовые медиа не уничтожаются после просмотра. */
+    public static boolean keepTtlMedia() {
+        return true;
     }
 
     public static boolean noPremiumUi() {

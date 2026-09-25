@@ -57,7 +57,7 @@ public final class KamiGramCenter {
             return;
         }
         try {
-            final String[] tabs = {"Связь", "Приватность", "Вид", "Память", "Другое"};
+            final String[] tabs = {"Связь", "Приватность", "Вид", "Другое"};
 
             final LinearLayout root = new LinearLayout(context);
             root.setOrientation(LinearLayout.VERTICAL);
@@ -130,7 +130,7 @@ public final class KamiGramCenter {
             root.addView(done, doneParams);
 
             final Section[] sections = {KamiGramCenter::fillConnection, KamiGramCenter::fillPrivacy,
-                KamiGramCenter::fillLook, KamiGramCenter::fillMemory, KamiGramCenter::fillOther};
+                KamiGramCenter::fillLook, KamiGramCenter::fillOther};
 
             final int[] current = {0};
             final TextView[] tabViews = new TextView[tabs.length];
@@ -197,14 +197,10 @@ public final class KamiGramCenter {
         card(root, context, new Row[]{
             Row.toggle("SakuProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
             Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
-            Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged),
-            Row.action("Открыть список прокси", () -> openProxyScreen(context))
+            Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Истории", KamiGramConfig.KEY_NO_STORIES, onChanged),
-            Row.toggle("Реклама и рекомендации", KamiGramConfig.KEY_NO_ADS, onChanged),
-            Row.toggle("Рекламные посты", KamiGramConfig.KEY_ADS_FILTER, onChanged),
-            Row.action("Показать скрытую рекламу", () -> KamiGramAds.showHiddenReport(context))
+            Row.toggle("Истории", KamiGramConfig.KEY_NO_STORIES, onChanged)
         });
         card(root, context, new Row[]{
             Row.toggle("Стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
@@ -230,8 +226,7 @@ public final class KamiGramCenter {
             Row.toggle("Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, onChanged),
-            Row.toggle("Запретить скриншоты", KamiGramConfig.KEY_NO_SCREENSHOTS, onChanged)
+            Row.toggle("Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, onChanged)
         });
     }
 
@@ -240,28 +235,10 @@ public final class KamiGramCenter {
     private static void fillLook(LinearLayout root, final Context context, final Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Плавные анимации", KamiGramConfig.KEY_SMOOTH_ANIMATIONS, onChanged),
-            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged),
-            Row.action("Темы оформления", () -> {
-                ThemeHook.toggleTelegramTheme(context);
-                if (onChanged != null) {
-                    onChanged.run();
-                }
-            })
+            Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged)
         });
         textSizeCard(root, context, onChanged);
         fontCard(root, context, onChanged);
-    }
-
-    // ------------------------------------------------------------------ ПАМЯТЬ
-
-    private static void fillMemory(LinearLayout root, final Context context, Runnable onChanged) {
-        // Кэш не очищается из центра Sakura. Единственный destructive path —
-        // родной CacheControlActivity Telegram, где пользователь выбирает
-        // категории и подтверждает штатную кнопку очистки.
-        card(root, context, new Row[]{
-            Row.action("Открыть настройки кэша", () -> openCacheSettings(context)),
-            Row.action("Загрузки", () -> openDownloads(context))
-        });
     }
 
     // ------------------------------------------------------------------ ДРУГОЕ (r70)
@@ -280,37 +257,13 @@ public final class KamiGramCenter {
             // legacy sponsor entry, so only the Sakura developer channel stays.
             Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
+        /* r106: канал и разработчик открываются ВНУТРИ приложения; лишние
+           надписи (кэш, архив, видео поверх приложений) убраны по просьбе
+           пользователя. Загрузки переехали сюда из вкладки «Память». */
         card(root, context, new Row[]{
-            /* r104: «видео поверх приложений» — плавающее окно поверх ВСЕХ
-               приложений требует системное разрешение «поверх других окон».
-               Пункт ведёт на системную страницу разрешения и показывает статус. */
-            Row.action("Видео поверх приложений · " + (isOverlayGranted(context) ? "разрешено" : "разрешить"),
-                () -> {
-                    /* r105: не тащим в настройки, если разрешение уже выдано —
-                       строка обновляется и больше не просит «включить». */
-                    if (isOverlayGranted(context)) {
-                        KamiGramUi.notify(context, "Разрешение уже выдано — видео работает поверх приложений");
-                        if (onChanged != null) {
-                            onChanged.run();
-                        }
-                        return;
-                    }
-                    openOverlaySettings(context);
-                }),
-            /* r104: честный размер кэша прямо в центре; очистка — только в
-               родном экране Telegram (openCacheSettings), без фейковых кнопок. */
-            Row.action("Кэш сейчас · " + KamiGramCache.human(KamiGramCache.total()),
-                () -> openCacheSettings(context))
-        });
-        card(root, context, new Row[]{
-            Row.action("Разработчик Sakura", () -> openDeveloperChannel(context)),
-            Row.action(SharedConfig.archiveHidden ? "Показать архив" : "Скрыть архив", () -> {
-                SharedConfig.toggleArchiveHidden();
-                KamiGramUi.notify(context, SharedConfig.archiveHidden ? "Архив скрыт" : "Архив показан");
-                if (onChanged != null) {
-                    onChanged.run();
-                }
-            })
+            Row.action("Sakura канал", () -> KamiGramBranding.openChannelInApp(context)),
+            Row.action("Разработчик Sakura", () -> KamiGramBranding.openChannelInApp(context)),
+            Row.action("Загрузки", () -> openDownloads(context))
         });
     }
 

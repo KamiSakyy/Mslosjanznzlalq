@@ -19,7 +19,7 @@
 #     TG_DIR               путь к склонированным исходникам DrKLO/Telegram
 #     APP_NAME             название приложения (launcher label + UI)   [Sakura]
 #     APP_PACKAGE          applicationId (свой, чтобы ставилось рядом с Telegram)
-#     APP_VERSION_SUFFIX   суффикс версии                               [-mod]
+#     APP_VERSION_SUFFIX   суффикс версии                               [пусто]
 #     ABIS                 какие ABI собирать (урезает время сборки)     [arm64-v8a]
 #     BRAND_STRINGS        1 = имя мода во всём UI, 0 = только label     [1]
 #     DISABLE_UPDATER      1 = не проверять обновления (нужно для мода)  [1]
@@ -52,7 +52,7 @@ set -Eeuo pipefail
 TG_DIR=${TG_DIR:-telegram-src}
 APP_NAME=${APP_NAME:-Sakura}
 APP_PACKAGE=${APP_PACKAGE:-com.kami.gram}
-APP_VERSION_SUFFIX=${APP_VERSION_SUFFIX:--mod}
+APP_VERSION_SUFFIX=${APP_VERSION_SUFFIX-}   # r106: пусто — версия без слова «mod»
 ABIS=${ABIS:-arm64-v8a}
 BRAND_STRINGS=${BRAND_STRINGS:-1}
 DISABLE_UPDATER=${DISABLE_UPDATER:-1}
@@ -2232,7 +2232,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     python3 "$KAMIGRAM_SRC/apply_r76_patches.py" "$TG_DIR" || die "P101: патчи r76 не применились"
 
     has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_GHOST_OVERFLOW_R76" || die "P101: призрак не перенесён в меню «⋮»"
-    if grep -R -n -E 'KAMIGRAM_FLOAT|KamiGramFloat|KamiGramGhost\.addHeaderItem|SYSTEM_ALERT_WINDOW' "$JAVA_ROOT" "$RES_ROOT" >/dev/null 2>&1; then
+    if grep -R -n -E 'KAMIGRAM_FLOAT|KamiGramFloat|KamiGramGhost\.addHeaderItem' "$JAVA_ROOT" "$RES_ROOT" >/dev/null 2>&1; then
         die "P101: в исходниках осталась функциональность overlay/PiP"
     fi
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_DOWNLOAD_STATIC_IDLE_R76" || die "P101: idle-анимация загрузок не исправлена"
@@ -2243,7 +2243,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/messenger/UserConfig.java" "KAMIGRAM_PREMIUM_RESTORE_R76" || die "P101: Premium-оформление не восстанавливается"
     has "$JAVA_ROOT/org/telegram/ui/PeerColorActivity.java" "KAMIGRAM_PREMIUM_SAVE_R76" || die "P101: Premium-оформление не сохраняется"
     [ -f "$KAMI_PKG/KamiGramPremiumState.java" ] || die "P101: нет локального Premium-хранилища"
-    ok "P101 r76: overlay/PiP удалён, призрак в меню «⋮», idle-иконка загрузок статична, custom и SakuProxy независимы с быстрым fallback, Premium-фон сохраняется"
+    ok "P101 r76: старая плавающая пузырь-кнопка удалена, призрак в меню «⋮», idle-иконка загрузок статична, custom и SakuProxy независимы с быстрым fallback, Premium-фон сохраняется"
 else
     skip "P101 r76 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2462,7 +2462,6 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_SAFETY_R78" || die "P105: private/contact safety marker отсутствует"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_THRESHOLD_R82" || die "P105: strict >500 cleaner marker отсутствует"
     has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R81" || die "P105: media filter может блокировать обычные emoji/media"
-    has "$KAMI_PKG/KamiGramCenter.java" "Темы оформления" || die "P105: кнопка тем оформления отсутствует (r101: без слова Telegram в UI)"
     ok "P105 r81: instant downloads/send, account-safe proxy guard, cleaner safety markers, no-op-compatible AsuMeo gate, native Telegram themes only"
 else
     skip "P105 r81 отключено (ZERO_TRAFFIC=0)"
@@ -2689,7 +2688,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     python3 "$KAMIGRAM_SRC/apply_branding.py" "$TG_DIR/TMessagesProj/src/main" || die "P111: бренд Sakura не применился"
     has "$JAVA_ROOT/org/telegram/messenger/LocaleController.java" "KamiGramBranding.localize" || die "P111: облачные переводы могут вернуть «Telegram»"
     has "$JAVA_ROOT/org/telegram/ui/SettingsActivity.java" "KamiGramBranding.featuresTitle" || die "P111: строка «Sakura канал» не подставлена"
-    has "$JAVA_ROOT/org/telegram/ui/SettingsActivity.java" "KamiGramBranding.CHANNEL_URL" || die "P111: «Sakura канал» не открывает @AsuMeo"
+    has "$JAVA_ROOT/org/telegram/ui/SettingsActivity.java" "KamiGramBranding.openChannelInApp" || die "P111: «Sakura канал» не открывается внутри приложения"
     has "$RES_ROOT/values/strings.xml" '<string name="TelegramFeaturesUrl">https://t.me/AsuMeo</string>' || die "P111: URL канала не заменён"
     if grep -q '>Telegram<' "$RES_ROOT/values/strings.xml"; then
         die "P111: в ресурсах осталось видимое название Telegram"
@@ -2862,6 +2861,24 @@ else
 fi
 
 # =============================================================================
+# P118. r106 — разрешение «поверх других окон», сгорающие медиа, чистка настроек.
+python3 "$KAMIGRAM_SRC/apply_r106_fixes.py" "$TG_DIR" || die "P118: r106 fixes"
+MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
+grep -q 'SYSTEM_ALERT_WINDOW' "$MANIFEST" \
+    || die "P118: в манифесте нет разрешения «поверх других окон»"
+grep -q 'KAMIGRAM_KEEP_TTL_MEDIA_R106' "$JAVA_ROOT/org/telegram/messenger/MessagesController.java" \
+    || die "P118: локальный таймер сгорающих медиа не отключён"
+for banned in "Запретить скриншоты" "Темы оформления" "Открыть список прокси" \
+              "Показать скрытую рекламу" "Рекламные посты" "Реклама и рекомендации" \
+              "Кэш сейчас" "Показать архив" "Видео поверх приложений"; do
+    ! grep -q "$banned" "$CACHE_CENTER" || die "P118: в центре остался пункт «$banned»"
+done
+grep -q 'сборка k1' "$KAMIGRAM_SRC/KamiGramBuild.java" \
+    || die "P118: подпись сборки не k1"
+grep -q 'openChannelInApp' "$KAMIGRAM_SRC/KamiGramBranding.java" \
+    || die "P118: канал не открывается внутри приложения"
+ok "P118 r106: overlay-разрешение, сгорающие медиа, чистка центра"
+
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
 #      P100-патчи вставляли вызовы классов Sakura, а сами классы в дерево не
