@@ -48,7 +48,7 @@ def main():
             return 1
         action = """                } else if (id == kamigram_bulk_select) {
                     org.telegram.messenger.kamigram.KamiGramBulkSelector.showCountDialog(getParentActivity(),
-                        count -> kamigramSelectMessages(count)); /* KAMIGRAM_BULK_SELECTION_ACTION */
+                        (count, filter) -> kamigramSelectMessages(count, filter)); /* KAMIGRAM_BULK_SELECTION_ACTION */
 """
         source = source.replace(click_anchor, action + click_anchor, 1)
 
@@ -56,9 +56,9 @@ def main():
         if method_anchor not in source:
             print("bulk: processRowSelect anchor not found", file=sys.stderr)
             return 1
-        method = """    private void kamigramSelectMessages(int requested) {
+        method = """    private void kamigramSelectMessages(int requested, org.telegram.messenger.kamigram.KamiGramBulkSelector.Filter filter) {
         final java.util.ArrayList<MessageObject> picked =
-            org.telegram.messenger.kamigram.KamiGramBulkSelector.collect(messages, requested);
+            org.telegram.messenger.kamigram.KamiGramBulkSelector.collect(messages, requested, filter);
         if (picked.isEmpty()) {
             return;
         }

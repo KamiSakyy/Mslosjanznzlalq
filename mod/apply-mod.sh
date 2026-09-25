@@ -2886,6 +2886,7 @@ grep -q "minifyEnabled true" "$TG_DIR/TMessagesProj_App/build.gradle" || die "P1
 grep -q "shrinkResources true" "$TG_DIR/TMessagesProj_App/build.gradle" || die "P119: resource shrink отключён"
 grep -q "enableR8.fullMode=true" "$TG_DIR/gradle.properties" || die "P119: R8 full mode отключён"
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_BULK_SELECTION_SHOW" || die "P119: массовый выбор не показывает тулбар"
+has "$KAMI_PKG/KamiGramBulkSelector.java" "matchesFilter" || die "P119: в массовом выборе нет фильтров по типам"
 ok "P119 r107: R8/обфускация подключены, массовый выбор показывает тулбар выделения"
 
 # P110. r95 — статическая проверка символов перед Gradle.

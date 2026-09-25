@@ -46,7 +46,7 @@ def main():
 """
     source = source.replace(click_anchor, action + click_anchor, 1)
 
-    method_anchor = "    private void kamigramSelectMessages(int requested) {\n"
+    method_anchor = "    private void kamigramSelectMessages(int requested, org.telegram.messenger.kamigram.KamiGramBulkSelector.Filter filter) {\n"
     if method_anchor not in source:
         print("delete: selection method anchor not found", file=sys.stderr)
         return 1
