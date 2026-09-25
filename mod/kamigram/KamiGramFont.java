@@ -26,7 +26,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 
 /**
- * KamiGram: свой шрифт приложения.
+ * Sakura: свой шрифт приложения.
  *
  * Пользователь выбирает файл .ttf (или .otf) через проводник Google
  * (системный выбор документа — SAF), файл копируется во внутреннюю папку

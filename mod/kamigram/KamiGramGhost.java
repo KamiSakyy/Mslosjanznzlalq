@@ -8,7 +8,7 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
 
 /**
- * KamiGram: «призрак» — сделан по образцу AyuGram (github.com/AyuGram/AyuGram4A).
+ * Sakura: «призрак» — сделан по образцу AyuGram (github.com/AyuGram/AyuGram4A).
  *
  * Главное отличие от прежней версии: запросы НЕ выбрасываются наугад по имени
  * класса. Перехват идёт в одной точке — там, где Telegram реально отправляет
@@ -48,6 +48,11 @@ public final class KamiGramGhost {
     public static boolean interceptRequest(TLObject object, RequestDelegate onComplete) {
         try {
             if (object == null) {
+                return false;
+            }
+            /* KAMIGRAM_PUSH_GHOST_SAFE_R83: FCM registration and background
+               update requests must use Telegram's native lifecycle. */
+            if (KamiGramNetFilter.isPushCriticalRequest(object)) {
                 return false;
             }
             final boolean ghost = KamiGramConfig.ghostMode();
@@ -158,6 +163,32 @@ public final class KamiGramGhost {
         } catch (Throwable ignore) {
             return false;
         }
+    }
+
+    /** Дата отправки никогда не подменяется (иначе ломались отложенные). */
+    public static int sendDate(int scheduleDate) {
+        return scheduleDate;
+    }
+
+    // ---------------------------------------------------- r80: instant sending
+
+    /**
+     * Compatibility hook kept for the r68 call sites. It deliberately returns
+     * Telegram's original schedule date unchanged: Sakura must never turn an
+     * ordinary send or forward into a delayed message.
+     */
+    public static int autoScheduleDate(int scheduleDate, long peer, boolean hasPhoto, boolean hasDocument) {
+        return scheduleDate; /* KAMIGRAM_INSTANT_SEND_R80 */
+    }
+
+    /** Forwarding compatibility overload: no artificial timer, no queue hop. */
+    public static int autoScheduleDate(int scheduleDate, long peer, java.util.ArrayList<org.telegram.messenger.MessageObject> messages) {
+        return scheduleDate; /* KAMIGRAM_INSTANT_FORWARD_R80 */
+    }
+
+    /** Always false because r80 no longer moves messages to Scheduled. */
+    public static boolean consumeAutoScheduled() {
+        return false; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     // ------------------------------------------------------------------ совместимость

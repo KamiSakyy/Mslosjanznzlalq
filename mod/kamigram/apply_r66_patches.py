@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram r66: патчи поверх исходников Telegram (DrKLO 12.10.3).
+Sakura r66: патчи поверх исходников Telegram (DrKLO 12.10.3).
 
 Правки этого пакета — по жалобам пользователя:
 
-  1. «название KamiGram пропадает, когда прокси подключён» — в шапке главного
+  1. «название Sakura пропадает, когда прокси подключён» — в шапке главного
      экрана имя теперь настоящий ТЕКСТ (раньше это была картинка-логотип
      «Telegram», спрятанная в ImageSpan: её и подменял родной оверлей состояния
      соединения), а сам оверлей на главном экране запрещён полностью.
@@ -98,14 +98,14 @@ def title_text():
             '                /* KAMIGRAM_TITLE_TEXT: имя приложения — настоящий ТЕКСТ, а не картинка\n'
             '                   с надписью «Telegram». Текст нельзя «потерять» при смене состояния\n'
             '                   соединения (раньше картинку подменял родной оверлей прокси). */\n',
-            'шапка: имя KamiGram настоящим текстом (без картинки-логотипа)')
+            'шапка: имя Sakura настоящим текстом (без картинки-логотипа)')
 
 
 def title_lock():
     actionbar = 'ui/ActionBar/ActionBar.java'
     patch(actionbar, 'KAMIGRAM_TITLE_LOCK',
           '    public void setTitleOverlayText(String title, int titleId, Runnable action) {\n',
-          '        /* KAMIGRAM_TITLE_LOCK: на главном экране заголовок (имя KamiGram) не подменяется\n'
+          '        /* KAMIGRAM_TITLE_LOCK: на главном экране заголовок (имя Sakura) не подменяется\n'
           '           ничем: ни «Подключением к прокси…», ни стрелками, ни состоянием сети. */\n'
           '        if (parentFragment instanceof org.telegram.ui.DialogsActivity) {\n'
           '            return;\n'

@@ -1,11 +1,14 @@
 package org.telegram.messenger.kamigram;
 
+import android.content.Context;
+import android.os.Build;
+import android.os.PowerManager;
 import android.os.SystemClock;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLoadOperation;
 import org.telegram.messenger.FileLoader;
-import org.telegram.messenger.UserConfig;
 
 import java.util.Collections;
 import java.util.Map;
@@ -13,14 +16,15 @@ import java.util.WeakHashMap;
 
 /**
  * Keeps active downloads alive while Telegram reconnects through another proxy.
- * A proxy change is a transport event, not a cancellation: the operation keeps
- * its temporary file and resumes from the already written byte ranges.
+ * A proxy change is a transport event, not a cancellation: FileLoader keeps its
+ * .temp/.pt files and resumes from the native written byte ranges.
  */
 public final class KamiGramDownloadRecovery {
     private static final long SWITCH_GRACE_MS = 60_000L;
     private static final long STALL_AFTER_MS = 8_000L;
     private static final long MIN_STALL_SIZE = 1024L * 1024L;
     private static final long MIN_RATE_BYTES = 16L * 1024L;
+    private static final long WATCHDOG_RESCHEDULE_MS = 5_000L;
     private static final int MAX_RETRIES_PER_SWITCH = 2;
 
     private static volatile long lastProxySwitchAt;
@@ -32,8 +36,31 @@ public final class KamiGramDownloadRecovery {
     private KamiGramDownloadRecovery() {
     }
 
+    /** True while any native FileLoader operation is queued or downloading. */
+    public static boolean hasActiveDownloads() {
+        try {
+            return FileLoader.kamigramHasAnyActiveDownloads();
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** True only for operations whose native document size is above 10 MiB. */
+    public static boolean hasActiveLargeDownloads() {
+        try {
+            return FileLoader.kamigramHasAnyActiveLargeDownloads();
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
     /** Called from Telegram's single proxy-setting choke point. */
     public static void onProxySwitch() {
+        /* A settings change with no native operation must not create a delayed
+           callback or wake a proxy/download watchdog. */
+        if (!hasActiveDownloads()) {
+            return;
+        }
         lastProxySwitchAt = SystemClock.elapsedRealtime();
         synchronized (RETRIES) {
             RETRIES.clear();
@@ -41,12 +68,12 @@ public final class KamiGramDownloadRecovery {
         synchronized (SAMPLES) {
             SAMPLES.clear();
         }
+        /* Rebind only native operations that exist; there is no polling task
+           and no cancellation of temporary/parts files. */
         AndroidUtilities.runOnUIThread(() -> {
-            for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
-                try {
-                    FileLoader.getInstance(account).kamigramRebindActiveDownloads();
-                } catch (Throwable ignore) {
-                }
+            try {
+                FileLoader.kamigramRebindAllActiveDownloads();
+            } catch (Throwable ignore) {
             }
         }, 240L);
     }
@@ -90,7 +117,8 @@ public final class KamiGramDownloadRecovery {
             if (sample == null) {
                 final Sample first = new Sample(loaded, now);
                 SAMPLES.put(operation, first);
-                scheduleWatchdog(operation, first, loaded);
+                scheduleWatchdog(operation, first, loaded, ++first.watchdog);
+                first.watchdogScheduledAt = now;
                 return;
             }
             if (loaded > sample.loaded) {
@@ -107,17 +135,19 @@ public final class KamiGramDownloadRecovery {
                     sample.slowSince = 0L;
                 }
                 sample.stalled = false;
-                final long watchdog = ++sample.watchdog;
-                scheduleWatchdog(operation, sample, loaded, watchdog);
+                /* Progress callbacks can be much more frequent than the
+                   watchdog. Keep at most one delayed check per five seconds. */
+                if (now - sample.watchdogScheduledAt >= WATCHDOG_RESCHEDULE_MS) {
+                    final long watchdog = ++sample.watchdog;
+                    sample.watchdogScheduledAt = now;
+                    scheduleWatchdog(operation, sample, loaded, watchdog);
+                }
             }
         }
     }
 
-    private static void scheduleWatchdog(FileLoadOperation operation, Sample sample, long expectedLoaded) {
-        scheduleWatchdog(operation, sample, expectedLoaded, ++sample.watchdog);
-    }
-
-    private static void scheduleWatchdog(FileLoadOperation operation, Sample sample, long expectedLoaded, long token) {
+    private static void scheduleWatchdog(FileLoadOperation operation, Sample sample,
+                                         long expectedLoaded, long token) {
         AndroidUtilities.runOnUIThread(() -> {
             boolean slow = false;
             synchronized (SAMPLES) {
@@ -141,12 +171,40 @@ public final class KamiGramDownloadRecovery {
         }, STALL_AFTER_MS + 250L);
     }
 
+    /**
+     * KAMIGRAM_THERMAL_LIMIT_R83: the native queue normally allows six
+     * independent operations; Android power-save/thermal state may lower that
+     * number without touching resume state.
+     */
+    public static int downloadParallelLimit(int normal) {
+        int limit = Math.min(6, Math.max(1, normal));
+        try {
+            final Context context = ApplicationLoader.applicationContext;
+            final PowerManager power = context == null ? null
+                : (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            if (power != null && power.isPowerSaveMode()) {
+                return Math.min(limit, 2);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && power != null) {
+                final int thermal = power.getCurrentThermalStatus();
+                if (thermal >= PowerManager.THERMAL_STATUS_SEVERE) {
+                    return Math.min(limit, 2);
+                } else if (thermal >= PowerManager.THERMAL_STATUS_MODERATE) {
+                    return Math.min(limit, 4);
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return limit;
+    }
+
     private static final class Sample {
         long loaded;
         long at;
         long lastRate;
         long slowSince;
         long watchdog;
+        long watchdogScheduledAt;
         boolean stalled;
 
         Sample(long loaded, long at) {

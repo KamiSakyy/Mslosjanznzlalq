@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8
-"""Install resumable proxy handover, foreground download lifetime and progress UI."""
+# -*- coding: utf-8 -*-
+"""Install native FileLoader resume recovery and bounded download lifetime.
+
+The patch never replaces Telegram's FileLoader with a custom downloader. It
+only rebinds the existing operation after a proxy transport change, keeps the
+native temporary/parts ranges, and exposes a foreground service while a real
+operation larger than 10 MiB is present.
+"""
 
 import io
 import os
+import re
 import sys
 
 TG = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("TG_DIR", ".")
@@ -45,6 +52,33 @@ def replace_once(rel, marker, old, new):
     DONE.append(marker)
 
 
+def insert_after_signature(rel, marker, signature, block):
+    text = read(rel)
+    if marker in text:
+        return
+    pos = text.find(signature)
+    if pos < 0:
+        raise RuntimeError("%s: method not found for %s" % (rel, marker))
+    pos += len(signature)
+    write(rel, text[:pos] + block + text[pos:])
+    DONE.append(marker)
+
+
+def insert_after_in_method(rel, marker, signature, anchor, block):
+    text = read(rel)
+    if marker in text:
+        return
+    method_start = text.find(signature)
+    if method_start < 0:
+        raise RuntimeError("%s: method not found for %s" % (rel, marker))
+    anchor_pos = text.find(anchor, method_start + len(signature))
+    if anchor_pos < 0:
+        raise RuntimeError("%s: method anchor not found for %s" % (rel, marker))
+    end = anchor_pos + len(anchor)
+    write(rel, text[:end] + block + text[end:])
+    DONE.append(marker)
+
+
 def patch_file_load_operation():
     insert_once(
         "messenger/FileLoadOperation.java",
@@ -57,11 +91,25 @@ def patch_file_load_operation():
             if (state != stateDownloading || requestInfos == null) {
                 return;
             }
-            if (!requestInfos.isEmpty() || delayedRequestInfos != null && !delayedRequestInfos.isEmpty()) {
+            final boolean wasPaused = paused;
+            final boolean hadTransport = !requestInfos.isEmpty()
+                || delayedRequestInfos != null && !delayedRequestInfos.isEmpty();
+            if (hadTransport) {
+                /* Keep notLoadedBytesRanges and the .temp/.pt files. This only
+                   cancels transport requests and asks the native operation to
+                   reopen the same missing byte ranges. */
                 clearOperation(null, false, true);
             }
-            paused = false;
-            startDownloadRequest(-1);
+            /* A queue-paused operation must not bypass FileLoader's six-slot
+               scheduler during a proxy handover. Active operations can reopen
+               their own missing ranges directly; queued ones go through the
+               native priority queue again. */
+            if (!wasPaused) {
+                paused = false;
+                startDownloadRequest(-1);
+            } else {
+                getQueue().checkLoadingOperations();
+            }
         });
     }
 
@@ -79,21 +127,19 @@ def patch_file_load_operation():
         });
     }
 
+    /** KAMIGRAM_LARGE_DOWNLOAD_API_R83 */
+    public boolean kamigramIsLargeDownload() {
+        return totalBytesCount > 10L * 1024L * 1024L;
+    }
+
+    /** Finished/failed/cancelled native operations must not keep watchdogs or FGS alive. */
+    public boolean kamigramIsActive() {
+        return state == stateIdle || state == stateDownloading;
+    }
+
 """,
         before=True,
     )
-
-
-def insert_after_signature(rel, marker, signature, block):
-    text = read(rel)
-    if marker in text:
-        return
-    pos = text.find(signature)
-    if pos < 0:
-        raise RuntimeError("%s: method not found for %s" % (rel, marker))
-    pos += len(signature)
-    write(rel, text[:pos] + block + text[pos:])
-    DONE.append(marker)
 
 
 def patch_file_loader():
@@ -113,6 +159,33 @@ def patch_file_loader():
         });
     }
 
+    /** Do not instantiate idle account loaders just to answer an activity query. */
+    public static boolean kamigramHasAnyActiveDownloads() {
+        for (FileLoader loader : Instance) {
+            if (loader != null && loader.kamigramHasActiveDownloads()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean kamigramHasAnyActiveLargeDownloads() {
+        for (FileLoader loader : Instance) {
+            if (loader != null && loader.kamigramHasActiveLargeDownloads()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void kamigramRebindAllActiveDownloads() {
+        for (FileLoader loader : Instance) {
+            if (loader != null) {
+                loader.kamigramRebindActiveDownloads();
+            }
+        }
+    }
+
 """,
         before=True,
     )
@@ -129,7 +202,6 @@ def patch_file_loader():
                 if (org.telegram.messenger.kamigram.KamiGramDownloadRecovery.shouldRetry(operation, reason)) {
                     loadOperationPaths.put(fileName, operation);
                     operation.kamigramRestartAfterProxySwitch();
-                    org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged();
                     return;
                 }
                 org.telegram.messenger.kamigram.KamiGramDownloadRecovery.onFinished(operation);
@@ -142,25 +214,8 @@ def patch_file_loader():
         "            public void didFinishLoadingFile(FileLoadOperation operation, File finalFile) {\n",
         """                /* KAMIGRAM_DOWNLOAD_FINISH_HOOK */
                 org.telegram.messenger.kamigram.KamiGramDownloadRecovery.onFinished(operation);
-                org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged();
 """,
     )
-
-    rel = "messenger/FileLoader.java"
-    text = read(rel)
-    marker = "KAMIGRAM_DOWNLOAD_FAIL_STATE"
-    if marker not in text:
-        signature = "            public void didFailedLoadingFile(FileLoadOperation operation, int reason) {\n"
-        start = text.find(signature)
-        if start < 0:
-            raise RuntimeError("%s: failed-load method not found for %s" % (rel, marker))
-        tail = text[start + len(signature):]
-        old = "            }\n\n            @Override"
-        new = "                org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged(); /* %s */\n            }\n\n            @Override" % marker
-        if old not in tail:
-            raise RuntimeError("%s: failed-load end not found for %s" % (rel, marker))
-        write(rel, text[:start + len(signature)] + tail.replace(old, new, 1))
-        DONE.append(marker)
 
     insert_after_signature(
         "messenger/FileLoader.java",
@@ -172,44 +227,132 @@ def patch_file_loader():
 """,
     )
 
+    # A video preload can later be promoted to an explicit user download and
+    # then returns through the existing-operation branch. Attach the same
+    # threshold check there without creating another downloader or operation.
+    insert_after_in_method(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_SERVICE_EXISTING_OPERATION_R83",
+        "        if (operation != null) {\n",
+        "            operation.setStream(stream, streamPriority, streamOffset);\n",
+        """            if (cacheType != 10 && operation.kamigramIsLargeDownload()) {
+                org.telegram.messenger.kamigram.KamiGramDownloadService.ensureStartedForLargeDownload(
+                    org.telegram.messenger.ApplicationLoader.applicationContext, operation.totalBytesCount);
+            }
+            org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_SERVICE_EXISTING_OPERATION_R83 */
+""",
+    )
 
-def patch_download_controller():
-    rel = "messenger/DownloadController.java"
+    # The foreground lifetime is started only after FileLoader has created a
+    # real native operation and knows its actual size. This covers documents,
+    # videos, photos, and web files without starting a service for thumbnails.
+    insert_once(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_SERVICE_OPERATION",
+        "        loadOperationPaths.put(finalFileName, operation);\n",
+        """        if (cacheType != 10 && operation.kamigramIsLargeDownload()) {
+            org.telegram.messenger.kamigram.KamiGramDownloadService.ensureStartedForLargeDownload(
+                org.telegram.messenger.ApplicationLoader.applicationContext, operation.totalBytesCount);
+        }
+        org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_SERVICE_OPERATION */
+""",
+    )
+
+    # Completion/failure must remove the notification after the UI operation is
+    # gone. A retry returns before this block and therefore keeps the service.
+    insert_after_in_method(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_FINISH_STATE_R83",
+        "            public void didFinishLoadingFile(FileLoadOperation operation, File finalFile) {\n",
+        "                loadOperationPathsUI.remove(fileName);\n",
+        """                org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged();
+                org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_FINISH_STATE_R83 */
+""",
+    )
+    insert_after_in_method(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_FAIL_STATE_R83",
+        fail_signature,
+        "                loadOperationPathsUI.remove(fileName);\n",
+        """                org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged();
+                org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_FAIL_STATE_R83 */
+""",
+    )
+
+    # Native cancellation removes the UI operation immediately. Do not delete
+    # temp/parts here: Telegram's cancel path remains responsible for that
+    # choice, while our service/watchdog simply stops observing.
+    cancel_signature = "    private void cancelLoadFile(final TLRPC.Document document, final SecureDocument secureDocument, final WebFile webDocument, final TLRPC.FileLocation location, final String locationExt, String name, boolean deleteFile) {\n"
+    insert_after_in_method(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_CANCEL_STATE_R83",
+        cancel_signature,
+        "        LoadOperationUIObject uiObject = loadOperationPathsUI.remove(fileName);\n",
+        """        org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged();
+        org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_CANCEL_STATE_R83 */
+""",
+    )
+
+    insert_after_in_method(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_DOWNLOAD_CANCEL_OPERATION_STATE_R83",
+        "    public void cancel(FileLoadOperation operation) {\n",
+        "        LoadOperationUIObject uiObject = loadOperationPathsUI.remove(fileName);\n",
+        """        org.telegram.messenger.kamigram.KamiGramDownloadService.reportStateChanged();
+        org.telegram.messenger.kamigram.KamiGramProxyPower.onDownloadActivityChanged(); /* KAMIGRAM_DOWNLOAD_CANCEL_OPERATION_STATE_R83 */
+""",
+    )
+
+    replace_once(
+        "messenger/FileLoader.java",
+        "KAMIGRAM_ACTIVE_DOWNLOADS_API_R83",
+        """    public boolean isLoadingFile(final String fileName) {
+        return fileName != null && loadOperationPathsUI.containsKey(fileName);
+    }
+""",
+        """    public boolean isLoadingFile(final String fileName) {
+        return fileName != null && loadOperationPathsUI.containsKey(fileName);
+    }
+
+    /** KAMIGRAM_ACTIVE_DOWNLOADS_API_R83: active means native FileLoader operation exists. */
+    public boolean kamigramHasActiveDownloads() {
+        /* Use FileLoader's native operation table, not a second queue or a
+           guessed filename. The UI table can briefly contain a queued runnable
+           and can use a different final name for encrypted/custom-path files. */
+        for (FileLoadOperation operation : loadOperationPaths.values()) {
+            if (operation != null && operation.kamigramIsActive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Same native operation table, restricted to real files larger than 10 MiB. */
+    public boolean kamigramHasActiveLargeDownloads() {
+        for (FileLoadOperation operation : loadOperationPaths.values()) {
+            if (operation != null && operation.kamigramIsActive()
+                && !operation.isPreloadVideoOperation() && operation.kamigramIsLargeDownload()) {
+                return true;
+            }
+        }
+        return false;
+    }
+""",
+    )
+
+
+def patch_queue_limit():
+    rel = "messenger/FileLoaderPriorityQueue.java"
+    marker = "KAMIGRAM_MAX_PARALLEL_DOWNLOADS_R83"
     text = read(rel)
-    marker = "KAMIGRAM_DOWNLOAD_SERVICE_START"
     if marker in text:
         return
-    method_start = text.find("    public void startDownloadFile(TLRPC.Document document, MessageObject parentObject) {")
-    if method_start < 0:
-        raise RuntimeError("DownloadController: startDownloadFile not found")
-    post = text.find("            getNotificationCenter().postNotificationName(NotificationCenter.onDownloadingFilesChanged);", method_start)
-    if post < 0:
-        raise RuntimeError("DownloadController: start notification not found")
-    end = post + len("            getNotificationCenter().postNotificationName(NotificationCenter.onDownloadingFilesChanged);\n")
-    text = text[:end] + "            org.telegram.messenger.kamigram.KamiGramDownloadService.ensureStarted(org.telegram.messenger.ApplicationLoader.applicationContext); /* %s */\n" % marker + text[end:]
-    write(rel, text)
-    DONE.append(marker)
-
-
-def patch_file_loader_start():
-    # Explicit document downloads also start the foreground lifetime. The
-    # service exits after a short idle grace, so thumbnails do not leave a row.
-    rel = "messenger/FileLoader.java"
-    text = read(rel)
-    marker = "KAMIGRAM_DOWNLOAD_SERVICE_DOCUMENT"
-    if marker in text:
-        return
-    signature = "    public void loadFile(TLRPC.Document document, Object parentObject, int priority, int cacheType) {\n"
-    start = text.find(signature)
-    if start < 0:
-        raise RuntimeError("%s: document load method not found" % rel)
-    null_block = "        if (document == null) {\n            return;\n        }\n"
-    null_pos = text.find(null_block, start + len(signature))
-    if null_pos < 0:
-        raise RuntimeError("%s: document null guard not found" % rel)
-    end = null_pos + len(null_block)
-    injection = "        org.telegram.messenger.kamigram.KamiGramDownloadService.ensureStarted(org.telegram.messenger.ApplicationLoader.applicationContext); /* %s */\n" % marker
-    write(rel, text[:end] + injection + text[end:])
+    pattern = r"        int max = type == TYPE_LARGE \?[^\n]*;"
+    replacement = "        int max = org.telegram.messenger.kamigram.KamiGramDownloadRecovery.downloadParallelLimit(6); /* %s */" % marker
+    updated, count = re.subn(pattern, replacement, text, count=1)
+    if count != 1:
+        raise RuntimeError("%s: queue max line not found for %s" % (rel, marker))
+    write(rel, updated)
     DONE.append(marker)
 
 
@@ -241,8 +384,22 @@ def patch_manifest():
     manifest = os.path.join(TG, "TMessagesProj/src/main/AndroidManifest.xml")
     text = io.open(manifest, encoding="utf-8").read()
     marker = "KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST"
+
+    permission_lines = (
+        '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n',
+        '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />\n',
+    )
+    permission_block = "".join(line for line in permission_lines if line not in text)
+    if permission_block:
+        app_start = text.find("<application")
+        if app_start < 0:
+            raise RuntimeError("AndroidManifest.xml: application start not found")
+        text = text[:app_start] + permission_block + text[app_start:]
+
     if marker in text:
+        io.open(manifest, "w", encoding="utf-8").write(text)
         return
+
     service = """        <!-- KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST: resumable background downloads -->
         <service
             android:name="org.telegram.messenger.kamigram.KamiGramDownloadService"
@@ -256,20 +413,22 @@ def patch_manifest():
     text = text.replace("</application>", service + "    </application>", 1)
     io.open(manifest, "w", encoding="utf-8").write(text)
     DONE.append(marker)
+    DONE.append("KAMIGRAM_DOWNLOAD_SERVICE_PERMISSIONS")
 
 
 def main():
     try:
         patch_file_load_operation()
         patch_file_loader()
-        patch_download_controller()
-        patch_file_loader_start()
+        patch_queue_limit()
         patch_connections_manager()
         patch_manifest()
     except Exception as exc:
         print("download resilience: %s" % exc, file=sys.stderr)
         return 1
     print("download resilience: %d patches" % len(DONE))
+    for marker in DONE:
+        print("  ✓ %s" % marker)
     return 0
 
 

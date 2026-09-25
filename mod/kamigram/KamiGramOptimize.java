@@ -4,7 +4,7 @@ import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.SharedConfig;
 
 /**
- * KamiGram: оптимизация и плавность без потери функций и дизайна.
+ * Sakura: оптимизация и плавность без потери функций и дизайна.
  *
  * Что делает:
  *   * поднимает класс производительности устройства — Telegram перестаёт
@@ -15,7 +15,7 @@ import org.telegram.messenger.SharedConfig;
  *     анимации чата и аватарки, поэтому дизайн остаётся прежним.
  *
  * Ничего не удаляется и не отключается навсегда: всё это переключатели,
- * которые пользователь видит в центре KamiGram.
+ * которые пользователь видит в центре Sakura.
  */
 public final class KamiGramOptimize {
 

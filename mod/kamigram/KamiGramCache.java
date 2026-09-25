@@ -17,23 +17,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * KamiGram: кэш и файлы — «скачанное не пропадает, но чистить можно».
+ * Sakura: только вспомогательные размеры и совместимость со старыми
+ * настройками. Автоматическая очистка медиа отключена в source patch r94.
  *
- * Что было не так в прошлой сборке: автоочистка отключалась жёстко, из-за этого
- * пользователь вообще не мог освободить место («почему кэш нельзя чистить»).
- *
- * Как сделано сейчас:
- * <ul>
- *   <li>обычная очистка кэша Telegram работает ВСЕГДА (как в оригинале);</li>
- *   <li>галочка «скачанное не удалять» (по умолчанию выключена) запрещает
- *       автоудаление медиа по сроку и по размеру;</li>
- *   <li>если галочка включена, файлы, которые пользователь скачал вручную,
- *       переживают и ручную очистку кэша: их пути лежат в постоянном списке
- *       (SharedPreferences), а не только в памяти;</li>
- *   <li>менеджер загрузок мода умеет показать размер каждой категории и
- *       удалить её отдельно: кэш, фото, видео, музыка, документы, стикеры
- *       и истории. Технические логи в интерфейс и в менеджер не попадают.</li>
- * </ul>
+ * Важно: центр Sakura больше не содержит destructive cache actions. Очистка
+ * выполняется только штатным CacheControlActivity Telegram; его native
+ * FileLoader.deleteFiles не получает никаких protected-file исключений.
+ * Старые методы защиты и очистки ниже оставлены как бинарно безопасная
+ * совместимость с уже сохранёнными настройками, но не подключаются к native
+ * startup/resume lifecycle.
  */
 public final class KamiGramCache {
 
@@ -60,9 +52,9 @@ public final class KamiGramCache {
 
     // ------------------------------------------------------------------ защита
 
-    /** Основной переключатель: «скачанное не удалять» (по умолчанию выключен). */
+    /** Automatic cleanup is a hard invariant, not a user-facing switch. */
     public static boolean keep() {
-        return KamiGramConfig.keepDownloads();
+        return true;
     }
 
     private static SharedPreferences prefs() {
@@ -299,107 +291,25 @@ public final class KamiGramCache {
     // ------------------------------------------------------------------ очистка
 
     /**
-     * Удалить категорию. Защищённые файлы остаются на месте.
-     *
-     * @param type категория TYPE_*
+     * Kept only for binary/source compatibility with pre-r94 helpers. Sakura
+     * never calls this method: only Telegram's CacheControlActivity may delete
+     * selected categories after an explicit user confirmation.
      */
     public static void clear(int type) {
-        final ArrayList<File> targets = new ArrayList<>();
-        switch (type) {
-            case TYPE_CACHE:
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_CACHE), targets);
-                break;
-            case TYPE_PHOTOS:
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_IMAGE), targets);
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_IMAGE_PUBLIC), targets);
-                break;
-            case TYPE_VIDEO:
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_VIDEO), targets);
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_VIDEO_PUBLIC), targets);
-                break;
-            case TYPE_MUSIC:
-            case TYPE_DOCUMENTS:
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_DOCUMENT), targets);
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_FILES), targets);
-                break;
-            case TYPE_STICKERS:
-                collect(new File(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_CACHE), "acache"), targets);
-                break;
-            case TYPE_STORIES:
-                collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_STORIES), targets);
-                break;
-            default:
-                break;
-        }
-        final ArrayList<File> files = new ArrayList<>();
-        for (File file : targets) {
-            if (!shouldSkipDelete(file)) {
-                files.add(file);
-            }
-        }
-        if (!files.isEmpty()) {
-            try {
-                FileLoader.getInstance(UserConfig.selectedAccount).deleteFiles(files, 0);
-            } catch (Throwable throwable) {
-                KamiGramLog.e(throwable);
-                for (File file : files) {
-                    deleteRecursive(file);
-                }
-            }
-        }
-        try {
-            ImageLoader.getInstance().clearMemory();
-        } catch (Throwable ignore) {
-        }
+        // Deliberately empty. Never route a Sakura action through deleteFiles().
     }
 
-    /** Удалить весь кэш (кроме защищённого). */
+    /** Compatibility no-op; the native Telegram settings screen owns cleanup. */
     public static void clearAll() {
-        for (int i = 0; i < TYPE_COUNT; i++) {
-            clear(i);
-        }
+        // Deliberately empty.
     }
 
-    /** Выкинуть из памяти протухшее: Telegram сам подтянет заново. */
+    /**
+     * Memory pressure must not cancel native downloads or discard resume state.
+     * The system and Telegram's own lifecycle manage in-memory caches.
+     */
     public static void freeMemory() {
-        try {
-            ImageLoader.getInstance().clearMemory();
-        } catch (Throwable ignore) {
-        }
-        try {
-            FileLoader.getInstance(UserConfig.selectedAccount).cancelLoadAllFiles();
-        } catch (Throwable ignore) {
-        }
-    }
-
-    private static void collect(File dir, ArrayList<File> out) {
-        if (dir == null || !dir.exists()) {
-            return;
-        }
-        final File[] files = dir.listFiles();
-        if (files == null) {
-            return;
-        }
-        for (File file : files) {
-            out.add(file);
-        }
-    }
-
-    private static void deleteRecursive(File file) {
-        try {
-            if (file.isDirectory()) {
-                final File[] children = file.listFiles();
-                if (children != null) {
-                    for (File child : children) {
-                        deleteRecursive(child);
-                    }
-                }
-            }
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
-        } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
-        }
+        // Deliberately empty.
     }
 
     /** Кэш заблокирован? (используется на экране очистки Telegram). */
@@ -421,16 +331,14 @@ public final class KamiGramCache {
         return names;
     }
 
-    /** Не даём Telegram удалить кэш при низком месте, если защита включена. */
+    /** Automatic system cleanup is never enabled by Sakura. */
     public static boolean allowSystemCleanup() {
-        return !keep();
+        return false;
     }
 
-    /** Для настроек: пояснение текущего режима. */
+    /** Для настроек: очистка доступна только в штатных настройках Telegram. */
     public static String modeText() {
-        return keep()
-            ? "Скачанное вручную защищено, автоудаление выключено"
-            : "Как в оригинале: кэш чистится, ничего не блокируется";
+        return "Автоочистка выключена · очистка только в настройках Telegram";
     }
 
     /** Перечитать настройки: полезно после смены режима кэша. */

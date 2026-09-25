@@ -9,34 +9,44 @@ import android.view.WindowManager;
 import org.telegram.messenger.AndroidUtilities;
 
 /**
- * Compatibility helpers for the mod's own small settings surfaces.
+ * Compatibility helpers for Sakura's own settings surfaces.
  *
- * Telegram's native Theme registry is deliberately not touched here.  There is
- * no custom attheme, no Theme.applyTheme call and no Theme.setColor call in the
- * Sakura build: the user's selected Telegram theme remains the only native
- * application theme.  The YORU_* values below are used only to draw the Sakura
- * settings dialog itself, not to repaint Telegram screens.
+ * Telegram's native theme registry is deliberately not touched here.  Sakura
+ * ships only Telegram's original themes: stock Telegram themes only; there is no custom attheme,
+ * no native theme mutation and no activity-lifecycle repaint. Sakura's own small settings surfaces read the currently selected
+ * Telegram palette through the accessors below; they do not install a second
+ * palette or write colors into Telegram's theme registry.
  */
 public final class ThemeHook {
 
     private ThemeHook() {
     }
 
-    /** Kept for old patch points; stock Telegram themes are never replaced. */
+    /** Legacy patch point; the selected Telegram theme remains authoritative. */
     public static void keepDarkTheme() {
     }
 
-    /** Kept for source compatibility; never changes a Telegram color key. */
+    /** Legacy patch point; never changes a Telegram color key. */
     public static void applyAccent() {
     }
 
     public static void notifyAccentChanged() {
     }
 
+    /**
+     * Kept for source compatibility with the old settings row.  The row cannot
+     * switch to a custom theme in Sakura; it only records the stock-only state
+     * and explains the policy to the user.
+     */
+    public static void toggleTelegramTheme(Context context) {
+        try {
+            KamiGramConfig.set(KamiGramConfig.KEY_TELEGRAM_THEME, true);
+            KamiGramUi.notify(context, "В Sakura доступны только оригинальные темы Telegram");
+        } catch (Throwable ignore) {
+        }
+    }
+
     public static void setTelegramTheme(boolean enabled) {
-        // The old custom-theme switch is intentionally one-way now: only stock
-        // Telegram themes are supported.  Keep the preference truthful for an
-        // upgrade from an older build without applying any theme ourselves.
         try {
             KamiGramConfig.set(KamiGramConfig.KEY_TELEGRAM_THEME, true);
         } catch (Throwable ignore) {
@@ -59,11 +69,9 @@ public final class ThemeHook {
         return false;
     }
 
-    /** No native theme hook remains; this is safe for legacy generated calls. */
+    /** Safe for old generated calls; only the optional screenshot flag remains. */
     public static void apply(Activity activity) {
-        if (activity != null) {
-            applySecureFlag(activity);
-        }
+        applySecureFlag(activity);
     }
 
     public static boolean uiHooksDisabled() {
@@ -86,56 +94,57 @@ public final class ThemeHook {
     public static void forget(Activity activity) {
     }
 
-    /** The palette is for the Sakura settings surface only. */
-    public static final int YORU_BG = 0xFF0D0B12;
-    public static final int YORU_SURFACE = 0xFF15111C;
-    public static final int YORU_CARD = 0xFF1C1724;
-    public static final int YORU_CARD_HIGH = 0xFF21192E;
-    public static final int YORU_PURPLE = 0xFFC8A7FF;
-    public static final int YORU_PURPLE_SOFT = 0xFFE2CCFF;
-    public static final int YORU_TEXT = 0xFFF7F0FF;
-    public static final int YORU_MUTED = 0xFFA99BB8;
-    public static final int YORU_LINE = 0xFF352A43;
-    public static final int YORU_AMBER = 0xFFFFCF70;
-    public static final int YORU_EMERALD = 0xFF88E0A0;
+    /** Colors for Sakura's private surfaces, always read from the active Telegram theme. */
+    private static int nativeColor(int key, int fallback) {
+        try {
+            final int color = org.telegram.ui.ActionBar.Theme.getColor(key);
+            return color != 0 ? color : fallback;
+        } catch (Throwable ignore) {
+            return fallback;
+        }
+    }
 
     public static int surface() {
-        return YORU_CARD;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhite, 0xFFFFFFFF);
     }
 
     public static int surfaceNested() {
-        return YORU_SURFACE;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray, surface());
     }
 
     public static int background() {
-        return YORU_BG;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray, surface());
     }
 
     public static int primaryText() {
-        return YORU_TEXT;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText, 0xFF000000);
     }
 
     public static int secondaryText() {
-        return YORU_MUTED;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText, 0xFF777777);
     }
 
     public static int separator() {
-        return YORU_LINE;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_divider, 0x22000000);
     }
 
     public static int green() {
-        return YORU_EMERALD;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_color_green, 0xFF2E9E55);
     }
 
     public static int red() {
-        return 0xFFFF453A;
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_color_red, 0xFFD93025);
+    }
+
+    public static int accent() {
+        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlueText, 0xFF2F80ED);
     }
 
     public static int dp(float value) {
         return AndroidUtilities.dp(value);
     }
 
-    /** Custom blur is not part of the native Telegram theme. */
+    /** Custom blur is not part of Telegram's native theme lifecycle. */
     public static boolean allowBlur() {
         return false;
     }
@@ -144,7 +153,7 @@ public final class ThemeHook {
         return "Sakura · Telegram themes";
     }
 
-    /** Legacy compatibility only; never changes Telegram's active theme. */
+    /** Preserve the optional screenshot setting without touching theme state. */
     public static void setDark(boolean dark) {
         try {
             KamiGramConfig.set(KamiGramConfig.KEY_IOS_DESIGN, dark);
@@ -153,7 +162,6 @@ public final class ThemeHook {
         }
     }
 
-    /** Preserve the optional screenshot setting without touching theme state. */
     public static void applySecureFlag(Activity activity) {
         if (activity == null) {
             return;

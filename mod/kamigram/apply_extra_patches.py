@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""KamiGram: большой пакет улучшений (P50).
+"""Sakura: большой пакет улучшений (P50).
 
 Запускается из mod/apply-mod.sh уже ПОСЛЕ остальных патчей. Работает по таблице:
 каждое улучшение = отдельная правка в коде Telegram с уникальным маркером.
@@ -201,7 +201,7 @@ def build_filter(path, names):
 # Уже сделанное в сборках r31–r35 (для общего списка улучшений мода).
 # =============================================================================
 SHIPPED = [
-    'брендинг KamiGram в 10 языковых файлах',
+    'брендинг Sakura в 10 языковых файлах',
     'имя мода во всём UI (LocaleController)',
     'свой пакет com.kami.gram (ставится рядом с Telegram)',
     'версия 12.10.3-mod в «О приложении»',
@@ -212,7 +212,7 @@ SHIPPED = [
     'preload видео/музыки/историй выключен',
     'power-saver (LiteMode) включён принудительно',
     'проверка обновлений Telegram выключена',
-    'iOS-тёмная тема (attheme: чёрный фон, iOS-акценты)',
+    'stock Telegram theme compatibility (no attheme or forced recolor)',
     'плоский фон чата (узор 495 КБ заменён на минимальный)',
     'ссылка на прокси активирует прокси сразу',
     'только arm64-v8a (APK 35 МБ вместо 100+)',
@@ -229,7 +229,7 @@ SHIPPED = [
     'рабочий api_id вшит в сборку (6 вместо примерного 4)',
     'ключ читается во время работы (appId/appHash) — R8 не вшивает 4',
     'смена ключа с перезапуском при отказе сервера',
-    'экран «KamiGram: функции мода» в настройках',
+    'экран «Sakura: функции мода» в настройках',
     'переключатель призрака (не видно чтение/печатает/онлайн)',
     'переключатель «не грузить стикеры и наборы эмодзи»',
     'переключатель «не грузить истории и их медиа»',
@@ -248,7 +248,7 @@ SHIPPED = [
     'переключатель авто-отключения мёртвого прокси',
     'iOS-шеврон «назад» вместо стрелки Telegram',
     'плоская iOS-шапка без «стекла» и размытия',
-    'свои иконки нижних табов (вектор KamiGram)',
+    'свои иконки нижних табов (вектор Sakura)',
     'анимация выбора таба как в iOS',
     'плотная iOS-пилюля выбранного таба',
     'полоса историй убрана с главного экрана',
@@ -264,7 +264,7 @@ def main():
     java = os.path.join(tg, 'TMessagesProj/src/main/java/org/telegram')
     filter_path = os.path.join(java, 'messenger/kamigram/KamiGramNetFilter.java')
     if not os.path.isfile(filter_path):
-        print('KamiGram: нет %s' % filter_path)
+        print('Sakura: нет %s' % filter_path)
         return 1
 
     all_blocks = BLOCK_ADS + BLOCK_STICKERS + BLOCK_PRIVACY + BLOCK_TRAFFIC + BLOCK_EXTRA
@@ -489,7 +489,7 @@ def main():
     io.open(theme_class, 'w', encoding='utf-8').write(theme_src)
 
     if FAILED:
-        print('KamiGram: проблемы в пакете улучшений:')
+        print('Sakura: проблемы в пакете улучшений:')
         for f in FAILED:
             print('  - ' + f)
         return 1
@@ -506,7 +506,7 @@ def main():
     lines.append('ВСЕГО УЛУЧШЕНИЙ В МОДЕ: %d (в этом пакете: %d)' % (total, len(DONE)))
     io.open(os.path.join(tg, 'MOD_FEATURES.txt'), 'w', encoding='utf-8').write(
         '\n'.join(lines) + '\n')
-    print('KamiGram: пакет улучшений применён, пунктов: %d; всего в моде: %d' % (len(DONE), total))
+    print('Sakura: пакет улучшений применён, пунктов: %d; всего в моде: %d' % (len(DONE), total))
     return 0
 
 

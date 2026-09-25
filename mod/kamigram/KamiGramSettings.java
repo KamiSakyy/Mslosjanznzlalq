@@ -3,7 +3,7 @@ package org.telegram.messenger.kamigram;
 import android.content.Context;
 
 /**
- * KamiGram: строка «Настройки → KamiGram» в настройках Telegram.
+ * Sakura: строка «Настройки → Sakura» в настройках Telegram.
  *
  * Весь интерфейс переехал в {@link KamiGramCenter} (карточки, акценты, кэш,
  * ID, прокси, загрузки). Этот класс оставлен как точка входа, чтобы патчи

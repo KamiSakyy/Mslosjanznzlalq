@@ -21,7 +21,7 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 
 /**
- * KamiGram: свои аккуратные диалоги вместо стандартных.
+ * Sakura: свои аккуратные диалоги вместо стандартных.
  *
  * Почему свои: у стандартного диалога Android кнопка «удалить/сбросить» красится
  * в системный красный, углы не совпадают с остальным интерфейсом, а заголовок
@@ -262,8 +262,8 @@ public final class KamiGramDialog {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER);
             row.setBackground(primary
-                ? gradient(ThemeHook.YORU_PURPLE_SOFT, ThemeHook.YORU_PURPLE, 16)
-                : stroke(ThemeHook.YORU_SURFACE, 16));
+                ? gradient(ThemeHook.accent(), ThemeHook.accent(), 16)
+                : stroke(ThemeHook.surfaceNested(), 16));
             row.setClickable(true);
             row.setFocusable(true);
             row.setOnTouchListener((v, event) -> {
@@ -294,7 +294,7 @@ public final class KamiGramDialog {
             label.setText(text == null ? "" : text.toString().toUpperCase());
             label.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14f);
             label.setTypeface(AndroidUtilities.bold());
-            label.setTextColor(primary ? 0xFF21152F : ThemeHook.YORU_TEXT);
+            label.setTextColor(primary ? 0xFF21152F : ThemeHook.primaryText());
             label.setSingleLine(true);
             label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             row.addView(label, new LinearLayout.LayoutParams(
@@ -323,14 +323,14 @@ public final class KamiGramDialog {
         }
 
         /**
-         * Карточка диалога в стиле Yoru: фон #1F1829, радиус 24,
-         * тонкая обводка #352A43 (как Ui.custom() в Yoru).
+         * Карточка диалога следует активной теме Telegram: радиус 24 и
+         * тонкая тематическая обводка.
          */
         private GradientDrawable cardBackground() {
             final GradientDrawable drawable = new GradientDrawable();
-            drawable.setColor(0xFF1F1829);
+            drawable.setColor(ThemeHook.surface());
             drawable.setCornerRadius(dp(24));
-            drawable.setStroke(Math.max(1, dp(1)), ThemeHook.YORU_LINE);
+            drawable.setStroke(Math.max(1, dp(1)), ThemeHook.separator());
             return drawable;
         }
 
@@ -345,7 +345,7 @@ public final class KamiGramDialog {
             final GradientDrawable drawable = new GradientDrawable();
             drawable.setColor(color);
             drawable.setCornerRadius(dp(radius));
-            drawable.setStroke(Math.max(1, dp(1)), ThemeHook.YORU_LINE);
+            drawable.setStroke(Math.max(1, dp(1)), ThemeHook.separator());
             return drawable;
         }
 

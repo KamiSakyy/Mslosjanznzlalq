@@ -12,7 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * KamiGram: iOS-style tab bar background - flat (no blur, no glass),
+ * Sakura: iOS-style tab bar background - flat (no blur, no glass),
  * rounded, with a thin iOS-like hairline border.
  */
 public class KamiGramIOSTabBarDrawable extends Drawable {

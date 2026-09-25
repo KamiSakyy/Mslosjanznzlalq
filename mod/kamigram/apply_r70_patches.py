@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram r70: патчи поверх исходников Telegram (DrKLO 12.10.3).
+Sakura r70: патчи поверх исходников Telegram (DrKLO 12.10.3).
 
 Правки этого пакета — по списку пользователя:
 
@@ -14,7 +14,7 @@ KamiGram r70: патчи поверх исходников Telegram (DrKLO 12.10
       надпись в шапке, соединение успешное — надпись пропадает. (раньше её
       убирали совсем — пользователю стало непонятно, есть сеть или нет)
 
-  7.  «Пересылать без имени» (центр KamiGram): пересылки всегда без имени
+  7.  «Пересылать без имени» (центр Sakura): пересылки всегда без имени
       отправителя.
 
   8.  Улучшение мобильного интернета: ТОЧЕЧНОЕ ускорение — когда пользователь
@@ -35,9 +35,8 @@ KamiGram r70: патчи поверх исходников Telegram (DrKLO 12.10
   11. Иконка призрака — минималистичная, наш белый цвет: выключен — тонкий
       контур, включён — заполненная. (камigram/res/drawable/kamigram_ghost*.xml)
 
-  12/13. Чаты — наша тема Yoru (цвета сообщений и фона) при ЛЮБОЙ системной
-      настройке: все ВСТРОЕННЫЕ темы (Night, Blue, Dark Blue, Arctic, Day)
-      переписаны на палитру Yoru. СВОИ темы и обои пользователя — не трогаем.
+  12/13. Чаты — только оригинальные темы Telegram при любой системной
+      настройке: штатный theme registry и пользовательские обои не трогаются.
 
   14. Премиум разблокирован локально: свой аккаунт всегда считается
       premium (все премиум-функции доступны в приложении).
@@ -45,7 +44,7 @@ KamiGram r70: патчи поверх исходников Telegram (DrKLO 12.10
   15. «Отправлять всегда HD» (включено по умолчанию): фото всегда уходят в
       максимальном качестве (4096, JPEG 99).
 
-  16. «Применять KamiGram ко всем аккаунтам» (включено по умолчанию): можно
+  16. «Применять Sakura ко всем аккаунтам» (включено по умолчанию): можно
       выключить — тогда настройки мода хранятся у каждого аккаунта отдельно.
 
 Каждый патч идемпотентен: ищет свой маркер и второй раз ничего не делает.
@@ -66,7 +65,6 @@ JAVA = os.path.join(TG, 'TMessagesProj/src/main/java/org/telegram')
 
 GHOST = 'org.telegram.messenger.kamigram.KamiGramGhost'
 GUARD = 'org.telegram.messenger.kamigram.KamiGramChannelGuard'
-FLOAT = 'org.telegram.messenger.kamigram.KamiGramFloat'
 BOOST = 'org.telegram.messenger.kamigram.KamiGramNetBoost'
 SPEED = 'org.telegram.messenger.kamigram.KamiGramSpeed'
 CFG = 'org.telegram.messenger.kamigram.KamiGramConfig'
@@ -153,28 +151,27 @@ def connecting_subtitle():
             '        /* KAMIGRAM_CONNECTING_SUBTITLE (r70): как в оригинальном Telegram —\n'
             '           нет интернета: в шапке «Подключение…» / «Ожидание сети»;\n'
             '           соединение успешное: title == null и надпись пропадает.\n'
-            '           Имя KamiGram на главном экране защищено отдельно\n'
+            '           Имя Sakura на главном экране защищено отдельно\n'
             '           (KAMIGRAM_TITLE_LOCK_R70 в ActionBar). */\n'
             '        actionBarLayout.setTitleOverlayText(title, titleId, action);',
             'шапка: «Подключение…» при отсутствии сети, как в оригинале')
 
     replace('ui/ActionBar/ActionBar.java', 'KAMIGRAM_TITLE_LOCK_R70',
             '    public void setTitleOverlayText(String title, int titleId, Runnable action) {\n'
-            '        /* KAMIGRAM_TITLE_LOCK: на главном экране заголовок (имя KamiGram) не подменяется\n'
+            '        /* KAMIGRAM_TITLE_LOCK: на главном экране заголовок (имя Sakura) не подменяется\n'
             '           ничем: ни «Подключением к прокси…», ни стрелками, ни состоянием сети. */\n'
             '        if (parentFragment instanceof org.telegram.ui.DialogsActivity) {\n'
-            '            /* KAMIGRAM_TITLE_REFRESH: главный экран — заголовок (имя KamiGram)\n'
-            '               не подменяется ничем. Если его всё же кто-то тронул — вернуть. */\n'
+            '            /* KAMIGRAM_TITLE_REFRESH: главный экран не подменяет заголовок. */\n'
             '            org.telegram.messenger.kamigram.KamiGramProxyStatus.refresh();\n'
             '            return;\n'
             '        }',
             '    public void setTitleOverlayText(String title, int titleId, Runnable action) {\n'
             '        /* KAMIGRAM_TITLE_LOCK_R70: на главном экране — как в оригинальном\n'
             '           Telegram: при разрыве сети (title != null) показываем «Подключение…»,\n'
-            '           а когда соединение есть (title == null) — имя KamiGram на месте. */\n'
+            '           а когда соединение есть (title == null) — имя Sakura на месте. */\n'
             '        if (parentFragment instanceof org.telegram.ui.DialogsActivity) {\n'
             '            if (title == null) {\n'
-            '                /* соединение есть — держим имя KamiGram, ничего не подменяем */\n'
+            '                /* соединение есть — держим имя Sakura, ничего не подменяем */\n'
             '                org.telegram.messenger.kamigram.KamiGramProxyStatus.refresh();\n'
             '                return;\n'
             '            }\n'
@@ -600,11 +597,11 @@ def channel_guard():
 
 
 # =============================================================================
-# 1. (МАСШТАБНОЕ) поверх приложений: PiP + летающий круглешок
+# Overlay/PiP был удалён в r76 по просьбе пользователя.
+# Оставляем совместимое имя функции только для старых локальных запусков патчера:
+# она намеренно ничего не добавляет в исходники Telegram.
 # =============================================================================
 def float_window():
-    # Telegram's own overlay/PiP implementation remains untouched. In
-    # particular, do not inject a reduced bubble or replace PipRoundVideoView.
     return
 
 
@@ -617,7 +614,6 @@ def main():
     premium_local()
     always_hd()
     channel_guard()
-    float_window()
 
     print('r70: изменений — %d' % len(DONE))
     for what in DONE:

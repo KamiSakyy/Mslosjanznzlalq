@@ -1,4 +1,4 @@
-MOD_NAME=KamiGram
+MOD_NAME=Sakura
 MOD_PACKAGE=com.kami.gram
 MOD_VERSION=12.10.3-mod
 MOD_BASE_VERSION=12.10.3
@@ -24,8 +24,8 @@ TELEGRAM_API_ID_SOURCE=upstream-buildvars (official built-in, no api_id/api_hash
 PATCHES:
  - креденшелы Telegram встроены в исходники (APP_ID=4, APP_HASH=014b35b6…): свои api_id/api_hash НЕ нужны
  - P1 package id + версия: com.kami.gram / 12.10.3-mod (база 12.10.3, code 7089)
- - P2 имя приложения в ресурсах: 'KamiGram' (файлов: 10)
- - P3 брендинг UI внедрён ('KamiGram' возвращается для R.string.AppName)
+ - P2 имя приложения в ресурсах: 'Sakura' (файлов: 10)
+ - P3 брендинг UI внедрён ('Sakura' возвращается для R.string.AppName)
  - P4 google-services.json: app-модули → com.kami.gram(.beta/.web), библиотека оставлена как org.telegram.messenger
  - P5 ABI ограничены: "arm64-v8a" (файлов: 5)
  - P6 проверка обновлений выключена (не тянет официальный Telegram)
@@ -39,11 +39,11 @@ PATCHES:
  - P15 нативная сборка без -g (объекты и .so легче, линковка быстрее)
  - P15 debugSymbolLevel = SYMBOL_TABLE в 6 модулях (не пишем гигабайты символов)
  - P15 Gradle heap ограничен 5 ГБ (защита от OOM на CI)
- - P16 iOS-тема KamiGram: фон #000000, поверхности #1C1C1E, акцент iOS #0A84FF, градиенты и стекло — плоские
+ - P16 iOS-тема Sakura: фон #000000, поверхности #1C1C1E, акцент iOS #0A84FF, градиенты и стекло — плоские
  - P17 узор чата заменён минимальным SVG (-495 КБ): фон плоский, без паттерна
  - P18 ссылка на прокси активирует его сразу (t.me/proxy, tg://proxy, socks, webproxy) с тостом-подтверждением
  - P19 Google App Indexing вырезан (AssistActionBuilder, FirebaseUserActions и зависимость удалены)
- - P20 КОД: собственный iOS-таб-бар KamiGram (4 своих иконки, плоский фон без «стекла» и без подложки-пилюли) + шеврон «назад» как в iOS (заменено webp-стрелок: 4)
+ - P20 КОД: собственный iOS-таб-бар Sakura (4 своих иконки, плоский фон без «стекла» и без подложки-пилюли) + шеврон «назад» как в iOS (заменено webp-стрелок: 4)
  - P21 УНИКАЛЬНАЯ ФУНКЦИЯ: ghost-режим — не уходят «прочитано», «печатает» и статус «в сети» (KamiGramConfig.ghostMode())
  - P22 УНИКАЛЬНАЯ ФУНКЦИЯ: защищённый контент без ограничений — пересылка, сохранение, копирование и скриншоты разрешены (KamiGramConfig.noRestrictions())
  - P23 iOS-шапка: плоский фон без «стекла» (ActionBar.setupGlass → плоский drawable)

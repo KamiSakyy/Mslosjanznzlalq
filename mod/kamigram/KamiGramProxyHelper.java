@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * KamiGram: proxy + login helper.
+ * Sakura: proxy + login helper.
  *
  * - activates an MTProto / SOCKS / web proxy as soon as its link shows up in the
  *   clipboard (copy the link anywhere, open the app - the proxy is already on);
@@ -36,6 +36,21 @@ public final class KamiGramProxyHelper {
 
     /** last link we already activated, so we do not restart the same proxy over and over */
     private static String lastActivatedLink;
+
+    /* Login diagnostics are intentionally kept in memory only: they let the
+       login screen recover from a stuck request without creating a log viewer
+       or persisting network/server details. */
+    private static volatile int loginStage;
+    private static volatile String loginStageError;
+
+    public static void traceLogin(int stage, String error) {
+        loginStage = stage;
+        loginStageError = error;
+    }
+
+    public static int loginStage() {
+        return loginStage;
+    }
 
     private static final long PROXY_WATCH_DELAY = 25_000L;
 
@@ -74,7 +89,7 @@ public final class KamiGramProxyHelper {
             }
             /* addProxy() returns the canonical row when the link already exists.
                Using a fresh object here made currentProxy point outside proxyList,
-               which in turn made deletion and KamiProxy fallback race each other. */
+               which in turn made deletion and SakuProxy fallback race each other. */
             final SharedConfig.ProxyInfo info = SharedConfig.addProxy(new SharedConfig.ProxyInfo(settings));
             SharedConfig.currentProxy = info;
             SharedConfig.saveProxyList();
@@ -204,7 +219,10 @@ public final class KamiGramProxyHelper {
      * direct connection. A proxy that is still connecting is never dropped.
      */
     public static void watchProxy(final Context context) {
-        if (!KamiGramConfig.proxyFallback() || !proxyEnabled()) {
+        /* KAMIGRAM_DOWNLOAD_WATCH_ONLY_R83: proxy watchdogs are useful only
+           while FileLoader has a live download; app launch/login stays quiet. */
+        if (!KamiGramDownloadRecovery.hasActiveDownloads()
+            || !KamiGramConfig.proxyFallback() || !proxyEnabled()) {
             return;
         }
         try {
@@ -217,7 +235,10 @@ public final class KamiGramProxyHelper {
         final int account = UserConfig.selectedAccount;
         AndroidUtilities.runOnUIThread(() -> {
             try {
-                if (!proxyEnabled() || !ApplicationLoader.isNetworkOnline()) {
+                /* The download may finish during the delay; do not leave a
+                   delayed idle proxy action behind or alter an idle user route. */
+                if (!KamiGramDownloadRecovery.hasActiveDownloads()
+                    || !proxyEnabled() || !ApplicationLoader.isNetworkOnline()) {
                     return;
                 }
                 final int state = ConnectionsManager.getInstance(account).getConnectionState();

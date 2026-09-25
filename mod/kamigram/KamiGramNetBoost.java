@@ -4,16 +4,15 @@ import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.UserConfig;
 
 /**
- * KamiGram: «точечный» буст скорости (r70) — по просьбе пользователя.
+ * Sakura: «точечный» буст скорости (r70) — по просьбе пользователя.
  *
  * Как работает:
  * <ul>
  *   <li>пользователь нажал на фото/видео/файл (запрос на загрузку с
  *       приоритетом выше обычного) — мы запоминаем имя файла как «фокусное»;
- *   <li>до момента, пока фокусный файл не докачается (или не сломается),
- *       ВСЕ остальные загрузки ставятся на паузу: и маленькая очередь, и
- *       большая. Вся пропускная способность мобильного интернета уходит
- *       именно на этот файл — поэтому он качается моментально;
+ *   <li>фокусный файл получает приоритет и дополнительные потоки, но уже
+ *       активные операции не ставятся на паузу: пользовательская загрузка
+ *       стартует сразу, а фоновые очереди продолжают работу;
  *   <li>фокусный файл дополнительно получает больше параллельных потоков
  *       и крупный блок, чем штатные (см. {@link #boostRequests()});
  *   <li>когда фокусный файл готов — фокус снимается, остальные загрузки
@@ -40,8 +39,8 @@ public final class KamiGramNetBoost {
     private static final long[] FOCUS_AT = new long[UserConfig.MAX_ACCOUNT_COUNT];
 
     /**
-     * Поставить фокус на файл: он качается первым, со всеми потоками,
-     * остальные загрузки на паузе.
+     * Поставить фокус на файл: он стартует первым и получает дополнительные
+     * потоки, не останавливая уже активные операции.
      */
     public static void focus(int account, String fileName) {
         try {
@@ -59,7 +58,7 @@ public final class KamiGramNetBoost {
             }
             FOCUS[account] = fileName;
             FOCUS_AT[account] = System.currentTimeMillis();
-            // пересобрать очереди: фокусный стартует, остальные — пауза
+            // пересобрать очереди немедленно: фокусный стартует, фоновые не останавливаются
             FileLoader loader = FileLoader.getInstance(account);
             if (loader != null) {
                 loader.kamigramRecheckQueues();
@@ -97,7 +96,7 @@ public final class KamiGramNetBoost {
             }
             final String name = FOCUS[account];
             // защита от «вечного» фокуса: файл мог зависнуть без прогресса —
-            // через 60 секунд фокус снимаем сами, загрузки не должны вестись вечно
+            // через 60 секунд фокус снимаем сами, чтобы планировщик вернулся к обычному порядку
             if (name != null && FOCUS_AT[account] != 0
                 && System.currentTimeMillis() - FOCUS_AT[account] > 60_000L) {
                 FOCUS[account] = null;
@@ -105,7 +104,7 @@ public final class KamiGramNetBoost {
                 try {
                     final FileLoader loader = FileLoader.getInstance(account);
                     if (loader != null) {
-                        loader.kamigramRecheckQueues(); // паузу с остальных снять
+                        loader.kamigramRecheckQueues(); // вернуть обычное планирование очередей
                     }
                 } catch (Throwable ignore) {
                 }

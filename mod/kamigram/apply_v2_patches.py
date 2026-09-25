@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram P90 «второй большой пакет 2026»: функции, которые видны сразу.
+Sakura P90 «второй большой пакет 2026»: функции, которые видны сразу.
 
 Что делает:
   1. ОТПРАВКА ПО ENTER. В Telegram настройка «send_by_enter» по умолчанию
-     выключена и спрятана. Переключатель из центра KamiGram становится её
+     выключена и спрятана. Переключатель из центра Sakura становится её
      значением по умолчанию.
   2. КОМПАКТНЫЙ СТИЛЬ ВКЛАДОК. Нижняя навигация Telegram 12.x — «стеклянная»
      (GlassTabView): скрываем подписи и делаем иконки ровными, когда включён
@@ -124,7 +124,7 @@ def main():
     startup_tweaks()
 
     if FAILED:
-        print('KamiGram P90: проблемы:')
+        print('Sakura P90: проблемы:')
         for f in FAILED:
             print('  - ' + f)
         return 1
@@ -135,7 +135,7 @@ def main():
     lines.append('')
     lines.append('Подробности по всему моду — в MOD_FEATURES.txt / MOD_PRO_FEATURES.txt / MOD_MORE_FEATURES.txt')
     io.open(os.path.join(TG_DIR, 'MOD_P90_FEATURES.txt'), 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
-    print('KamiGram P90: применено %d пунктов' % len(DONE))
+    print('Sakura P90: применено %d пунктов' % len(DONE))
     return 0
 
 

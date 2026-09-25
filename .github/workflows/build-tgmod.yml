@@ -102,7 +102,7 @@ jobs:
       APP_PACKAGE: ${{ inputs.app_package || 'com.kami.gram' }}
       APP_VERSION_SUFFIX: ${{ inputs.version_suffix || '-mod' }}
       ABIS: ${{ inputs.abis || 'arm64-v8a' }}
-      TG_REF: ${{ inputs.tg_ref || 'master' }}
+      TG_REF: ${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
       MAX_ECONOMY: ${{ inputs.max_economy || '0' }}
       NO_STICKERS: ${{ inputs.no_stickers || '0' }}
@@ -139,7 +139,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: DrKLO/Telegram
-          ref: ${{ inputs.tg_ref || 'master' }}
+          ref: ${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}
           path: telegram-src
           fetch-depth: 1
           submodules: recursive
@@ -159,8 +159,20 @@ jobs:
           SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
           [ -x "$SDKM" ] || { echo "::error::sdkmanager не найден в $SDK"; exit 1; }
           yes | "$SDKM" --licenses > /dev/null 2>&1 || true
-          "$SDKM" --install "platform-tools" "platforms;android-36" \
-                          "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+          packages=("platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1")
+          installed=0
+          for attempt in 1 2 3; do
+            echo "Установка Android SDK, попытка $attempt/3"
+            if "$SDKM" --install "${packages[@]}"; then
+              installed=1
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::sdkmanager завершился с ошибкой; повтор через $((attempt * 15)) секунд"
+              sleep $((attempt * 15))
+            fi
+          done
+          [ "$installed" = 1 ] || { echo "::error::не удалось установить обязательные Android SDK packages"; exit 1; }
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
 
       - name: Установить ccache
@@ -173,9 +185,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ inputs.tg_ref || 'master' }}-${{ inputs.abis || 'arm64-v8a' }}-${{ github.sha }}
+          key: ccache-${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}-${{ inputs.abis || 'arm64-v8a' }}-${{ github.sha }}
           restore-keys: |
-            ccache-${{ inputs.tg_ref || 'master' }}-${{ inputs.abis || 'arm64-v8a' }}-
+            ccache-${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}-${{ inputs.abis || 'arm64-v8a' }}-
 
       - name: Кэш Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -191,7 +203,7 @@ jobs:
             echo "::notice title=Подпись::ключ уже в репозитории"
             exit 0
           fi
-          echo "::notice title=Подпись::генерирую новый ключ KamiGram (4096-bit RSA, JKS)"
+          echo "::notice title=Подпись::генерирую новый ключ Sakura (4096-bit RSA, JKS)"
           mkdir -p "$(dirname "$KS")"
           keytool -genkeypair -v \
             -keystore "$KS" -storetype JKS -alias "$KS_ALIAS" \
@@ -201,12 +213,12 @@ jobs:
           base64 -w0 "$KS" > "$KS.b64"
           FP=$(keytool -list -v -keystore "$KS" -storepass "$KS_PASSWORD" 2>/dev/null | grep -m1 "SHA256:" | sed 's/.*SHA256: *//') || true
           echo "Отпечаток сертификата (SHA-256): ${FP:-не удалось получить}"
-          echo "::notice title=Подпись KamiGram::alias=$KS_ALIAS | пароль=$KS_PASSWORD | SHA-256 сертификата: ${FP:-н/д}"
+          echo "::notice title=Подпись Sakura::alias=$KS_ALIAS | пароль=$KS_PASSWORD | SHA-256 сертификата: ${FP:-н/д}"
           cd modrepo
           git config user.name "arena-ai-coding-agent[bot]"
           git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
           git add -f mod/keys/kamigram.jks mod/keys/kamigram.jks.b64
-          git commit -m "chore(keys): собственный ключ подписи KamiGram (alias=$KS_ALIAS) [skip ci]"
+          git commit -m "chore(keys): собственный ключ подписи Sakura (alias=$KS_ALIAS) [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
 
       - name: Применить мод (брендинг, package id, свой ключ подписи)
@@ -302,6 +314,12 @@ jobs:
           grep -q "name='$APP_PACKAGE'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверный package id (ждали $APP_PACKAGE)"; FAILED=1; }
           grep -q "application-label:'$APP_NAME'" /tmp/badging.txt || { echo "::error title=Проверка::в APK неверное название приложения (ждали $APP_NAME)"; FAILED=1; }
           [ -n "$VERSION" ] && grep -q "versionName='$VERSION'" /tmp/badging.txt || { echo "::warning title=Проверка::версия в APK отличается от gradle.properties ($VERSION)"; }
+          ICON_ENTRIES=$(unzip -l "$APK" 2>/dev/null | grep -cE 'mipmap-[^/]+/kamigram_launcher\.png' || true)
+          echo "Sakura launcher PNG entries in APK: $ICON_ENTRIES"
+          [ "$ICON_ENTRIES" -ge 5 ] || echo "::warning title=Проверка::фирменная Emilia/Sakura launcher-иконка не найдена по ожидаемому resource name; полный launcher список ниже"
+          ICON_LIST=$(unzip -Z1 "$APK" 2>/dev/null | grep -E '(^|/)(mipmap|drawable)[^/]*/.*(launcher|ic_launcher).*\.(png|xml)$' | tr '\n' ' ' || true)
+          echo "::notice title=APK launcher resources::${ICON_LIST:0:900}"
+          grep -q "kamigram_launcher" /tmp/badging.txt || echo "::notice title=Проверка::aapt2 badging не вывел имя alias, полный APK launcher список записан выше"
           [ "$FAILED" = "1" ] && exit 1
 
           # --- информационные проверки ---

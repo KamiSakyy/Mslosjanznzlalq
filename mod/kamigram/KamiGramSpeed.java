@@ -8,7 +8,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.StatsController;
 
 /**
- * KamiGram: ускорение загрузок и потоков даже на слабом интернете.
+ * Sakura: ускорение загрузок и потоков даже на слабом интернете.
  *
  * Что делает:
  * <ul>
@@ -92,6 +92,16 @@ public final class KamiGramSpeed {
 
     public static int smallQueueMax() {
         return enabled() ? 8 : 0;
+    }
+
+    /**
+     * Очередь должна реагировать на нажатие сразу. Telegram's normal 20 ms
+     * debounce is useful for a burst of background thumbnails, but it makes a
+     * user-requested focus visibly wait; a zero delay still posts to the worker
+     * queue and therefore does not block the UI thread.
+     */
+    public static int queueCheckDelayMs() {
+        return enabled() ? 0 : 20;
     }
 
     /** Принудительно ли быстрый режим поднимает приоритет музыки и голосовых. */

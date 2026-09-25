@@ -12,7 +12,7 @@ import org.telegram.tgnet.TLRPC;
  *
  * Telegram may replace the current user with a server response after the colour
  * screen closes. The response is authoritative for the account, but it does not
- * know about KamiGram's local Premium unlock, so the selected colour/background
+ * know about Sakura's local Premium unlock, so the selected colour/background
  * would disappear on the next refresh. This class stores the two PeerColor TL
  * objects verbatim in the account's UserConfig preferences and restores them
  * whenever that account receives a new current user.

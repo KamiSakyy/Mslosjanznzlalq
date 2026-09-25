@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram P95 (правки по замечаниям): галочка своим каналам, ID под @,
+Sakura P95 (правки по замечаниям): галочка своим каналам, ID под @,
 фильтр рекламы, режим «только текст», свой статус в профиле при призраке,
 журнал удалённых сообщений, встроенные прокси в общий запуск.
 
@@ -262,36 +262,43 @@ def builtin_proxy_boot():
 # =============================================================================
 
 def hide_builtin_from_list():
-    """Встроенные прокси не видны в списке — и при этом НИЧЕГО не ломается.
+    """Keep built-in relay rows internal while showing only custom rows."""
+    rel = 'ui/ProxyListActivity.java'
+    target = path(*rel.split('/'))
+    try:
+        src = read(target)
+    except Exception as exc:
+        SKIPPED.append('%s: %s (hidden built-ins)' % (rel, exc))
+        return False
+    marker = 'KAMIGRAM_HIDE_BUILTIN'
+    if marker in src:
+        return True
 
-    ВАЖНО (исправление прошлой сборки): ранее патч переписывал САМ
-    SharedConfig.proxyList — то есть глобальный список прокси Telegram. Это
-    (а) оставляло экран прокси пустым (локальный список активити не заполнялся),
-    (б) удаляло встроенные прокси из общего состояния, где их читают другие
-    потоки. Теперь фильтруем только ЛОКАЛЬНЫЙ список экрана: глобальные данные
-    не трогаем вообще.
-    """
-    return patch('ui/ProxyListActivity.java', 'KAMIGRAM_HIDE_BUILTIN',
-                 '            proxyList.clear();\n            proxyList.addAll(SharedConfig.proxyList);\n',
-                 '            /* KAMIGRAM_HIDE_BUILTIN: встроенные прокси сборки скрыты от пользователя */\n'
-                 '            proxyList.clear();\n'
-                 '            try {\n'
-                 '                for (int kamigramIndex = 0; kamigramIndex < SharedConfig.proxyList.size(); kamigramIndex++) {\n'
-                 '                    final SharedConfig.ProxyInfo kamigramInfo = SharedConfig.proxyList.get(kamigramIndex);\n'
-                 '                    if (!org.telegram.messenger.kamigram.KamiGramBuiltinProxy.isBuiltIn(kamigramInfo)) {\n'
-                 '                        proxyList.add(kamigramInfo);\n'
-                 '                    }\n'
-                 '                }\n'
-                 '            } catch (Throwable kamigramIgnore) {\n'
-                 '                /* Keep built-ins hidden even when a vendor list is unusual. */\n'
-                 '                for (int kamigramIndex = 0; kamigramIndex < SharedConfig.proxyList.size(); kamigramIndex++) {\n'
-                 '                    final SharedConfig.ProxyInfo kamigramInfo = SharedConfig.proxyList.get(kamigramIndex);\n'
-                 '                    if (!org.telegram.messenger.kamigram.KamiGramBuiltinProxy.isBuiltIn(kamigramInfo)) {\n'
-                 '                        proxyList.add(kamigramInfo);\n'
-                 '                    }\n'
-                 '                }\n'
-                 '            }\n',
-                 'встроенные прокси не видны в списке прокси Telegram')
+    # Telegram has used this copy in more than one refresh/exception path.
+    # Filter every direct copy, never SharedConfig.proxyList itself, so native
+    # routing still sees the relay while the user-facing activity sees custom
+    # rows only.
+    pattern = re.compile(
+        r'(?m)^(?P<indent>[ \t]*)proxyList\.clear\(\);\n'
+        r'(?P=indent)proxyList\.addAll\(SharedConfig\.proxyList\);\n'
+    )
+    replacement = (
+        '\g<indent>/* KAMIGRAM_HIDE_BUILTIN: internal Sakura relays stay out of the user list. */\n'
+        '\g<indent>proxyList.clear();\n'
+        '\g<indent>for (int kamigramIndex = 0; kamigramIndex < SharedConfig.proxyList.size(); kamigramIndex++) {\n'
+        '\g<indent>    final SharedConfig.ProxyInfo kamigramInfo = SharedConfig.proxyList.get(kamigramIndex);\n'
+        '\g<indent>    if (!org.telegram.messenger.kamigram.KamiGramBuiltinProxy.isBuiltIn(kamigramInfo)) {\n'
+        '\g<indent>        proxyList.add(kamigramInfo);\n'
+        '\g<indent>    }\n'
+        '\g<indent>}\n'
+    )
+    src, count = pattern.subn(replacement, src)
+    if count == 0:
+        SKIPPED.append('%s: no proxy-list copy anchor (hidden built-ins)' % rel)
+        return False
+    write(target, src)
+    DONE.append(('internal relays hidden from user proxy list (%d paths)' % count, rel))
+    return True
 
 
 # =============================================================================
@@ -511,7 +518,7 @@ def main():
         for s in SKIPPED:
             lines.append('  - ' + s)
     io.open(os.path.join(TG_DIR, 'MOD_FEATURES_r43.txt'), 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
-    print('KamiGram P95: применено %d пунктов, пропущено %d' % (len(DONE), len(SKIPPED)))
+    print('Sakura P95: применено %d пунктов, пропущено %d' % (len(DONE), len(SKIPPED)))
     for s in SKIPPED[:8]:
         print('  · ' + s)
     return 0

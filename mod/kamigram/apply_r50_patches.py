@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram: пакет правок R50 — то, что просил пользователь (все пункты сразу).
+Sakura: пакет правок R50 — то, что просил пользователь (все пункты сразу).
 
 Что делает (по пунктам запроса):
   1) прокси работают при включённом VPN — правка в KamiGramBuiltinProxy.java (Java);
@@ -10,7 +10,7 @@ KamiGram: пакет правок R50 — то, что просил пользо
      рядом с названием (DialogsActivity + LaunchActivity + KamiGramProxyStatus);
   3) непрочитанные — родной цвет Telegram (правка палитры в apply_theme_pro.py);
   4) тексты без «детских» надписей и подсказок (KamiGramCenter/KamiGramProxyPower);
-  5) центр KamiGram переделан: разделы + закреплённая кнопка «Готово» (KamiGramCenter);
+  5) центр Sakura переделан: разделы + закреплённая кнопка «Готово» (KamiGramCenter);
   6) оптимизация и плавность (KamiGramOptimize + переключатели в центре);
   7) в «Избранном» в шапке только три точки, без скрепки (ChatActivity);
   8) ID — между описанием и ссылкой @username (ProfileActivity + KamiGramIds);

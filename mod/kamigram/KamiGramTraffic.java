@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 import org.telegram.messenger.ApplicationLoader;
 
 /**
- * KamiGram: счётчик трафика и экономия — «сколько реально ушло в сеть».
+ * Sakura: счётчик трафика и экономия — «сколько реально ушло в сеть».
  *
  * Telegram не показывает расход трафика вообще, а на слабом мобильном интернете
  * это первое, что хочется видеть. Считаем по счётчикам системы (TrafficStats)

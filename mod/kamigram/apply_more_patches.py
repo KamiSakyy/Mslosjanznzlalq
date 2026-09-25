@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram «MORE» пакет (P70) - окончательный набор улучшений.
+Sakura «MORE» пакет (P70) - окончательный набор улучшений.
 
 Каждое имя запроса проверяется по исходникам Telegram: если метода нет — он не
 попадает в список (никаких «выдуманных» отсечек). Отчёт: MOD_MORE_FEATURES.txt.
@@ -251,22 +251,26 @@ def downloads():
                      'CacheControlActivity'))
     io.open(p, 'w', encoding='utf-8').write(src)
 
-    # при очистке кэша активные загрузки на паузе: ничего не удаляется в процессе
+    # Не меняем MessagesStorage.cleanupInternal: это штатная очистка базы,
+    # а не media-cache policy. Если дерево уже было собрано r93, удаляем
+    # оставленный там условный guard, чтобы он не вмешивался в native lifecycle.
     mc = os.path.join(JAVA, 'messenger/MessagesStorage.java')
     try:
         src = io.open(mc, encoding='utf-8').read()
     except Exception as e:
         FAILED.append('MessagesStorage: %s' % e)
         return
-    anchor2 = '    private void cleanupInternal(boolean deleteFiles) {\n'
-    if anchor2 in src and 'KAMIGRAM_CLEANUP_SAFE' not in src:
-        src = src.replace(anchor2, anchor2 +
-                          '        /* KAMIGRAM_CLEANUP_SAFE: чистка базы не трогает файлы медиа */\n'
-                          '        if (' + CACHE + '.keep()) {\n'
-                          '            deleteFiles = false;\n'
-                          '        }\n', 1)
+    legacy = ('        /* KAMIGRAM_CLEANUP_SAFE: чистка базы не трогает файлы медиа */\n'
+              '        if (' + CACHE + '.keep()) {\n'
+              '            deleteFiles = false;\n'
+              '        }\n')
+    if 'KAMIGRAM_CLEANUP_SAFE' in src:
+        if legacy not in src:
+            FAILED.append('MessagesStorage: legacy cleanup guard shape changed')
+            return
+        src = src.replace(legacy, '', 1)
         io.open(mc, 'w', encoding='utf-8').write(src)
-        DONE.append(('Загрузки', 'чистка базы не удаляет файлы медиа', 'MessagesStorage'))
+        DONE.append(('Загрузки', 'старый условный cleanup guard удалён из MessagesStorage', 'MessagesStorage'))
 
 
 # =============================================================================
@@ -336,10 +340,10 @@ def quality():
     #     не плодить свои кнопки, а использовать родные: прокси открывается
     #     родным пунктом меню Telegram («три точки» главного экрана) и родным
     #     экраном настроек прокси. Своя кнопка в шапке настроек больше не нужна.
-    # 4.2 длинное нажатие на «KamiGram» в настройках открывает панель прокси
+    # 4.2 длинное нажатие на «Sakura» в настройках открывает панель прокси
     try:
         src = io.open(p, encoding='utf-8').read()
-        old = '        items.add(new SettingCell(value, null, LocaleController.getString("KamiGramModName", R.string.KamiGramModName), LocaleController.getString("KamiGramModInfo", R.string.KamiGramModInfo), 90, false));\n'
+        old = '        items.add(new SettingCell(value, null, LocaleController.getString("SakuraModName", R.string.SakuraModName), LocaleController.getString("SakuraModInfo", R.string.SakuraModInfo), 90, false));\n'
         if old in src and 'KAMIGRAM_LONG_PRESS' not in src:
             src = src.replace(old, old, 1)
     except Exception:
@@ -420,7 +424,7 @@ def main():
     lines.append('ВСЕГО В MORE-ПАКЕТЕ: %d' % len(DONE))
     io.open(report, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
 
-    print('KamiGram MORE: применено %d пунктов (отчёт: MOD_MORE_FEATURES.txt)' % len(DONE))
+    print('Sakura MORE: применено %d пунктов (отчёт: MOD_MORE_FEATURES.txt)' % len(DONE))
     if FAILED:
         print('НЕ ПРИМЕНИЛОСЬ (%d):' % len(FAILED))
         for f in FAILED:

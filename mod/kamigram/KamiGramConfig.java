@@ -5,10 +5,10 @@ import android.content.SharedPreferences;
 import org.telegram.messenger.MessagesController;
 
 /**
- * KamiGram: переключатели и настройки мода.
+ * Sakura: переключатели и настройки мода.
  *
  * Значения лежат в общих настройках приложения (kamigram_*), поэтому их видно
- * в экране «KamiGram: центр» и они сохраняются между запусками.
+ * в экране «Sakura: центр» и они сохраняются между запусками.
  *
  * ВАЖНО про значения по умолчанию: всё, что меняет поведение Telegram,
  * по умолчанию выключено, если это может удивить пользователя (например,
@@ -77,8 +77,9 @@ public final class KamiGramConfig {
 
     // ------------------------------------------------------------- кэш
     /**
-     * Защищать вручную скачанное. По умолчанию ВЫКЛЮЧЕНО: пользователь должен
-     * иметь возможность чистить кэш как обычно. Включается галочкой в центре.
+     * Устаревший ключ r93. Оставлен для совместимости с SharedPreferences, но
+     * больше не меняет очистку: автоматический media-cleanup выключен, а явная
+     * очистка всегда выполняется штатным Telegram CacheControlActivity.
      */
     public static final String KEY_KEEP_DOWNLOADS = "kamigram_keep_downloads";
 
@@ -89,7 +90,7 @@ public final class KamiGramConfig {
     public static final String KEY_TELEGRAM_THEME = "kamigram_telegram_theme";
     /** iOS-скругления облаков сообщений. */
     public static final String KEY_IOS_BUBBLES = "kamigram_ios_bubbles";
-    /** Акцентный цвет: 0 — iOS-синий, 1 — бирюзовый, 2 — зелёный, 3 — оранжевый, 4 — красный, 5 — графит, 6 — розовый. */
+    /** Legacy accent preference; current UI reads the active Telegram theme. */
     public static final String KEY_ACCENT = "kamigram_accent";
     /** Фон чатов: 0 — чёрный (AMOLED), 1 — графит, 2 — с узором Telegram. */
     public static final String KEY_CHAT_BACKGROUND = "kamigram_chat_background";
@@ -115,7 +116,7 @@ public final class KamiGramConfig {
     public static final String KEY_AUTO_ARCHIVE = "kamigram_auto_archive";
 
     // ------------------------------------------------------------- r70
-    /** Применять настройки KamiGram ко всем аккаунтам (выкл = только текущий). */
+    /** Применять настройки Sakura ко всем аккаунтам (выкл = только текущий). */
     public static final String KEY_APPLY_ALL = "kamigram_apply_all";
     /** Отправлять фото/видео всегда в HD-качестве (4096, JPEG 99). */
     public static final String KEY_SEND_HD = "kamigram_send_hd";
@@ -123,8 +124,6 @@ public final class KamiGramConfig {
     public static final String KEY_FORWARD_NO_NAME = "kamigram_forward_no_name";
     /** Сгорающие и по таймеру можно пересылать. */
     public static final String KEY_FORWARD_EPHEMERAL = "kamigram_forward_ephemeral";
-    /** Плавающее окно: поверх других приложений (PiP + летающий круглешок). */
-    public static final String KEY_FLOAT_WINDOW = "kamigram_float_window";
     /** Точечный буст: нажатое фото/файл качает первым, со всеми потоками. */
     public static final String KEY_NET_FOCUS = "kamigram_net_focus";
 
@@ -161,7 +160,7 @@ public final class KamiGramConfig {
         }
     }
 
-    /** r70: включено ли «Применять KamiGram ко всем аккаунтам» (всегда гл. хранилище). */
+    /** r70: включено ли «Применять Sakura ко всем аккаунтам» (всегда гл. хранилище). */
     private static boolean applyToAllGlobal() {
         try {
             final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -232,15 +231,21 @@ public final class KamiGramConfig {
         // Выключено по умолчанию — то, что меняет обычное поведение Telegram:
         //   * призрак (пользователь включает сам, когда нужно);
         //   * «только текст» (самый жёсткий режим экономии);
-        //   * стикеры и премиум-эмодзи ВКЛЮЧЕНЫ, как в обычном Telegram;
-        //   * прочие переключатели, которые не должны ничего менять без спроса.
+        //   * обычные фото, видео, аудио, голосовые, кружочки и документы
+        //     всегда проходят native FileLoader;
+        //   * единственные медиакатегории с ограничением — stickers, premium
+        //     emoji и GIFs;
+        //   * noStories не является media block и по умолчанию выключен.
+        if (KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_NO_GIFS.equals(key)) {
+            return true;
+        }
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
-            || KEY_TEXT_ONLY.equals(key) || KEY_TELEGRAM_THEME.equals(key)
+            || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
-            || KEY_NO_PREMIUM_UI.equals(key)
-            || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
+            || KEY_NO_PREMIUM_UI.equals(key) || KEY_NO_STORIES.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
             return false;
         }
@@ -266,7 +271,7 @@ public final class KamiGramConfig {
             }
         } catch (Throwable ignore) {
         }
-        // выключатель KamiProxy должен не только сохраниться, но и сразу
+        // выключатель SakuProxy должен не только сохраниться, но и сразу
         // применить себя: выключение снимает встроенный прокси, включение —
         // тут же подбирает лучший живой
         try {
@@ -327,9 +332,12 @@ public final class KamiGramConfig {
         return value(KEY_SHOW_IDS);
     }
 
-    /** Удалённые сообщения остаются в чате. */
+    /**
+     * r80: retained key for settings/database compatibility, but native Telegram
+     * deletion is always authoritative and the old keep-deleted behaviour is off.
+     */
     public static boolean keepDeleted() {
-        return value(KEY_KEEP_DELETED);
+        return false; /* KAMIGRAM_NATIVE_DELETE_R80 */
     }
 
     /** Одноразовые сообщения смотрим без пометки «просмотрено» (сервер не удаляет). */
@@ -375,9 +383,17 @@ public final class KamiGramConfig {
         return value(KEY_ADS_FILTER);
     }
 
-    /** Встроенные прокси сборки (KamiProxy) с моментальным авто-роутингом. */
+    /** Встроенные прокси сборки (SakuProxy) с моментальным авто-роутингом. */
     public static boolean builtinProxy() {
         return value(KEY_BUILTIN_PROXY);
+    }
+
+    /**
+     * r80: retained key for old preferences; normal sends never become
+     * Scheduled messages, regardless of the stored legacy value.
+     */
+    public static boolean autoSchedule() {
+        return false; /* KAMIGRAM_INSTANT_SEND_R80 */
     }
 
     /** Авто-архив чатов со «100+» непрочитанных (r68). */
@@ -432,8 +448,13 @@ public final class KamiGramConfig {
         return value(KEY_NO_PREMIUM_UI);
     }
 
+    /**
+     * Automatic media cleanup is permanently disabled. The legacy preference is
+     * retained only so older installations can read it without a migration;
+     * it must never re-enable expiry, size-limit cleanup, or timer cleanup.
+     */
     public static boolean keepDownloads() {
-        return value(KEY_KEEP_DOWNLOADS);
+        return true;
     }
 
     public static boolean iosDesign() {
@@ -486,9 +507,9 @@ public final class KamiGramConfig {
 
     // ------------------------------------------------------------------ акцент
 
-    /** Акценты: первый — фиолетовый Yoru (#C8A7FF), остальные в той же гамме. */
+    /** Legacy names retained for preference migration; native Telegram colors are used. */
     private static final String[] ACCENT_NAMES = {
-        "Yoru фиолетовый", "лаванда", "изумруд", "янтарь", "виноград", "графит", "роза"
+        "Telegram", "Telegram", "Telegram", "Telegram", "Telegram", "Telegram", "Telegram"
     };
 
     private static final int[] ACCENT_COLORS = {
@@ -573,7 +594,7 @@ public final class KamiGramConfig {
 
     // ------------------------------------------------------------------ r70
 
-    /** Настройки KamiGram применяются ко всем аккаунтам (по умолчанию да). */
+    /** Настройки Sakura применяются ко всем аккаунтам (по умолчанию да). */
     public static boolean applyToAll() {
         return value(KEY_APPLY_ALL);
     }
@@ -594,12 +615,8 @@ public final class KamiGramConfig {
     }
 
     /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
-    /** «Плавающее окно»: поверх других приложений (по умолчанию включено). */
-    public static boolean floatWindow() {
-        return value(KEY_FLOAT_WINDOW);
-    }
-
     public static boolean netFocus() {
         return value(KEY_NET_FOCUS);
     }
+
 }

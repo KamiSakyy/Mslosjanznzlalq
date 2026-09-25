@@ -10,20 +10,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * KamiGram: удалённые сообщения остаются на месте — как в AyuGram.
+ * Compatibility surface for the former keep-deleted experiment.
  *
- * Раньше мод складывал только текст в «журнал», и это не работало. Теперь
- * сообщение не исчезает из чата: оно остаётся, помечается как удалённое
- * (полупрозрачное, с отметкой «удалено» во времени) и переживает перезапуск —
- * строка не вычищается из локальной базы Telegram.
- *
- * Правило простое и понятное:
- *   * удалили у вас (или сообщение удалено на другом устройстве) — сообщение
- *     остаётся в чате с пометкой;
- *   * вы удаляете УЖЕ удалённое сообщение — оно удаляется по-настоящему.
- *
- * Хранятся только идентификаторы (диалог + номер сообщения), сам текст берётся
- * из базы Telegram, поэтому журнал не растёт в мегабайтах.
+ * r80 deliberately leaves the native Telegram delete pipeline untouched. The
+ * methods remain available because older patch points still call them, but
+ * {@link #enabled()} is permanently false, so no local journal can keep a
+ * message alive or filter a delete update.
  */
 public final class KamiGramDeleted {
 
@@ -45,13 +37,14 @@ public final class KamiGramDeleted {
 
     // ------------------------------------------------------------------ состояние
 
-    /** Сохранять удалённые сообщения (переключатель в центре мода). */
+    /**
+     * r80: native Telegram deletion is authoritative. The old keep-deleted
+     * filter made the Delete action appear to do nothing, so all preservation
+     * hooks are permanently disabled while the class remains as a safe
+     * compatibility surface for older patch points.
+     */
     public static boolean enabled() {
-        try {
-            return KamiGramConfig.keepDeleted();
-        } catch (Throwable ignore) {
-            return false;
-        }
+        return false; /* KAMIGRAM_NATIVE_DELETE_R80 */
     }
 
     private static String key(long dialogId, int mid) {

@@ -9,6 +9,15 @@ Telegram-FOSS: берём официальные открытые исходни
 ([DrKLO/Telegram](https://github.com/DrKLO/Telegram)) и **патчим их** — брендинг, свой `package id`,
 свои фичи. Затем собираем APK в CI (GitHub Actions) или локально.
 
+**Темы:** в актуальной сборке остаются только оригинальные темы Telegram. Sakura не
+создаёт и не регистрирует собственную `.attheme`, не переписывает штатные theme assets и
+не перекрашивает Telegram-экраны через lifecycle hook.
+
+**Встроенный SakuProxy:** relay `relay.surfvpn.app:443` с заданным MTProto secret работает
+как внутренний резервный маршрут, но фильтруется из обычного списка Telegram. В списке
+показываются только прокси, добавленные пользователем; очистка custom-строк не удаляет
+встроенный каталог.
+
 > **Главное про ключи.** Свои `api_id` / `api_hash` **не нужны**. В официальных исходниках уже
 > вшиты рабочие значения, которые используют все форки:
 > ```java
@@ -23,51 +32,58 @@ Telegram-FOSS: берём официальные открытые исходни
 
 ---
 
-## Sakura rebrand and stock Telegram themes
+## r78 — обычные медиа, proxy-send lease и оригинальные темы Telegram
 
-The default build is branded **Sakura**. The built-in proxy switch is shown as
-**SakuProxy**; the embedded catalog includes `relay.surfvpn.app:443` and is
-kept out of Telegram's visible custom-proxy list. User-added proxy rows remain
-visible and removable through the native Telegram screen.
+Поверх r76/r77 добавлен `P103` (`mod/kamigram/apply_r78_patches.py`):
 
-The build no longer creates or registers a KamiGram/Yoru `.attheme`, and it no
-longer calls `Theme.applyTheme` or `Theme.setColor` to repaint Telegram screens.
-Only Telegram's original themes are available in the native theme selector.
+* фото, видео, аудио, голосовые, кружочки и документы загружаются нативным Telegram-путём
+  сразу после нажатия; блокируются только stickers, premium emoji и GIF, а обычный `video/mp4`
+  больше не ошибочно определяется как GIF;
+* smart SakuProxy не переключает маршрут во время `sendMessage`/`sendMedia`/forward-запроса,
+  поэтому обычные сообщения не теряются при подключённом proxy;
+* канал разработчика остаётся обычной ссылкой в настройках; обязательной подписки и
+  автоматического вступления нет;
+* автоочистка касается только архива при `unread_count + unread_mark > 500`, защищает
+  личные диалоги и контакты, а группы/каналы покидает и ботов блокирует/удаляет;
+* папка «Все личные» и остальные folder tabs используют штатные цвета выбранной
+  пользователем темы Telegram; принудительной палитры Sakura нет.
 
-The launcher artwork is an existing, non-generated Emilia image selected from
-[the Peakpx source page](https://www.peakpx.com/en/hd-wallpaper-desktop-pecwn).
-The installer produces circular legacy resources plus adaptive/round resources
-for mdpi through xxxhdpi; see `mod/kamigram/kamigram_icon_artwork.source.txt`.
+Существующие r76/r77 требования по независимым custom/SakuProxy, fallback, self-destruct media,
+скриншотам, иконке глаза и archive-only safety не меняются. APK r78 собирается обязательным
+GitHub Actions workflow `.github/workflows/build-tgmod.yml`.
 
-## r76 — исправления KamiProxy, интерфейса и локального Premium
+## r77 — self-destruct media, быстрый SakuProxy и очистка только архива
 
-- **Overlay/PiP KamiGram удалён полностью:** убраны кнопка «поверх приложений»,
-  плавающий пузырёк, запрос `SYSTEM_ALERT_WINDOW` и переключатель в центре KamiGram.
+Поверх рабочего r76 добавлен `P102` (`mod/kamigram/apply_r77_patches.py`):
+
+* «настроить прокси >» исчезает только после подтверждённого `Connected/Updating`;
+* одноразовые фото/видео/файлы/аудио сохраняются и пересылаются как обычные медиа,
+  без клиентской блокировки скачивания и `FLAG_SECURE`;
+* «Прочитать» использует иконку глаза, папки — палитру Sakura;
+* открытие медиа не ставит остальные загрузки на паузу, а fallback выбирает самый
+  быстрый живой встроенный SakuProxy, не вытесняя живой пользовательский proxy;
+* автоочистка касается только архива при `unread_count + unread_mark > 500`,
+  защищая личные чаты/контакты.
+
+APK r77 собран обязательным GitHub Actions workflow
+`.github/workflows/build-tgmod.yml`. Прямая ссылка:
+[скачать KamiGram-12.10.3-mod-arm64-v8a.apk](https://github.com/KamiSakyy/Mslosjanznzlalq/releases/download/mod-12.10.3-mod-r77/KamiGram-12.10.3-mod-arm64-v8a.apk)
+
+
+## r76 — исправления SakuProxy, интерфейса и локального Premium
+
+- **Overlay/PiP Sakura удалён полностью:** убраны кнопка «поверх приложений»,
+  плавающий пузырёк, запрос `SYSTEM_ALERT_WINDOW` и переключатель в центре Sakura.
 - **Призрак** больше не занимает место в шапке: его иконка находится в меню «⋮»
   главного экрана и сразу показывает контур/заполненное состояние.
 - **Иконка загрузок** не крутится для очереди или паузы: анимация запускается только
   после движения счётчика реально скачанных байтов и гаснет после остановки.
-- **KamiProxy** хранит встроенный каталог отдельно от custom-прокси. Удаление custom
+- **SakuProxy** хранит встроенный каталог отдельно от custom-прокси. Удаление custom
   строк не удаляет встроенные, переключатель работает даже при нулевом количестве
   custom строк, а подтверждённо недоступный custom автоматически заменяется живым
   встроенным прокси. Встроенные строки скрыты из пользовательского списка Telegram.
 - **Premium-оформление** (цвет профиля, collectible и `background_emoji_id`) сохраняется
   отдельно для каждого аккаунта и восстанавливается после серверного refresh и перезапуска.
-
-## P102 — видео не обрывается при смене proxy
-
-- Активный штатный `FileLoadOperation` перепривязывается к новому маршруту без удаления
-  `.temp`/`.pt` и продолжает с уже записанных диапазонов. Временный failure после смены
-  proxy возвращает ту же операцию в нативную `FileLoaderPriorityQueue`.
-- Ручной proxy и встроенный KamiProxy остаются независимыми. Встроенный каталог проверяется
-  в порядке `relay.surfvpn.app:443`, `akenai.tg`, `s02.neo-trading.org`, `s01.neo-trading.org`,
-  `ardesvpn1.ru`, `akenai.top`, `t.meow-network.com`, `s03.neo-trading.org`; одинаковые ссылки не дублируются.
-- `KamiGramDownloadService` — Android foreground service с persistent low-importance
-  уведомлением: видны состояние, объём, процент и полоса прогресса; service наблюдает все
-  аккаунты и живёт, пока нативная загрузка находится в очереди или выполняется.
-- Watchdog учитывает отсутствие прогресса, timeout и фактическую скорость большого файла.
-  При подтверждённом stall активный маршрут помечается проблемным и выбирается живой fallback;
-  переключение проходит через тот же `ConnectionsManager.setProxySettings()` hook.
 
 ## Что нового в моде (v15, «PRO»-обновление)
 
@@ -75,7 +91,7 @@ for mdpi through xxxhdpi; see `mod/kamigram/kamigram_icon_artwork.source.txt`.
 - **Мощный прокси-движок** `KamiGramProxyPower`: переключение на живой прокси за ~1 секунду
   (штатный переключатель ждёт 5–60 секунд). Мод держит базу прокси, проверяет пинг и сам
   выбирает самый быстрый.
-- Если выбранный custom-прокси подтверждённо недоступен — KamiProxy быстро включает
+- Если выбранный custom-прокси подтверждённо недоступен — SakuProxy быстро включает
   живой встроенный резерв; custom и встроенный пул не удаляют и не перезаписывают друг друга.
 - **Ссылка на прокси подключается моментально**: скопировал `https://t.me/proxy?...` — открыл
   панель прокси (или просто приложение) — уже подключено. Без похода по настройкам.
@@ -106,7 +122,7 @@ for mdpi through xxxhdpi; see `mod/kamigram/kamigram_icon_artwork.source.txt`.
 ### Дизайн
 - Палитра **графит + индиго**, голубой цвет убран полностью; без «стекла» и размытия.
 - **Новая iOS-иконка настроек** (шестерёнка как в SF Symbols) и iOS-скругления меню.
-- Экран «KamiGram» переделан по-айосовски: разделы с заголовками, живые статусы прокси,
+- Экран «Sakura» переделан по-айосовски: разделы с заголовками, живые статусы прокси,
   сети и кэша.
 
 ### Исходники каждой версии
@@ -146,7 +162,7 @@ for mdpi through xxxhdpi; see `mod/kamigram/kamigram_icon_artwork.source.txt`.
 | `flat_ui` | `1` | Плоский фон чата: тяжёлый узор `default_pattern.svg` (495 КБ) → минимальный SVG |
 | `auto_proxy` | `1` | **Ссылка `t.me/proxy?...` сразу включает прокси**, без ручных шагов |
 | `drop_appindexing` | `1` | Вырезать Google App Indexing (код + зависимость) — APK легче, старт быстрее |
-| `ios_ui` | `1` | **Собственный iOS-интерфейс в коде**: свой таб-бар KamiGram с плоским фоном и своими иконками, шеврон «назад» как в iOS, плоская шапка без «стекла» |
+| `ios_ui` | `1` | **Собственный iOS-интерфейс в коде**: свой таб-бар Sakura с плоским фоном и своими иконками, шеврон «назад» как в iOS, плоская шапка без «стекла» |
 | `ghost_mode` | `1` | **Режим «невидимка»**: собеседнику не уходят «прочитано», «печатает» и статус «в сети» |
 | `fix_login` | `1` | **Вход в аккаунт**: обычный SMS вместо проверки Google Play Integrity, из-за которой кнопка «Войти» висела без ответа |
 | `smart_proxy` | `1` | **Умный прокси**: ссылка из буфера обмена включает прокси сама, мёртвый прокси сам выключается |
@@ -186,7 +202,7 @@ for mdpi through xxxhdpi; see `mod/kamigram/kamigram_icon_artwork.source.txt`.
 | P22 | `MessagesController.isPeerNoForwards()`, `MessageObject.canForwardMessage()`, `ChatActivity` (flagSecure, canCopy, canShowQuote, hint) | **Снятие ограничений** (`KamiGramConfig.noRestrictions()`): защищённый контент можно пересылать, сохранять, копировать, скриншотить |
 | P24 | `LoginActivity` (`TL_codeSettings`, `fillNextCodeParams`), `LaunchActivity` (`sendConfirmPhoneCode`) | **Фикс входа**: мод не проходит Google Play Integrity/Firebase (не в Google Play и подписан другим ключом) — вместо этого сразу запрашивается обычный SMS-код |
 | P25 | Новый код мода `KamiGramProxyHelper.java` + `LaunchActivity.onResume()`, `LoginActivity.onResume()`, нажатие «Войти» | **Прокси без ручных шагов**: ссылка в буфере обмена включает прокси автоматически; нерабочий прокси через 25 с выключается сам, чтобы не блокировать VPN/прямое соединение |
-| P101 | `KamiGramBuiltinProxy`, `KamiGramProxyPower`, `SharedConfig`, `ProxyListActivity`, `PeerColorActivity`, `UserConfig` и overflow-меню | r76: удаление overlay/PiP, независимый KamiProxy с fallback, ghost в меню, живая анимация загрузок и сохранение Premium-оформления |
+| P101 | `KamiGramBuiltinProxy`, `KamiGramProxyPower`, `SharedConfig`, `ProxyListActivity`, `PeerColorActivity`, `UserConfig` и overflow-меню | r76: удаление overlay/PiP, независимый SakuProxy с fallback, ghost в меню, живая анимация загрузок и сохранение Premium-оформления |
 | P23 | `ActionBar.setupGlass()` | **Плоская шапка** без «стекла» и размытия — iOS-стиль в коде |
 | P19 | `LaunchActivity` + `build.gradle` | Google App Indexing (`AssistActionBuilder`, `FirebaseUserActions`, зависимость `firebase-appindexing`) вырезан |
 | P14 | Заглушки Lottie `res/raw/*.json` | Тяжёлые Lottie-анимации (режим `all`: 328 файлов, −15 МБ исходников) проигрываются за 1 кадр — эффекты премиума и подарков невидимы, APK легче. Заглушаются **только** настоящие Lottie (по маркеру `"v"` в первых байтах), служебные JSON (`mapstyle_night`, `qr_code_logo`) не трогаются |
@@ -243,7 +259,7 @@ git clone --recursive --depth 1 https://github.com/DrKLO/Telegram.git telegram-s
 
 # 2. Применить мод
 TG_DIR=./telegram-src \
-APP_NAME=KamiGram \
+APP_NAME=Sakura \
 APP_PACKAGE=com.kami.gram \
 ABIS=arm64-v8a \
 MAX_ECONOMY=1 NO_STICKERS=1 AUTODOWNLOAD_OFF=1 SLIM_HEAVY=1 RES_CONFIGS=ru,en \

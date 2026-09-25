@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Legacy P16 entry point.
+"""Legacy P16 entry point for Sakura.
 
-Sakura intentionally ships only Telegram's original themes.  This compatibility
-entry point does not create, rewrite or register an attheme; it is retained so
-older automation fails safe instead of silently recolouring Telegram assets.
+Sakura deliberately ships only Telegram's original themes.  This compatibility
+entry point never creates, rewrites, or registers an attheme.  It remains in the
+source tree so older automation fails safe instead of silently recolouring
+Telegram assets.
 """
 
 import os

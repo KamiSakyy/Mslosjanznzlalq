@@ -17,16 +17,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 /**
- * KamiProxy — встроенный резервный каталог прокси.
+ * SakuProxy — встроенный резервный каталог прокси.
  *
- * Built-ins and user-added proxies remain separate rows. KamiProxy never deletes
- * or rewrites a user row; it only keeps its own fallback catalog alive and can
- * route to the best healthy row when the active route is dead or demonstrably
- * too slow for a download.
+ * Важное правило r76: встроенные и пользовательские прокси — это два разных
+ * слоя. SakuProxy добавляет свои записи во внутренний список Telegram, но не
+ * удаляет и не подменяет пользовательские записи. Если пользовательский
+ * прокси выбран и отвечает, он остаётся главным. При подтверждённом сбое
+ * движок мгновенно выбирает живой встроенный прокси.
  */
 public final class KamiGramBuiltinProxy {
 
-    /** User-prioritized catalog, in probe preference order. */
+    /** Каталог SakuProxy. Меняется только здесь. */
+    /* KAMIGRAM_PROXY_CATALOG_R76: built-ins are never deleted with custom proxies. */
     public static final String[] LINKS = {
         "https://t.me/proxy?server=relay.surfvpn.app&port=443&secret=eedf44a4347c1eb8938c7e63340bd1ca4972656c61792e7375726676706e2e617070",
         "https://t.me/proxy?server=akenai.tg&port=853&secret=ee54ce330e4690cc297d2b031ff3f288b06d742e616b656e61692e636c69636b",
@@ -38,21 +40,41 @@ public final class KamiGramBuiltinProxy {
         "https://t.me/proxy?server=s03.neo-trading.org&port=443&secret=eeaf794bcc20f70b1436b6b92b01b207e26d61676e69742e7275"
     };
 
-    private static final long ROUTE_INTERVAL = 8_000L;
-    private static final long BETTER_BY_MS = 300L;
-    private static final long SWITCH_COOLDOWN = 45_000L;
+    private static final long ROUTE_INTERVAL = 1_000L;
+    /* KAMIGRAM_PROXY_FASTEST_LIVE_R77: select the quickest confirmed live
+       built-in route instead of waiting 120 ms for a nominal improvement. */
+    private static final long BETTER_BY_MS = 25L;
 
     private static final ArrayList<SharedConfig.ProxyInfo> PRESETS = new ArrayList<>();
     private static final HashSet<String> PRESET_KEYS = new HashSet<>();
 
     private static boolean inited;
-    private static boolean loadingProxyList;
     private static boolean watchPosted;
+    private static boolean loadingProxyList;
     private static long lastRoute;
-    private static long lastSwitch;
+
+    private static final Runnable WATCH_RUNNABLE = new Runnable() {
+        @Override
+        public void run() {
+            watchPosted = false;
+            if (!enabled() || !KamiGramDownloadRecovery.hasActiveDownloads()) {
+                return;
+            }
+            try {
+                route(null, false);
+            } catch (Throwable throwable) {
+                KamiGramLog.e(throwable);
+            }
+            if (enabled() && KamiGramDownloadRecovery.hasActiveDownloads()) {
+                startWatch();
+            }
+        }
+    };
 
     private KamiGramBuiltinProxy() {
     }
+
+    // ------------------------------------------------------------------ настройка
 
     public static boolean enabled() {
         return KamiGramConfig.builtinProxy();
@@ -67,13 +89,13 @@ public final class KamiGramBuiltinProxy {
             ensureBuiltinsLoaded();
             KamiGramProxyPower.init();
             route(contextOrNull(), true);
-            startWatch();
+            onDownloadActivityChanged();
         } else {
             disableOurProxy();
         }
     }
 
-    /** Safe before login; starts the health watcher after the first screen. */
+    /** Запускается из LaunchActivity и безопасен до входа в аккаунт. */
     public static void init(final Context context) {
         ensureBuiltinsLoaded();
         if (inited) {
@@ -85,38 +107,45 @@ public final class KamiGramBuiltinProxy {
             return;
         }
         try {
-            AndroidUtilities.runOnUIThread(() -> route(context, true), 600L);
-            startWatch();
-        } catch (Throwable ignored) {
+            if (KamiGramDownloadRecovery.hasActiveDownloads()) {
+                AndroidUtilities.runOnUIThread(() -> route(context, true), 600L);
+                startWatch();
+            }
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
     }
 
     private static void startWatch() {
-        if (watchPosted) {
+        if (watchPosted || !enabled() || !KamiGramDownloadRecovery.hasActiveDownloads()) {
             return;
         }
         watchPosted = true;
-        AndroidUtilities.runOnUIThread(new Runnable() {
-            @Override
-            public void run() {
-                watchPosted = false;
-                try {
-                    if (enabled()) {
-                        route(null, false);
-                    }
-                } catch (Throwable ignored) {
-                }
-                if (enabled()) {
-                    startWatch();
-                }
-            }
-        }, ROUTE_INTERVAL);
+        AndroidUtilities.runOnUIThread(WATCH_RUNNABLE, ROUTE_INTERVAL);
     }
+
+    private static void stopWatch() {
+        watchPosted = false;
+        AndroidUtilities.cancelRunOnUIThread(WATCH_RUNNABLE);
+    }
+
+    /** Called by native FileLoader when a download starts or ends. */
+    public static void onDownloadActivityChanged() {
+        if (enabled() && KamiGramDownloadRecovery.hasActiveDownloads()) {
+            startWatch();
+        } else {
+            stopWatch();
+        }
+    }
+
+    // ------------------------------------------------------------------ каталог
 
     private static String keyOf(ProxySettings settings) {
         if (settings == null) {
             return "";
         }
+        /* Только host:port было недостаточно: пользовательский SOCKS/MTProto
+           с тем же адресом ошибочно считался встроенным и скрывался/удалялся. */
         return settings.getType().name() + "|"
             + String.valueOf(settings.getAddress()).toLowerCase() + "|"
             + settings.getPort() + "|"
@@ -140,32 +169,37 @@ public final class KamiGramBuiltinProxy {
                     continue;
                 }
                 PRESETS.add(new SharedConfig.ProxyInfo(settings));
-            } catch (Throwable ignored) {
+            } catch (Throwable throwable) {
+                KamiGramLog.e(throwable);
             }
         }
     }
 
-    /** Merges only missing built-in rows into Telegram's persisted proxy list. */
+    /**
+     * Всегда восстанавливает каталог SakuProxy после load/delete custom proxy.
+     * Метод публичный специально для патча SharedConfig.loadProxyList().
+     */
     public static synchronized void ensureBuiltinsLoaded() {
+        /* KAMIGRAM_PROXY_CATALOG_REENTRANT_R76: SharedConfig.loadProxyList()
+           calls back into this method after deserialization. Do not recurse
+           through the loader thousands of times on first app start. */
         if (loadingProxyList) {
             return;
         }
         loadingProxyList = true;
         try {
             buildPresets();
+            /* Ensure persisted custom rows are loaded before the catalog is
+               merged. loadProxyList() is idempotent and its r76 tail calls
+               this method once more after deserialization. */
             SharedConfig.loadProxyList();
-        } catch (Throwable ignored) {
-            // The native loader can be unavailable before ApplicationLoader is ready.
-        } finally {
-            loadingProxyList = false;
-        }
-        try {
             if (SharedConfig.proxyList == null) {
                 return;
             }
             boolean changed = false;
             for (SharedConfig.ProxyInfo preset : PRESETS) {
-                if (findInList(preset.settings) == null) {
+                SharedConfig.ProxyInfo existing = findInList(preset.settings);
+                if (existing == null) {
                     SharedConfig.proxyList.add(preset);
                     changed = true;
                 }
@@ -173,7 +207,10 @@ public final class KamiGramBuiltinProxy {
             if (changed) {
                 SharedConfig.saveProxyList();
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        } finally {
+            loadingProxyList = false;
         }
     }
 
@@ -207,7 +244,7 @@ public final class KamiGramBuiltinProxy {
         return PRESETS.size();
     }
 
-    /** Best healthy built-in; ties retain the supplied priority order. */
+    /** Лучший уже проверенный встроенный прокси; ties retain LINKS priority. */
     public static SharedConfig.ProxyInfo bestAvailable() {
         ensureBuiltinsLoaded();
         SharedConfig.ProxyInfo best = null;
@@ -222,12 +259,13 @@ public final class KamiGramBuiltinProxy {
                     best = info;
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
         return best;
     }
 
-    /** The first configured route follows LINKS order even after an upgrade. */
+    /** First route follows the user-provided LINKS order after upgrades too. */
     private static SharedConfig.ProxyInfo firstBuiltIn() {
         ensureBuiltinsLoaded();
         try {
@@ -238,7 +276,8 @@ public final class KamiGramBuiltinProxy {
                     return info;
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
         return null;
     }
@@ -252,29 +291,43 @@ public final class KamiGramBuiltinProxy {
                     alive++;
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable ignore) {
         }
         return alive;
     }
 
+    // ------------------------------------------------------------------ роутинг
+
+    /**
+     * Пользовательский прокси не заменяется «самым быстрым» встроенным, пока он
+     * жив. Резерв включается только при подтверждённом сбое или отсутствии
+     * текущего прокси.
+     */
     public static void route(final Context context, final boolean first) {
         try {
             if (!enabled()) {
                 return;
             }
+            /* KAMIGRAM_PROXY_SEND_GUARD_R78: do not replace a route while an
+               ordinary outgoing message is waiting for its proxy response. */
+            if (KamiGramProxyPower.messageSendInFlight()) {
+                return;
+            }
             ensureBuiltinsLoaded();
             KamiGramProxyPower.pingAll();
 
-            final long now = SystemClock.elapsedRealtime();
             final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
             final boolean currentBuiltin = isBuiltIn(current);
             final boolean proxyOn = SharedConfig.isProxyEnabled();
+
             if (current == null) {
                 activateBestOrProbe(context, first);
-                lastRoute = now;
                 return;
             }
             if (!proxyOn) {
+                /* Выключатель Telegram мог быть выключен после удаления custom.
+                   Восстанавливаем только встроенный/отсутствующий маршрут; живой
+                   пользовательский маршрут не перехватываем. */
                 if (currentBuiltin) {
                     activate(current, context, true);
                 }
@@ -288,18 +341,17 @@ public final class KamiGramBuiltinProxy {
 
             final boolean currentAlive = current.available && current.ping > 0;
             final SharedConfig.ProxyInfo best = bestAvailable();
-            final boolean routeDue = now - lastRoute >= ROUTE_INTERVAL;
-            final boolean cooldownOver = now - lastSwitch >= SWITCH_COOLDOWN;
             if (!currentAlive) {
-                if (best != null && best != current) {
+                if (best != null) {
                     activate(best, contextOrNull(), true);
                 }
-            } else if (routeDue && cooldownOver && currentBuiltin && best != null && best != current
+            } else if (currentBuiltin && best != null && best != current
                 && best.ping + BETTER_BY_MS < current.ping) {
                 activate(best, contextOrNull(), true);
             }
-            lastRoute = now;
-        } catch (Throwable ignored) {
+            lastRoute = SystemClock.elapsedRealtime();
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -316,8 +368,11 @@ public final class KamiGramBuiltinProxy {
         }
     }
 
-    /** Native proxy screen entry point, including an empty custom list. */
+    /** Включает SakuProxy из родного экрана, даже если пользовательских строк нет. */
     public static boolean enableForProxyScreen(Context context) {
+        /* The native Telegram checkbox is also a SakuProxy entry point. If the
+           user previously switched SakuProxy off there, turn the feature back
+           on instead of sending an empty screen to ProxySettingsActivity. */
         if (!enabled()) {
             setEnabled(true);
         }
@@ -338,20 +393,33 @@ public final class KamiGramBuiltinProxy {
         return true;
     }
 
+    /** Совместимый хук: старые callers считают удаление активным. */
     public static void recoverAfterProxyDeleted() {
         recoverAfterProxyDeleted(true);
     }
 
+    /**
+     * Восстанавливает fallback только после удаления активного custom-row.
+     * Если пользователь просто чистит неактивную строку при выключенном
+     * Telegram-прокси, SakuProxy не должен самовольно включать соединение.
+     */
     public static void recoverAfterProxyDeleted(boolean deletedCurrent) {
         try {
             ensureBuiltinsLoaded();
-            if (!enabled() || !deletedCurrent
+            if (!enabled()) {
+                return;
+            }
+            final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
+            /* Respect an intentional Telegram-proxy off state. Only an active
+               custom row deletion is allowed to trigger the fallback. */
+            if (!deletedCurrent
                 || !MessagesController.getGlobalMainSettings().getBoolean("proxy_enabled", false)
-                || SharedConfig.currentProxy != null) {
+                || current != null) {
                 return;
             }
             activateBestOrProbe(null, false);
-        } catch (Throwable ignored) {
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -371,17 +439,20 @@ public final class KamiGramBuiltinProxy {
                 editor.putBoolean("proxy_enabled_calls", false);
             }
             editor.commit();
+
             SharedConfig.currentProxy = info;
             SharedConfig.saveProxyList();
             ConnectionsManager.setProxySettings(true, info.settings);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxyChangedByRotation);
-            lastSwitch = SystemClock.elapsedRealtime();
-        } catch (Throwable ignored) {
+            lastRoute = SystemClock.elapsedRealtime();
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
     }
 
     private static void disableOurProxy() {
+        stopWatch();
         try {
             if (!ourProxyActive()) {
                 return;
@@ -395,60 +466,44 @@ public final class KamiGramBuiltinProxy {
             SharedConfig.saveProxyList();
             ConnectionsManager.setProxySettings(false, null);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
-        } catch (Throwable ignored) {
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
     }
 
     private static Context contextOrNull() {
         try {
             return ApplicationLoader.applicationContext;
-        } catch (Throwable ignored) {
+        } catch (Throwable ignore) {
             return null;
         }
     }
+
+    // ------------------------------------------------------------------ состояние для UI
 
     public static String statusText() {
         try {
             if (!enabled()) {
                 return "SakuProxy выключен";
             }
-            final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
-            if (current == null || current.settings == null) {
+            final SharedConfig.ProxyInfo info = SharedConfig.currentProxy;
+            if (info == null || info.settings == null) {
                 return "SakuProxy · ищу живой";
             }
-            final String prefix = isBuiltIn(current) ? "SakuProxy" : "Пользовательский прокси";
-            final String state = current.checking ? "проверяю…"
-                : current.available && current.ping > 0 ? current.ping + " мс" : "ищу резерв";
-            return prefix + " · " + state + " · живых: " + aliveCount() + '/' + count();
-        } catch (Throwable ignored) {
+            if (!isBuiltIn(info)) {
+                return info.available && info.ping > 0
+                    ? "Пользовательский прокси · " + info.ping + " мс"
+                    : "Пользовательский прокси · ищу резерв";
+            }
+            return info.available && info.ping > 0
+                ? "SakuProxy · " + info.ping + " мс"
+                : "SakuProxy · ищу живой";
+        } catch (Throwable ignore) {
             return "SakuProxy";
         }
     }
 
-    public static int stateColor() {
-        try {
-            final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
-            if (!enabled() || current == null) {
-                return 0xFF8E8E93;
-            }
-            if (current.checking) {
-                return 0xFFFF9F0A;
-            }
-            return current.available && current.ping > 0 ? 0xFF30D158 : 0xFFFF453A;
-        } catch (Throwable ignored) {
-            return 0xFF8E8E93;
-        }
-    }
-
-    public static int proxyCount() {
-        try {
-            return SharedConfig.proxyList == null ? 0 : SharedConfig.proxyList.size();
-        } catch (Throwable ignored) {
-            return 0;
-        }
-    }
-
-    public static boolean directMode() {
+    public static boolean vpnActive() {
         return false;
     }
 }

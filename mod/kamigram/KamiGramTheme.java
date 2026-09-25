@@ -1,5 +1,7 @@
 package org.telegram.messenger.kamigram;
 
+import org.telegram.ui.ActionBar.Theme;
+
 /**
  * Compatibility shim for legacy patch points.
  *
@@ -13,6 +15,10 @@ public final class KamiGramTheme {
     }
 
     public static void apply() {
-        // Intentionally empty: native Telegram theme state belongs to Telegram.
+        try {
+            ThemeHook.applyAccent();
+        } catch (Throwable e) {
+            KamiGramLog.e(e);
+        }
     }
 }

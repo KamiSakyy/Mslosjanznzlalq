@@ -14,7 +14,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.kamigram.KamiGramConfig;
 
 /**
- * KamiGram: иконки кодом - iOS-шестерёнка настроек и щит прокси.
+ * Sakura: иконки кодом - iOS-шестерёнка настроек и щит прокси.
  *
  * Рисуются прямо в коде (без картинок), поэтому выглядят одинаково на любом
  * экране и меняют цвет вместе с темой. Шестерёнка - как в iOS: восемь зубьев,

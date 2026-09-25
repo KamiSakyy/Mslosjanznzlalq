@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KamiGram r54: патчи поверх исходников Telegram (DrKLO 12.10.3).
+Sakura r54: патчи поверх исходников Telegram (DrKLO 12.10.3).
 
 Главные правки этого пакета:
   * ПРИЗРАК — иконка живёт только в шапке ГЛАВНОГО экрана (рядом с «⋮»),
     в чатах и каналах её больше нет;
-  * ИМЯ — в шапке всегда «KamiGram» (не зависит от облачных строк);
+  * ИМЯ — в шапке всегда «Sakura» (не зависит от облачных строк);
   * ЗАГРУЗКИ — иконка родного менеджера загрузок Telegram видна всегда, и
     центр мода открывает именно его;
   * УДАЛЁННЫЕ — сообщения остаются в чате: локальные строки не стираются,
@@ -122,7 +122,7 @@ def downloads():
 
     patch(dialogs, 'KAMIGRAM_SHOW_DOWNLOADS',
           '    private void updateProxyButton(boolean animated, boolean force) {\n',
-          '    /** KamiGram: открыть родной менеджер загрузок Telegram. */\n'
+          '    /** Sakura: открыть родной менеджер загрузок Telegram. */\n'
           '    public void kamigramShowDownloads() { /* KAMIGRAM_SHOW_DOWNLOADS */\n'
           '        try {\n'
           '            if (searchViewPager != null) {\n'

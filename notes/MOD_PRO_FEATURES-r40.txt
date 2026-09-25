@@ -26,8 +26,8 @@
  26. [Разрешения] вход не требует разрешений на телефон и журнал вызовов — LoginActivity.java
  27. [Разрешения] вход не требует разрешений на телефон и журнал вызовов — LoginActivity.java
  28. [Разрешения] мод больше не требует доступ к контактам — ContactsActivity.java
- 29. [Дизайн] иконка настроек — iOS-шестерёнка KamiGram — DialogsActivity.java
- 30. [Дизайн] иконка настроек — iOS-шестерёнка KamiGram — ChatActivity.java
+ 29. [Дизайн] иконка настроек — iOS-шестерёнка Sakura — DialogsActivity.java
+ 30. [Дизайн] иконка настроек — iOS-шестерёнка Sakura — ChatActivity.java
  31. [Дизайн] меню «три точки» скруглено сильнее (iOS) — ActionBarMenuItem.java
  32. [Дизайн] меню «три точки» скруглено сильнее (iOS) — ActionBarMenuItem.java
  33. [Дизайн] меню «три точки» скруглено сильнее (iOS) — ActionBarMenuItem.java

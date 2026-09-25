@@ -1,4 +1,4 @@
-# Ключ подписи KamiGram
+# Ключ подписи Sakura
 
 Свой ключ подписи для APK мода. Тип: **JKS**, RSA 4096, срок 30 лет.
 
@@ -7,7 +7,7 @@
 | Файл | `kamigram.jks` (+ `kamigram.jks.b64` — та же копия в base64 для CI) |
 | Alias | `kamigram` |
 | Пароль хранилища / ключа | `kamigram2026` |
-| Владелец сертификата | `CN=KamiGram, OU=Mod, O=KamiGram, L=Telegram Mod, ST=NRW, C=DE` |
+| Владелец сертификата | `CN=Sakura, OU=Mod, O=Sakura, L=Telegram Mod, ST=NRW, C=DE` |
 
 ## Важно про публичность
 
@@ -36,7 +36,7 @@ TG_DIR=./telegram-src bash mod/apply-mod.sh
 keytool -genkeypair -v -keystore mod/keys/kamigram.jks -storetype JKS \
   -alias kamigram -keyalg RSA -keysize 4096 -validity 10950 \
   -storepass kamigram2026 -keypass kamigram2026 \
-  -dname "CN=KamiGram, OU=Mod, O=KamiGram, L=Telegram Mod, ST=NRW, C=DE"
+  -dname "CN=Sakura, OU=Mod, O=Sakura, L=Telegram Mod, ST=NRW, C=DE"
 base64 -w0 mod/keys/kamigram.jks > mod/keys/kamigram.jks.b64
 ```
 

@@ -3,6 +3,8 @@ package org.telegram.messenger.kamigram;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
 import android.os.SystemClock;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -14,31 +16,42 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.utils.proxy.ProxySettings;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLObject;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Быстрый наблюдатель KamiProxy.
+ * Быстрый наблюдатель SakuProxy.
  *
- * Пользовательские записи не смешиваются с каталогом KamiProxy: пока custom
+ * Пользовательские записи не смешиваются с каталогом SakuProxy: пока custom
  * прокси жив, он остаётся выбранным. При подтверждённом сбое выбирается лучший
  * уже проверенный встроенный прокси, а если проверки ещё нет — запускается сразу.
  */
 public final class KamiGramProxyPower implements NotificationCenter.NotificationCenterDelegate {
 
-    private static final long SWITCH_DELAY = 1_200L;
-    private static final long DEAD_DELAY = 250L;
+    /* KAMIGRAM_PROXY_FAST_FAILOVER_R77: a failed live route is replaced
+       immediately; there is no long rotation cooldown hiding a faster route. */
+    private static final long SWITCH_DELAY = 180L;
+    private static final long DEAD_DELAY = 120L;
     private static final long CURRENT_FRESHNESS = 8_000L;
-    private static final long LOOP_DELAY = 2_000L;
-    private static final long SPEED_MARGIN = 250L;
-    private static final long SPEED_SWITCH_COOLDOWN = 30_000L;
+    private static final long LOOP_DELAY = 5_000L;
+    private static final long SPEED_MARGIN = 25L;
+    /* KAMIGRAM_PROXY_SEND_LEASE_R78 is retained only as a compatibility marker.
+       r80 tracks real native request tokens instead of holding a fixed timer. */
+    /* r81: request tokens are local to a ConnectionsManager. Include the
+       account in the key so two accounts cannot release one another's send
+       guard and rotate a route during an active upload. */
+    private static final ConcurrentHashMap<Long, Boolean> MESSAGE_REQUESTS_IN_FLIGHT = new ConcurrentHashMap<>();
 
     private static final KamiGramProxyPower INSTANCE = new KamiGramProxyPower();
 
     private boolean initialized;
     private boolean switching;
     private boolean loopPosted;
+    /* True only after Telegram confirms a usable connection. */
+    private boolean lastConnectionHealthy;
     private long lastSwitchTime;
     private int loadFailures;
     private long loadFailureTime;
@@ -72,7 +85,8 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             final NotificationCenter global = NotificationCenter.getGlobalInstance();
             global.addObserver(this, NotificationCenter.proxyCheckDone);
             global.addObserver(this, NotificationCenter.proxySettingsChanged);
-            startLoop();
+            /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83: no permanent proxy timer;
+               FileLoader starts it only while a native download is active. */
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
@@ -86,12 +100,102 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         return KamiGramConfig.smartProxy();
     }
 
+    /**
+     * Central request classifier used by ConnectionsManager. Route stability is
+     * tied to the real native request token, never to a synthetic delay. The
+     * token is removed on Telegram's response or cancellation, so ordinary
+     * sends remain immediate while the smart watcher cannot rotate the route
+     * underneath an active send.
+     */
+    public static boolean isMessageRequest(TLObject object) {
+        if (object == null) {
+            return false;
+        }
+        try {
+            final String simple = object.getClass().getSimpleName().toLowerCase();
+            return simple.contains("sendmessage")
+                || simple.contains("sendmedia")
+                || simple.contains("sendmultimedia")
+                || simple.contains("sendinlinebotresult")
+                || simple.contains("sendpaidmessage")
+                || simple.contains("sendscheduledmessages")
+                || simple.contains("forwardmessages");
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    private static long requestKey(int account, int requestToken) {
+        return (((long) account) << 32) ^ (requestToken & 0xffffffffL);
+    }
+
+    /** r81: pin only the actual native request, with an account-safe token. */
+    public static void noteMessageRequestStarted(int account, int requestToken) {
+        if (requestToken >= 0) {
+            MESSAGE_REQUESTS_IN_FLIGHT.put(requestKey(account, requestToken), Boolean.TRUE); /* KAMIGRAM_REQUEST_ACCOUNT_R81 */
+        }
+    }
+
+    /** Compatibility overload for older call sites; it still has no timer. */
+    public static void noteMessageRequestStarted(int requestToken) {
+        noteMessageRequestStarted(-1, requestToken);
+    }
+
+    public static void noteMessageRequestStarted() {
+        MESSAGE_REQUESTS_IN_FLIGHT.put(requestKey(-1, Integer.MIN_VALUE), Boolean.TRUE); /* KAMIGRAM_INSTANT_SEND_R80 */
+    }
+
+    /** Route selection is stable only while a real request token is active. */
+    public static boolean messageSendInFlight() {
+        return !MESSAGE_REQUESTS_IN_FLIGHT.isEmpty(); /* KAMIGRAM_INSTANT_SEND_R80 */
+    }
+
+    public static void noteMessageRequestFinished(int account, int requestToken) {
+        MESSAGE_REQUESTS_IN_FLIGHT.remove(requestKey(account, requestToken)); /* KAMIGRAM_REQUEST_ACCOUNT_R81 */
+    }
+
+    public static void noteMessageRequestFinished(int requestToken) {
+        noteMessageRequestFinished(-1, requestToken);
+    }
+
+    public static void noteMessageRequestFinished() {
+        MESSAGE_REQUESTS_IN_FLIGHT.remove(requestKey(-1, Integer.MIN_VALUE)); /* KAMIGRAM_PROXY_SEND_FINISH_R78 */
+    }
+
     private void startLoop() {
-        if (loopPosted) {
+        if (loopPosted || !downloadsActive()) {
             return;
         }
         loopPosted = true;
         AndroidUtilities.runOnUIThread(loopRunnable, LOOP_DELAY);
+    }
+
+    private void stopLoop() {
+        loopPosted = false;
+        AndroidUtilities.cancelRunOnUIThread(loopRunnable);
+        cancelSwitch();
+    }
+
+    private static boolean downloadsActive() {
+        try {
+            return KamiGramDownloadRecovery.hasActiveDownloads();
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** Native FileLoader activity is the only reason to run proxy checks. */
+    public static void onDownloadActivityChanged() {
+        try {
+            if (downloadsActive() && enabled() && smartEnabled()) {
+                INSTANCE.startLoop();
+            } else {
+                INSTANCE.stopLoop();
+            }
+            KamiGramBuiltinProxy.onDownloadActivityChanged();
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
     }
 
     private final Runnable loopRunnable = new Runnable() {
@@ -99,13 +203,13 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         public void run() {
             loopPosted = false;
             try {
-                if (enabled() && smartEnabled()) {
+                if (downloadsActive() && enabled() && smartEnabled()) {
                     tickInternal();
                 }
             } catch (Throwable throwable) {
                 KamiGramLog.e(throwable);
             }
-            if (enabled() && smartEnabled()) {
+            if (downloadsActive() && enabled() && smartEnabled()) {
                 startLoop();
             }
         }
@@ -113,6 +217,14 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     private void tickInternal() {
         try {
+            if (!downloadsActive()) {
+                return; /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83 */
+            }
+            /* KAMIGRAM_PROXY_SEND_GUARD_R78: never rotate a route in the
+               middle of an ordinary message send/retry. */
+            if (messageSendInFlight()) {
+                return;
+            }
             KamiGramBuiltinProxy.ensureBuiltinsLoaded();
             final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
             final long now = SystemClock.elapsedRealtime();
@@ -135,8 +247,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
             } else if (refreshed.available && refreshed.ping > 0
                 && KamiGramBuiltinProxy.isBuiltIn(refreshed)) {
                 final SharedConfig.ProxyInfo best = KamiGramBuiltinProxy.bestAvailable();
-                if (best != null && best != refreshed && best.ping + SPEED_MARGIN < refreshed.ping
-                    && now - lastSwitchTime > SPEED_SWITCH_COOLDOWN) {
+                if (best != null && best != refreshed && best.ping + SPEED_MARGIN < refreshed.ping) {
+                    /* KAMIGRAM_PROXY_FASTEST_LIVE_R77: do not keep a slower
+                       built-in route merely because a cooldown is running. */
                     if (activate(best, null, true)) {
                         lastSwitchTime = now;
                         checkOne(best);
@@ -182,8 +295,8 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     /** Activate only a built-in fallback, never an arbitrary custom row. */
     private void switchToBest(Context context) {
-        if (!enabled() || !smartEnabled()) {
-            return;
+        if (!enabled() || !smartEnabled() || messageSendInFlight()) {
+            return; /* KAMIGRAM_PROXY_SEND_GUARD_R78 */
         }
         try {
             KamiGramBuiltinProxy.ensureBuiltinsLoaded();
@@ -229,10 +342,10 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
         }
     }
 
-    /** Called when a large download has stalled on the active route. */
+    /** Called when a large native download is stalled or demonstrably too slow. */
     public static void onSlowDownload(FileLoadOperation operation) {
         try {
-            if (operation == null || !enabled() || !smartEnabled()) {
+            if (operation == null || !downloadsActive() || !enabled() || !smartEnabled() || messageSendInFlight()) {
                 return;
             }
             final long now = SystemClock.elapsedRealtime();
@@ -254,6 +367,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     private void onLoadFailure() {
+        if (!downloadsActive()) {
+            return; /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83 */
+        }
         final long now = SystemClock.elapsedRealtime();
         if (now - loadFailureTime > 45_000L) {
             loadFailures = 0;
@@ -300,12 +416,14 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
                 editor.putBoolean("proxy_enabled_calls", false);
             }
             editor.commit();
+            /* A route change starts a new connection attempt. Never let the
+               previous healthy state hide the new route's connecting phase. */
+            INSTANCE.lastConnectionHealthy = false; /* KAMIGRAM_PROXY_ROUTE_CHANGE_R77 */
             SharedConfig.currentProxy = info;
             SharedConfig.saveProxyList();
             ConnectionsManager.setProxySettings(true, info.settings);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxyChangedByRotation);
-            lastSwitchTime = SystemClock.elapsedRealtime();
             return true;
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
@@ -396,7 +514,7 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     public static void tick(Context context) {
         try {
-            if (!enabled() || !smartEnabled()) {
+            if (!downloadsActive() || !enabled() || !smartEnabled()) {
                 return;
             }
             INSTANCE.tickInternal();
@@ -459,29 +577,61 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     public static boolean directMode() {
-        /* r76 never disables KamiProxy merely because all probes are pending. */
+        /* r76 never disables SakuProxy merely because all probes are pending. */
         return false;
     }
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
         try {
+            if (id != NotificationCenter.proxySettingsChanged
+                && (id == NotificationCenter.didUpdateConnectionState
+                    || id == NotificationCenter.proxyCheckDone
+                    || id == NotificationCenter.fileLoadFailed
+                    || id == NotificationCenter.httpFileDidFailedLoad)
+                && !downloadsActive()) {
+                cancelSwitch();
+                return; /* KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83 */
+            }
             if (id == NotificationCenter.didUpdateConnectionState) {
                 if (account != UserConfig.selectedAccount || !enabled() || !smartEnabled()) {
                     return;
                 }
-                final int state = ConnectionsManager.getInstance(account).getConnectionState();
-                if (state == ConnectionsManager.ConnectionStateConnectingToProxy) {
-                    scheduleSwitch(SWITCH_DELAY);
-                } else if (state == ConnectionsManager.ConnectionStateConnecting) {
-                    scheduleSwitch(DEAD_DELAY);
-                } else if (state == ConnectionsManager.ConnectionStateConnected
-                    || state == ConnectionsManager.ConnectionStateUpdating
-                    || state == ConnectionsManager.ConnectionStateWaitingForNetwork) {
+                /* KAMIGRAM_PROXY_SEND_GUARD_R78: a transient Connecting state
+                   belongs to the message retry path; keep the current route
+                   stable until Telegram finishes that request. */
+                if (messageSendInFlight()) {
                     cancelSwitch();
-                    if (state != ConnectionsManager.ConnectionStateWaitingForNetwork) {
-                        lastSwitchTime = 0;
+                    return;
+                }
+                final int state = ConnectionsManager.getInstance(account).getConnectionState();
+                if (state == ConnectionsManager.ConnectionStateConnected
+                    || state == ConnectionsManager.ConnectionStateUpdating) {
+                    lastConnectionHealthy = true; /* KAMIGRAM_CONNECTION_HEALTHY_R77 */
+                    cancelSwitch();
+                    lastSwitchTime = 0;
+                } else if (state == ConnectionsManager.ConnectionStateWaitingForNetwork) {
+                    /* There is no useful fallback while Android reports that the
+                       device itself is offline; the overlay must remain visible. */
+                    lastConnectionHealthy = false;
+                    cancelSwitch();
+                } else if (state == ConnectionsManager.ConnectionStateConnectingToProxy
+                    || state == ConnectionsManager.ConnectionStateConnecting) {
+                    /* The old live route is no longer usable as soon as Telegram
+                       leaves Connected/Updating. Mark it dead before selecting the
+                       fastest already-live SakuProxy, rather than waiting for a
+                       several-second probe timeout. */
+                    if (lastConnectionHealthy) {
+                        final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
+                        if (current != null && current.settings != null) {
+                            current.available = false;
+                            current.ping = 0;
+                            current.availableCheckTime = SystemClock.elapsedRealtime();
+                        }
                     }
+                    lastConnectionHealthy = false;
+                    scheduleSwitch(state == ConnectionsManager.ConnectionStateConnectingToProxy
+                        ? SWITCH_DELAY : DEAD_DELAY);
                 }
             } else if (id == NotificationCenter.proxyCheckDone) {
                 if (!enabled() || !smartEnabled()) {
@@ -515,13 +665,57 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     }
 
     public static void refreshNow(Context context) {
-        if (!enabled() || !smartEnabled()) {
+        if (!downloadsActive() || !enabled() || !smartEnabled()) {
             return;
         }
         KamiGramBuiltinProxy.ensureBuiltinsLoaded();
         pingAll();
         INSTANCE.switchToBest(context);
         KamiGramBuiltinProxy.route(context, true);
+    }
+
+    /**
+     * KAMIGRAM_THERMAL_LIMIT_R83: retain six native FileLoader operations on a
+     * normal device, but let Android power/thermal policy lower concurrency
+     * without deleting temp/parts or changing resume offsets.
+     */
+    public static int downloadParallelLimit(int normal) {
+        int limit = Math.min(6, Math.max(1, normal));
+        try {
+            final Context context = contextOrNull();
+            if (context == null) {
+                return limit;
+            }
+            final PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            if (power != null && power.isPowerSaveMode()) {
+                return Math.min(limit, 2);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && power != null) {
+                final int thermal = power.getCurrentThermalStatus();
+                if (thermal >= PowerManager.THERMAL_STATUS_SEVERE) {
+                    return Math.min(limit, 2);
+                } else if (thermal >= PowerManager.THERMAL_STATUS_MODERATE) {
+                    return Math.min(limit, 4);
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return limit;
+    }
+
+    /**
+     * A title overlay may disappear only after Telegram confirms a usable
+     * connection. ApplicationLoader.isNetworkOnline() is not sufficient: it is
+     * also true while a proxy is negotiating or has just failed.
+     */
+    public static boolean connectionHealthy() { /* KAMIGRAM_CONNECTION_HEALTHY_R77 */
+        try {
+            final int state = ConnectionsManager.getInstance(UserConfig.selectedAccount).getConnectionState();
+            return state == ConnectionsManager.ConnectionStateConnected
+                || state == ConnectionsManager.ConnectionStateUpdating;
+        } catch (Throwable ignore) {
+            return false;
+        }
     }
 
     public static boolean networkOnline() {

@@ -26,7 +26,7 @@
 #     DISABLE_BILLING      1 = выключить Google Play Billing            [0]
 #     USE_CCACHE           1 = кэшировать нативную сборку через ccache  [1]
 #     AUTODOWNLOAD_OFF     1 = автоскачивание медиа выключено по умолчанию [1]
-#     NO_STICKERS          1 = стикеры/премиум-эмодзи не загружаются вообще  [1]
+#     NO_STICKERS          1 = блокировать стикеры/премиум-эмодзи (обычные медиа не трогать) [1]
 #     MAX_ECONOMY          1 = принудительный power-saver (анимации/автоплей off) [1]
 #     RES_CONFIGS          какие локали оставить в APK ("ru,en" | "all")   [ru,en]
 #     SLIM_HEAVY           заглушки тяжёлых Lottie-анимаций: 1 | all | 0   [1]
@@ -46,7 +46,7 @@
 set -Eeuo pipefail
 
 # ------------------------------ параметры -----------------------------------
-# r66/r67: имя KamiGram в шапке не пропадает при прокси, нет ложной анимации загрузки,
+# r66/r67: имя Sakura в шапке не пропадает при прокси, нет ложной анимации загрузки,
 #         одноразовые фото не удаляются, удалённые в личных чатах остаются, папки — белый текст
 #         (см. kamigram/apply_r66_patches.py, секция P98 ниже)
 TG_DIR=${TG_DIR:-telegram-src}
@@ -69,13 +69,13 @@ IOS_THEME=${IOS_THEME:-0}                 # legacy switch ignored: stock Telegra
 FLAT_UI=${FLAT_UI:-1}                     # плоский дизайн: убрать тяжёлый узор чата
 AUTO_PROXY=${AUTO_PROXY:-1}               # ссылка на прокси активирует его сразу
 DROP_APPINDEXING=${DROP_APPINDEXING:-1}   # вырезать Google App Indexing (меньше APK)
-IOS_UI=${IOS_UI:-1}                       # НАСТОЯЩИЙ КОД: собственный iOS-интерфейс KamiGram
+IOS_UI=${IOS_UI:-1}                       # НАСТОЯЩИЙ КОД: собственный iOS-интерфейс Sakura
 GHOST_MODE=${GHOST_MODE:-1}               # уникальная функция: режим «невидимка»
 NO_RESTRICTIONS=${NO_RESTRICTIONS:-1}     # уникальная функция: снять запреты защищённого контента
 FIX_LOGIN=${FIX_LOGIN:-1}                   # фикс входа: обычный SMS вместо Google Play Integrity
 SMART_PROXY=${SMART_PROXY:-1}             # прокси из буфера сам включается, мёртвый — сам выключается
-ZERO_TRAFFIC=${ZERO_TRAFFIC:-1}           # нулевой трафик: стикеры/премиум-эмодзи/истории не грузятся
-IOS_DESIGN=${IOS_DESIGN:-1}               # iOS-дизайн KamiGram кодом (скругления, пилюля таба)
+ZERO_TRAFFIC=${ZERO_TRAFFIC:-1}           # traffic policy: stickers/premium emoji/GIFs only; ordinary media stays native
+IOS_DESIGN=${IOS_DESIGN:-1}               # iOS-дизайн Sakura кодом (скругления, пилюля таба)
 BUILD_LEAN=${BUILD_LEAN:-1}               # без debug-инфо в native, heap 5 ГБ (быстрее и легче)
 KEYSTORE_B64=${KEYSTORE_B64:-}
 KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
@@ -216,16 +216,28 @@ LC="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/LocaleController.
 if [ "$BRAND_STRINGS" = "1" ]; then
     MARKER="/* MSLGRAM_BRAND */"
     if has "$LC" "$MARKER"; then
-        sed_i "s|if (res == R.string.AppName) return \"[^\"]*\"; $MARKER|if (res == R.string.AppName) return \"$APP_NAME\"; $MARKER|" "$LC"
+        python3 - "$LC" "$APP_NAME" <<'PY'
+import io, re, sys
+path, name = sys.argv[1], sys.argv[2]
+src = io.open(path, encoding='utf-8').read()
+src, count = re.subn(
+    r'if \((?:res|stringRes) == R\.string\.AppName\) return "[^"]*"; /\* MSLGRAM_BRAND \*/',
+    lambda match: 'if (' + ('stringRes' if 'stringRes' in match.group(0) else 'res') + ' == R.string.AppName) return "' + name + '"; /* MSLGRAM_BRAND */',
+    src,
+    count=1,
+)
+if count != 1:
+    raise SystemExit('P3: existing branding marker shape not found')
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
         ok "P3 брендинг UI обновлён на '$APP_NAME'"
     else
         ANCHOR='        String value = BuildVars.USE_CLOUD_STRINGS ? localizationExternal.getByResNameOrResId(ApplicationLoader.applicationContext, key, res) : null;'
-        # New upstreams resolve cloud strings through getStringV2 instead of the
-        # older inline expression; the method entry is an equally safe hook.
-        if ! has "$LC" "$ANCHOR"; then
-            ANCHOR='    private String getStringInternal(String key, String fallback, int res) {'
+        NEW_ANCHOR='    private String getStringV2(String key, @StringRes int stringRes, String fallback) {'
+        NEW_ANCHOR_NULL='    private @Nullable String getStringV2(String key, @StringRes int stringRes, String fallback) {'
+        if ! has "$LC" "$ANCHOR" && ! has "$LC" "$NEW_ANCHOR" && ! has "$LC" "$NEW_ANCHOR_NULL"; then
+            die "P3: не нашёл точку внедрения в LocaleController.java (изменился upstream)"
         fi
-        has "$LC" "$ANCHOR" || die "P3: не нашёл точку внедрения в LocaleController.java (изменился upstream)"
         python3 - "$LC" "$APP_NAME" "$MARKER" <<'PY'
 import sys, io
 path, name, marker = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -237,10 +249,21 @@ else:
     anchor = '    private String getStringInternal(String key, String fallback, int res) {\n'
 inject = '        if (res == R.string.AppName) return "%s"; %s\n' % (name, marker)
 if marker not in src:
-    idx = src.index(anchor) + len(anchor)
-    if anchor.endswith('\n'):
+    old_anchor = '        String value = BuildVars.USE_CLOUD_STRINGS ? localizationExternal.getByResNameOrResId(ApplicationLoader.applicationContext, key, res) : null;'
+    new_anchors = (
+        '    private String getStringV2(String key, @StringRes int stringRes, String fallback) {',
+        '    private @Nullable String getStringV2(String key, @StringRes int stringRes, String fallback) {'
+    )
+    if old_anchor in src:
+        inject = '        if (res == R.string.AppName) return "%s"; %s\n' % (name, marker)
+        idx = src.index(old_anchor)
         src = src[:idx] + inject + src[idx:]
     else:
+        anchor = next((item for item in new_anchors if item in src), None)
+        if anchor is None:
+            raise SystemExit('P3: LocaleController branding anchor disappeared')
+        inject = '        if (stringRes == R.string.AppName) return "%s"; %s\n' % (name, marker)
+        idx = src.index(anchor) + len(anchor)
         src = src[:idx] + '\n' + inject + src[idx:]
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
@@ -437,7 +460,7 @@ if marker not in src:
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
     [ "$(grep -c 'KAMIGRAM_NO_STICKERS' "$MDC")" = "4" ] || die "P11: ожидалось 4 точки блокировки"
-    ok "P11 стикеры и премиум-эмодзи грузятся как обычно; отключаются только тумблером в центре мода"
+    ok "P11 стикеры и premium-эмодзи блокируются; фото/видео/аудио/голосовые/кружочки/документы не затронуты"
 else
     skip "P11 стикеры оставлены как в upstream (NO_STICKERS=0)"
 fi
@@ -538,10 +561,14 @@ fi
 if [ "$BUILD_LEAN" = "1" ]; then
     JNICMAKE="$TG_DIR/TMessagesProj/jni/CMakeLists.txt"
     if [ -f "$JNICMAKE" ]; then
-        # Upstream changed the order and contents of the initial flags. Remove
-        # debug info without requiring one exact CMake line shape.
+        # CMake changed the initial flag order between Telegram releases;
+        # remove debug info from every C/C++ flag assignment rather than
+        # depending on one historical line shape.
         sed_i 's/ -g//g' "$JNICMAKE"
-        grep -q 'set(CMAKE_CXX_FLAGS' "$JNICMAKE" && ! grep -q 'CMAKE_CXX_FLAGS.*-g' "$JNICMAKE" || die "P15: не удалось убрать -g из CMAKE_CXX_FLAGS"
+        if grep -qE 'CMAKE_(C|CXX)_FLAGS[^\n]*-g' "$JNICMAKE"; then
+            die "P15: не удалось убрать -g из C/CXX flags"
+        fi
+        has "$JNICMAKE" 'CMAKE_CXX_FLAGS' || die "P15: CMAKE_CXX_FLAGS не найден"
         ok "P15 нативная сборка без -g (объекты и .so легче, линковка быстрее)"
     else
         warn "P15: не нашёл jni/CMakeLists.txt — пропускаю"
@@ -563,12 +590,11 @@ else
 fi
 
 # =============================================================================
+# =============================================================================
 # P16. ТОЛЬКО ОРИГИНАЛЬНЫЕ ТЕМЫ TELEGRAM.
-#      Старый эксперимент с Yoru/KamiGram здесь намеренно отключён: никаких
-#      новых .attheme-файлов, регистраций в Theme.java и принудительной
-#      перекраски штатных Telegram-тем в итоговой сборке нет. Если сборщик
-#      повторно использует уже изменённое дерево, удаляем только оставшийся
-#      маркер/артефакт старого патча из дерева Telegram.
+#      Никаких новых .attheme-файлов, регистраций в Theme.java и
+#      принудительной перекраски штатных Telegram-тем в итоговой сборке нет.
+#      При повторном запуске удаляем только артефакт старого эксперимента.
 # =============================================================================
 ASSET_ROOT="$TG_DIR/TMessagesProj/src/main/assets"
 THEME_JAVA="$TG_DIR/TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java"
@@ -576,12 +602,21 @@ if [ -f "$ASSET_ROOT/kamigram.attheme" ]; then
     rm -f "$ASSET_ROOT/kamigram.attheme"
 fi
 if [ -f "$THEME_JAVA" ] && grep -q 'KAMIGRAM_THEME_REGISTRATION' "$THEME_JAVA"; then
-    python3 - "$THEME_JAVA" <<'PY' || die "P16: не удалось удалить старую регистрацию custom theme"
-import io, re, sys
+    python3 - "$THEME_JAVA" <<'PY'
+import io
+import re
+import sys
+
 path = sys.argv[1]
-src = io.open(path, encoding='utf-8').read()
-src = re.sub(r'\n\s*/\* KAMIGRAM_THEME_REGISTRATION:.*?themesDict\.put\("KamiGram", themeInfo\);\n', '\n', src, count=1, flags=re.S)
-io.open(path, 'w', encoding='utf-8').write(src)
+src = io.open(path, encoding="utf-8").read()
+src = re.sub(
+    r'\n\s*/\* KAMIGRAM_THEME_REGISTRATION:.*?themesDict\.put\("KamiGram", themeInfo\);\n',
+    "\n",
+    src,
+    count=1,
+    flags=re.S,
+)
+io.open(path, "w", encoding="utf-8").write(src)
 PY
 fi
 [ ! -e "$ASSET_ROOT/kamigram.attheme" ] || die "P16: custom attheme остался в assets"
@@ -705,7 +740,7 @@ else
 fi
 
 # =============================================================================
-# P20. KamiGram iOS UI — НАСТОЯЩИЙ КОД (не тема):
+# P20. Sakura iOS UI — НАСТОЯЩИЙ КОД (не тема):
 #      свой класс конфигурации мода, плоский нижний таб-бар в стиле iOS
 #      (собственные иконки, без «стекла»/размытия и без подложки-пилюли),
 #      шеврон «назад» как в iOS вместо стрелки.
@@ -732,7 +767,7 @@ has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "KAMIGRAM_ADAPTIVE_ICON
 ok "P2A adaptive launcher icon: verified existing Emilia artwork + circular resources for mdpi…xxxhdpi"
 
 if [ "$IOS_UI" = "1" ]; then
-    [ -d "$KAMIGRAM_SRC" ] || die "P20: нет папки $KAMIGRAM_SRC с исходниками KamiGram"
+    [ -d "$KAMIGRAM_SRC" ] || die "P20: нет папки $KAMIGRAM_SRC с исходниками Sakura"
 
     # 1) собственный код мода
     mkdir -p "$JAVA_ROOT/org/telegram/messenger/kamigram" \
@@ -762,8 +797,8 @@ if factory_marker not in src:
         sys.exit(1)
     factory = (
         '    ' + factory_marker + '\n'
-        '    // KamiGram: iOS-style tab - flat, no glass and no selected pill,\n'
-        '    // with its own KamiGram vector icon (tinted like a regular tab).\n'
+        '    // Sakura: iOS-style tab - flat, no glass and no selected pill,\n'
+        '    // with its own Sakura vector icon (tinted like a regular tab).\n'
         '    public static GlassTabView createKamiGramIOSTab(Context context, Theme.ResourcesProvider resourcesProvider, @DrawableRes int iconRes, @StringRes int stringRes) {\n'
         '        GlassTabView tab = new GlassTabView(context);\n'
         '        tab.resourcesProvider = resourcesProvider;\n'
@@ -881,7 +916,7 @@ for old, new in repl:
 
 flat_bg_old = '        tabsView.setBackground(tabsViewBackground);\n'
 flat_bg_new = (
-    '        /* KAMIGRAM_IOS_TABS_BG: flat iOS tab bar drawn by KamiGram code */\n'
+    '        /* KAMIGRAM_IOS_TABS_BG: flat iOS tab bar drawn by Sakura code */\n'
     '        tabsView.setBackground(new KamiGramIOSTabBarDrawable(getThemedColor(Theme.key_windowBackgroundWhite), getThemedColor(Theme.key_divider)));\n'
     '        tabsViewBackground = null;\n'
 )
@@ -897,7 +932,7 @@ PY
 
     [ "$(grep -c 'createMainTab' "$MTA")" -ge 4 ] || die "P20: родные вкладки Telegram не найдены"
     grep -q 'createKamiGramIOSTab' "$MTA" && die "P20: самодельные иконки вкладок вернулись"
-    ok "P20 КОД: плоская панель табов рисуется кодом KamiGram, а ИКОНКИ ВКЛАДОК — родные Telegram (самодельные убраны)"
+    ok "P20 КОД: плоская панель табов рисуется кодом Sakura, а ИКОНКИ ВКЛАДОК — родные Telegram (самодельные убраны)"
 else
     skip "P20 iOS-интерфейс не применяется (IOS_UI=0)"
 fi
@@ -1246,7 +1281,7 @@ fi
 # =============================================================================
 # P26. ОФИЦИАЛЬНЫЕ КЛЮЧИ TELEGRAM С АВТОПОДМЕНОЙ: официальный клиент Telegram
 #      использует свой api_id, и сервер может отказать чужой сборке с этим ключом
-#      (API_ID_PUBLISHED_FLOOD). Тогда вход не проходит вообще. KamiGram несёт
+#      (API_ID_PUBLISHED_FLOOD). Тогда вход не проходит вообще. Sakura несёт
 #      ключи нескольких официальных клиентов (Telegram Desktop, Android, X, Web,
 #      iOS, Web K, Swift) и сам переключается на следующий, если сервер отклонил
 #      текущий, после чего повторяет запрос кода.
@@ -1324,22 +1359,30 @@ if os.path.isfile(passkeys_path):
             sys.stderr.write('P26: не нашёл строки запроса в PasskeysController\n')
             sys.exit(1)
 
-# 3) в отчёте о входе видно, какой официальный ключ используется
+# 3) make the selected official key available to the login diagnostics.
+#    Older helper revisions already have a text report; newer revisions keep
+#    the UI deliberately quiet, so expose the same information as a lazy
+#    in-memory method instead of requiring one historical report line.
 src = io.open(helper_path, encoding='utf-8').read()
 if 'KamiGramAuthKeys.describe()' not in src:
-    # New helper sources intentionally have no technical diagnostics UI. Keep
-    # the description internal instead of requiring the old SafetyNet anchor.
-    anchor = '    /** Show a short actionable login message without exposing technical diagnostics. */'
-    if anchor not in src:
-        anchor = '    public static boolean hasProxy() {'
-    if anchor not in src:
-        sys.stderr.write('P26: не найдена точка диагностики в KamiGramProxyHelper\n')
-        sys.exit(1)
-    diagnostic = ('    /** Internal key description; never shown as a technical popup. */\n'
-                  '    public static String authKeyDescription() {\n'
-                  '        return KamiGramAuthKeys.describe();\n'
+    anchor = '            text.append("SafetyNet key: ")'
+    idx = src.find(anchor)
+    if idx >= 0:
+        line_start = src.rfind(chr(10), 0, idx) + 1
+        src = (src[:line_start]
+               + '            text.append("Telegram key: " ).append(KamiGramAuthKeys.describe()).append(" / in connection: " );\n'
+               + src[line_start:])
+    else:
+        quiet_anchor = '    /** Show a short actionable login message without exposing technical diagnostics. */'
+        if quiet_anchor not in src:
+            sys.stderr.write('P26: no diagnostic insertion point in KamiGramProxyHelper\n')
+            sys.exit(1)
+        method = ('    /** Selected official API key, kept in memory for the login retry explanation. */\n'
+                  '    public static String loginKeyDiagnostics() {\n'
+                  '        return "Telegram key: " + KamiGramAuthKeys.describe()\n'
+                  '            + " / in connection: " + KamiGramAuthKeys.connectionKey();\n'
                   '    }\n\n')
-    src = src.replace(anchor, diagnostic + anchor, 1)
+        src = src.replace(quiet_anchor, method + quiet_anchor, 1)
     io.open(helper_path, 'w', encoding='utf-8').write(src)
 print('auth keys patched')
 PY
@@ -1394,7 +1437,7 @@ if 'KAMIGRAM_IOS_ACTIONBAR' not in src:
         sys.stderr.write('P23: не найден setupGlass\n')
         sys.exit(1)
     guard = (anchor +
-             '        /* KAMIGRAM_IOS_ACTIONBAR: flat iOS top bar drawn by KamiGram code */\n'
+             '        /* KAMIGRAM_IOS_ACTIONBAR: flat iOS top bar drawn by Sakura code */\n'
              '        if (org.telegram.messenger.kamigram.KamiGramConfig.iosTabs()) {\n'
              '            setBackground(null);\n'
              '            setClipChildren(false);\n'
@@ -1406,16 +1449,16 @@ if 'KAMIGRAM_IOS_ACTIONBAR' not in src:
     src = src.replace(anchor, guard, 1)
     io.open(path, 'w', encoding='utf-8').write(src)
 PY
-    ok "P23 iOS-шапка: плоский фон без «стекла» рисуется кодом KamiGram"
+    ok "P23 iOS-шапка: плоский фон без «стекла» рисуется кодом Sakura"
 else
     skip "P23 плоская шапка не применяется (IOS_UI=0)"
 fi
 
 # =============================================================================
-# P27. НУЛЕВОЙ ТРАФИК (КОД): стикеры, премиум-эмодзи, истории и реклама Premium
-#      отсекаются ДО выхода в сеть - и сами запросы, и файлы (.tgs/.webm/.webp).
-#      Там же работает режим «призрак»: подтверждения прочтения, «печатает» и
-#      статус «в сети» не уходят на сервер вообще.
+# P27. НУЛЕВОЙ ТРАФИК (КОД): стикеры, premium-эмодзи, GIF и реклама Premium
+#      отсекаются ДО выхода в сеть - и сами запросы, и файлы (.tgs/.webm/.gif).
+#      Фото, видео, аудио, голосовые, кружочки и обычные документы не фильтруем;
+#      режим «призрак» по-прежнему локально обрабатывает read/typing/online.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     AK_DIR="$JAVA_ROOT/org/telegram/messenger/kamigram"
@@ -1452,7 +1495,7 @@ PY
     has "$CM_PATH" "KAMIGRAM_NET_FILTER" || die "P27: сетевой фильтр не встал в ConnectionsManager"
 
     FL_PATH="$JAVA_ROOT/org/telegram/messenger/FileLoader.java"
-    python3 - "$FL_PATH" <<'PY' || die "P27: не удалось отключить загрузку стикеров и медиа историй"
+    python3 - "$FL_PATH" <<'PY' || die "P27: не удалось включить узкий media-фильтр stickers/premium-emoji/GIF"
 import io, sys
 path = sys.argv[1]
 src = io.open(path, encoding='utf-8').read()
@@ -1463,7 +1506,7 @@ if mark not in src:
         sys.stderr.write('P27: не найден loadFile в FileLoader\n')
         sys.exit(1)
     guard = (anchor +
-        '        /* ' + mark + ': файлы стикеров, премиум-эмодзи и медиа историй не скачиваются */\n'
+        '        /* ' + mark + ': только stickers, premium-emoji and GIF files are denied */\n'
         '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)) {\n'
         '            if (BuildVars.LOGS_ENABLED) {\n'
         '                FileLog.d("Sakura: файл не скачивается (экономия трафика) " + document);\n'
@@ -1524,13 +1567,13 @@ if mark not in src:
 print('stories off')
 PY
     fi
-    ok "P27 НУЛЕВОЙ ТРАФИК: запросы по стикерам, наборам эмодзи, премиум-эмодзи и историям не уходят в сеть; файлы .tgs/.webm/.webp и медиа историй не скачиваются; реклама Telegram Premium не запрашивается"
+    ok "P27 НУЛЕВОЙ ТРАФИК: stickers/premium-emoji/GIF requests and files are denied; ordinary photo/video/audio/voice/round/document media stays native; Telegram Premium ads are filtered"
 else
     skip "P27 нулевой трафик отключён (ZERO_TRAFFIC=0)"
 fi
 
 # =============================================================================
-# P28. ФУНКЦИИ МОДА В ИНТЕРФЕЙСЕ: «Настройки → KamiGram: функции мода» со
+# P28. ФУНКЦИИ МОДА В ИНТЕРФЕЙСЕ: «Настройки → Sakura: функции мода» со
 #      переключателями (призрак, трафик, iOS-дизайн и остальное) — видно глазами,
 #      а не только в коде. Плюс убраны рекламные строки Telegram Premium/Stars.
 # =============================================================================
@@ -1573,7 +1616,7 @@ print('settings screen added, premium rows guarded: %d' % hidden)
 PY
     has "$SA_PATH" "KAMIGRAM_FEATURE_ROW" || die "P28: строка функций мода не появилась в настройках"
     has "$SA_PATH" "case 90:" || die "P28: обработчик строки функций мода не добавлен"
-    ok "P28 ФУНКЦИИ МОДА НА ЭКРАНЕ: в настройках появилась строка «KamiGram: функции мода» со сводкой состояния и переключателями (призрак, стикеры, эмодзи, истории, iOS-дизайн, Premium-блоки); рекламные блоки Premium/Stars/TON скрыты"
+    ok "P28 ФУНКЦИИ МОДА НА ЭКРАНЕ: в настройках появилась строка «Sakura: функции мода» со сводкой состояния и переключателями (призрак, стикеры, эмодзи, истории, iOS-дизайн, Premium-блоки); рекламные блоки Premium/Stars/TON скрыты"
 else
     skip "P28 экран функций мода отключён (ZERO_TRAFFIC=0)"
 fi
@@ -1735,7 +1778,7 @@ fi
 # =============================================================================
 # P31. ПРИЗРАК ДЛЯ ИСТОРИЙ + ЭКОНОМИЯ НА ПРЕВЬЮ ССЫЛОК:
 #      при запуске включается серверная «невидимка» историй (просмотры не
-#      записываются) — это уникальная функция KamiGram; превью ссылок и
+#      записываются) — это уникальная функция Sakura; превью ссылок и
 #      веб-страницы больше не подгружаются (мегабайты картинок).
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
@@ -1894,10 +1937,16 @@ else
 fi
 
 # =============================================================================
-# P80. СОВМЕСТИМОСТЬ НАСТРОЕК SAKURA.
-#      Native Telegram theme lifecycle hooks are deliberately not installed.
-#      ThemeHook remains a no-op compatibility helper for the Sakura settings
-#      surface; Telegram screens keep the theme selected in Telegram itself.
+# P80. ЕДИНАЯ ТОЧКА ДИЗАЙНА 2026 (исправление прошлой сборки):
+#      1) на каждом экране держится тёмная iOS-тема и применяются акценты
+#         (ThemeHook.apply через Application.ActivityLifecycleCallbacks) —
+#         поэтому больше нет «чёрного текста на чёрном фоне» и пропавших
+#         названий чатов: палитру берём из assets, а код трогает только акценты;
+#      2) иконка настроек — iOS-шестерёнка (настоящий ресурс, а не Drawable);
+#      3) кэш: автоматическая очистка отключена, ручная очистка остаётся
+#         только в штатном CacheControlActivity Telegram;
+#      4) новый центр мода: карточки, акценты, native-экран кэша,
+#         ID и ссылки, менеджер загрузок, прокси.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
@@ -1971,7 +2020,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     BUILD_NUMBER=${GITHUB_RUN_NUMBER:-local}
     sed_i "s/public static final String NUMBER = \"local\";/public static final String NUMBER = \"r$BUILD_NUMBER\";/" "$KAMI_PKG/KamiGramBuild.java"
     has "$KAMI_PKG/KamiGramBuild.java" "r$BUILD_NUMBER" || die "P96: номер сборки не подставился"
-    ok "P96 номер сборки в приложении: r$BUILD_NUMBER (видно в настройках, строка KamiGram)"
+    ok "P96 номер сборки в приложении: r$BUILD_NUMBER (видно в настройках, строка Sakura)"
     ok "P96 новые классы мода на месте: реклама, галочка, «только текст», интерфейс, встроенные прокси, шрифт, оптимизация, статус прокси в шапке"
 else
     skip "P96 отключено (ZERO_TRAFFIC=0)"
@@ -2030,7 +2079,7 @@ log "MOD_INFO.txt: $TG_DIR/MOD_INFO.txt"
 log "Готово. Дальше: cd $TG_DIR && ./gradlew :TMessagesProj_App:assembleAfatRelease"
 
 # =============================================================================
-# P34. r54: призрак (иконка только в шапке главного экрана), имя KamiGram,
+# P34. r54: призрак (иконка только в шапке главного экрана), имя Sakura,
 #      видимая иконка родного менеджера загрузок, удалённые сообщения остаются
 #      в чате, свой шрифт — везде (сообщения, каналы, настройки).
 # =============================================================================
@@ -2038,11 +2087,11 @@ python3 "$KAMIGRAM_SRC/apply_r54_patches.py" "$TG_DIR" "$APP_NAME" || die "P34: 
 grep -q 'KAMIGRAM_GHOST_HEADER' "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" || die "P34: иконка призрака не встала в шапку главного экрана"
 grep -q 'KAMIGRAM_KEEP_DELETED_STORAGE' "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P34: защита удалённых в базе не встала"
 grep -q 'KAMIGRAM_FONT' "$JAVA_ROOT/org/telegram/ui/ActionBar/BaseFragment.java" || die "P34: шрифт не применяется ко всему экрану"
-ok "P34 r54: призрак в шапке главного экрана, имя KamiGram, загрузки всегда видны, удалённые остаются в чате, шрифт везде"
+ok "P34 r54: призрак в шапке главного экрана, имя Sakura, загрузки всегда видны, удалённые остаются в чате, шрифт везде"
 
 # =============================================================================
 # P98. r66 — по жалобам пользователя:
-#      1) имя KamiGram в шапке не пропадает при подключённом прокси (оверлей
+#      1) имя Sakura в шапке не пропадает при подключённом прокси (оверлей
 #         состояния соединения на главном экране запрещён, имя — настоящий текст);
 #      2) нет ложной анимации «что-то скачивается», когда загрузок нет;
 #      3) одноразовые и «исчезающие» фото не удаляются и не стираются из базы;
@@ -2052,11 +2101,11 @@ ok "P34 r54: призрак в шапке главного экрана, имя 
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     python3 "$KAMIGRAM_SRC/apply_r66_patches.py" "$TG_DIR" "$APP_NAME" || die "P98: патчи r66 не применились"
     has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK" || die "P98: защита заголовка (прокси) не встала"
-    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_TITLE_TEXT" || die "P98: имя KamiGram текстом не встало"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_TITLE_TEXT" || die "P98: имя Sakura текстом не встало"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_UPDATE" || die "P98: ложная анимация загрузки не убрана"
     has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_KEEP_VIEWONCE_DELETE" || die "P98: одноразовые фото не защищены"
     has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA" || die "P98: медиа одноразовых не защищено в базе"
-    ok "P98 r66: имя KamiGram в шапке не пропадает, нет ложной анимации загрузки, одноразовые фото остаются, папки — белый текст"
+    ok "P98 r66: имя Sakura в шапке не пропадает, нет ложной анимации загрузки, одноразовые фото остаются, папки — белый текст"
 else
     skip "P98 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2072,7 +2121,7 @@ fi
 #         перестали загружаться;
 #      5) одноразовые и самоуничтожающиеся фото больше не исчезают («истёкшая
 #         фотография» не появляется);
-#      6) имя KamiGram в шапке не пропадает, иконка загрузок в покое статичная.
+#      6) имя Sakura в шапке не пропадает, иконка загрузок в покое статичная.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
@@ -2080,18 +2129,13 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     cp -f "$KAMIGRAM_SRC/KamiGramAutoArchive.java" "$KAMI_PKG/KamiGramAutoArchive.java"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KamiGramAutoArchive" || die "P99: нет класса авто-архива"
     python3 "$KAMIGRAM_SRC/apply_r68_patches.py" "$TG_DIR" "$APP_NAME" || die "P99: патчи r68 не применились"
-    if grep -q "KAMIGRAM_AUTO_SCHEDULE\|KamiGramGhost.autoScheduleDate" \
-        "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java"; then
-        die "P99: native send path was modified with synthetic scheduling"
-    fi
+    # r68 deliberately keeps Telegram's native scheduleDate path unchanged;
+    # the old synthetic auto-scheduler markers are no longer expected.
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_AUTO_ARCHIVE" || die "P99: авто-архив не запускается"
     has "$JAVA_ROOT/org/telegram/ui/Components/FilterTabsView.java" "KAMIGRAM_TAB_UNREAD_COLOR" || die "P99: цвет счётчика у папок не встал"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_IDLE" || die "P99: покой иконки загрузок не встал"
     has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA2" || die "P99: медиа одноразовых не защищено"
-    # Native Telegram send path is deliberately untouched: no synthetic
-    # schedule date is injected into normal sends or forwards.
-    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "sendMessage" || die "P99: штатный send path не найден"
-    ok "P99 r68: штатный send path сохранён, авто-архив 100+, счётчик папок нашего цвета, фото не исчезают, иконка загрузок в покое статичная"
+    ok "P99 r68: native scheduleDate сохранён, авто-архив 100+, счётчик папок нашего цвета, фото не исчезают, иконка загрузок в покое статичная"
 else
     skip "P99 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2099,11 +2143,10 @@ fi
 
 # =============================================================================
 # P100. r70 — по новому списку пользователя (большой пакет).
-#      Native overlay/PiP и permission SYSTEM_ALERT_WINDOW восстановлены;
-#      Ghost остаётся в шапке до r76, где его дубликат уходит в меню «⋮». Остальные функции r70 остаются.
-#      1)  подписка на t.me/AsuMeo обязательна: красивое НЕЗакрываемое окно
-#          «Подписаться» — само подписывает через API и открывает канал;
-#          проверка только после входа в аккаунт (KamiGramChannelGuard);
+#      Overlay/PiP r70 удалён следующим пакетом r76: он больше не копируется
+#      и не подключается. Остальные функции r70 остаются.
+#      1)  исторический AsuMeo guard (совместимость прошлых патчей): r82
+#          превращает его в no-op; developer link остаётся только в настройках;
 #      3)  «Подключение…» как в оригинале: нет сети — надпись, есть — пропадает;
 #      4)  иконка загрузок анимируется только пока реально идут байты;
 #      5)  иконка призрака минималистичная, белая: контур / заполнена;
@@ -2113,18 +2156,18 @@ fi
 #          остальные загрузки на паузу; лимиты очередей сняты;
 #      8)  премиум разблокирован локально (весь премиум доступен);
 #      9)  «Отправлять всегда HD» (по умолчанию вкл);
-#      10) чаты — тема Yoru во всех встроенных темах (свои темы/обои не трогаем);
-#      11) «Применять KamiGram ко всем аккаунтам» (по умолчанию вкл).
+#      10) чаты — только оригинальные темы Telegram (свои темы/обои не трогаем);
+#      11) «Применять Sakura ко всем аккаунтам» (по умолчанию вкл).
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
-    # 1) весь актуальный код мода, включая восстановленный native overlay/PiP
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages KamiGramLog; do
+    # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
-    # 2) иконки: float/PiP, призрак (контур/заполненный), «сгореть»
+    # 2) иконки: минималистичный призрак (контур/заполненный), «сгореть»
     for d in kamigram_ghost kamigram_ghost_on kamigram_burn; do
         cp -f "$KAMIGRAM_SRC/res/drawable/$d.xml" "$RES_ROOT/drawable/$d.xml" || die "P100: нет иконки $d"
     done
@@ -2136,7 +2179,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_CONNECTING_SUBTITLE" || die "P100: «Подключение…» как в оригинале не встало"
     (has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK_R70" \
         || has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK") \
-        || die "P100: защита имени KamiGram не встала"
+        || die "P100: защита имени Sakura не встала"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_DOWNLOAD_ANIM_LIVE" || die "P100: живая анимация загрузок не встала"
     has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CASE_BURN" || die "P100: «Сгореть/Прочитать» в меню не встало"
     has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_EPHEMERAL" || die "P100: пересылка сгорающих не встала"
@@ -2146,19 +2189,15 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_NET_FOCUS_RECHECK" || die "P100: пересборка очередей (фокус) не встала"
     has "$JAVA_ROOT/org/telegram/tgnet/TLRPC.java" "KAMIGRAM_PREMIUM" || die "P100: локальный премиум не встал"
     has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KAMIGRAM_SEND_HD" || die "P100: «всегда HD» не встал"
-    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "android.permission.SYSTEM_ALERT_WINDOW" || die "P100: overlay permission Telegram не восстановлена"
-    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "android:supportsPictureInPicture=\"true\"" || die "P100: native PiP Telegram не восстановлен"
-    has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_VIDEO_GESTURES_PHOTO" || die "P100: жесты яркости/громкости не встали"
-    has "$JAVA_ROOT/org/telegram/ui/Components/PipVideoOverlay.java" "KAMIGRAM_VIDEO_GESTURES_PIP" || die "P100: жесты в PiP не встали"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_BULK_SELECTION_ACTION" || die "P100: массовый выбор не встал"
-    ok "P100 r70: native overlay/PiP, жесты видео без полосок, массовый выбор 10/50/custom без пропусков, «Подключение…» оригинальное, живые загрузки, сгореть/прочитать, буст скорости, локальный премиум, всегда HD, ко всем аккаунтам"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "KAMIGRAM_CHANNEL_GATE_R81"         || die "P100: no-op ChannelGuard compatibility marker отсутствует"
+    ok "P100 r70: overlay/PiP отключён, ChannelGuard оставлен no-op, «Подключение…» оригинальное, живые загрузки, сгореть/прочитать, буст скорости, локальный премиум, всегда HD, ко всем аккаунтам"
 else
     skip "P100 отключено (ZERO_TRAFFIC=0)"
 fi
 
 # =============================================================================
 # P101. r76 — cleanup и критические исправления по новому запросу:
-#      native overlay/PiP/пузырёк и разрешение overlay сохранены;
+#      overlay/PiP/пузырёк/разрешение overlay удалены полностью;
 #      ghost перенесён из шапки в меню «⋮»;
 #      spinner загрузок стартует только после движения байтов;
 #      custom-прокси и скрытый каталог SakuProxy независимы;
@@ -2172,53 +2211,447 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P101: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
-    has "$KAMIGRAM_SRC/KamiGramBuiltinProxy.java" "server=relay.surfvpn.app&port=443&secret=eedf44a4347c1eb8938c7e63340bd1ca4972656c61792e7375726676706e2e617070" \
-        || die "P101: relay.surfvpn.app не попал во встроенный каталог"
     for d in kamigram_ghost kamigram_ghost_on kamigram_burn; do
         [ -f "$KAMIGRAM_SRC/res/drawable/$d.xml" ] || die "P101: нет иконки $d"
         cp -f "$KAMIGRAM_SRC/res/drawable/$d.xml" "$RES_ROOT/drawable/$d.xml"
     done
+    # Удаляем артефакты старого r70 даже при повторном применении поверх старого дерева.
+    rm -f "$KAMI_PKG/KamiGramFloat.java" "$RES_ROOT/drawable/kamigram_float.xml"
 
     python3 "$KAMIGRAM_SRC/apply_r76_patches.py" "$TG_DIR" || die "P101: патчи r76 не применились"
 
     has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_GHOST_OVERFLOW_R76" || die "P101: призрак не перенесён в меню «⋮»"
-    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "android.permission.SYSTEM_ALERT_WINDOW" || die "P101: overlay permission не восстановлено"
-    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "android:supportsPictureInPicture=\"true\"" || die "P101: native PiP не восстановлен"
-    has "$JAVA_ROOT/org/telegram/ui/Components/PipRoundVideoView.java" "class PipRoundVideoView" || die "P101: оригинальный Telegram PiP не восстановлен"
+    if grep -R -n -E 'KAMIGRAM_FLOAT|KamiGramFloat|KamiGramGhost\.addHeaderItem|SYSTEM_ALERT_WINDOW' "$JAVA_ROOT" "$RES_ROOT" >/dev/null 2>&1; then
+        die "P101: в исходниках осталась функциональность overlay/PiP"
+    fi
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_DOWNLOAD_STATIC_IDLE_R76" || die "P101: idle-анимация загрузок не исправлена"
     has "$JAVA_ROOT/org/telegram/messenger/SharedConfig.java" "KAMIGRAM_PROXY_CATALOG_R76" || die "P101: каталог SakuProxy не защищён"
+    has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_PROXY_CATALOG_REENTRANT_R76" || die "P101: каталог SakuProxy зацикливает loadProxyList"
     has "$JAVA_ROOT/org/telegram/messenger/SharedConfig.java" "KAMIGRAM_PROXY_DELETE_GUARD_R76" || die "P101: custom-прокси могут удалить встроенные"
     has "$JAVA_ROOT/org/telegram/ui/ProxyListActivity.java" "KAMIGRAM_PROXY_SCREEN_EMPTY_R76" || die "P101: включение SakuProxy без custom не работает"
     has "$JAVA_ROOT/org/telegram/messenger/UserConfig.java" "KAMIGRAM_PREMIUM_RESTORE_R76" || die "P101: Premium-оформление не восстанавливается"
     has "$JAVA_ROOT/org/telegram/ui/PeerColorActivity.java" "KAMIGRAM_PREMIUM_SAVE_R76" || die "P101: Premium-оформление не сохраняется"
     [ -f "$KAMI_PKG/KamiGramPremiumState.java" ] || die "P101: нет локального Premium-хранилища"
-    ok "P101 r76: native overlay/PiP и permission восстановлены, призрак в меню «⋮», idle-иконка статична, custom и SakuProxy независимы с быстрым fallback, Premium-фон сохраняется"
+    ok "P101 r76: overlay/PiP удалён, призрак в меню «⋮», idle-иконка загрузок статична, custom и SakuProxy независимы с быстрым fallback, Premium-фон сохраняется"
 else
     skip "P101 r76 отключено (ZERO_TRAFFIC=0)"
 fi
 
 # =============================================================================
-# P102. БЕЗОБРЫВНЫЕ ФОНОВЫЕ СКАЧИВАНИЯ:
-#       native FileLoader сохраняет .temp/.pt ranges при смене proxy,
-#       foreground-service удерживает процесс в фоне, а slow-download watchdog
-#       выбирает живой быстрый SakuProxy без изменения пользовательских строк.
+# P102. r77 — по новому запросу пользователя:
+#      1) «Настроить прокси >» скрывается только после подтверждённого
+#         Connected/Updating и возвращается при потере связи;
+#      2) self-destruct media скачиваются, сохраняются и пересылаются как обычные
+#         медиа, без FLAG_SECURE;
+#      3) «Прочитать» использует иконку глаза;
+#      4) открытие файла ускоряет его, но не ставит остальные загрузки на паузу;
+#      5) ротация выбирает самый быстрый живой SakuProxy и не трогает live custom;
+#      6) очищается только архив: unread > 500, боты блокируются и удаляются,
+#         каналы/группы покидаются, личные/контакты защищены.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG"
+    for f in KamiGramProxyPower KamiGramBuiltinProxy KamiGramNetFilter KamiGramTextOnly KamiGramAutoArchive; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P102: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    python3 "$KAMIGRAM_SRC/apply_r77_patches.py" "$TG_DIR" || die "P102: патчи r77 не применились"
+
+    has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_PROXY_OVERLAY_R77" || die "P102: stale proxy overlay не исправлен"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_PROXY_REFRESH_HEALTHY_R77" || die "P102: offline refresh заголовка не исправлен"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_CONNECTION_HEALTHY_R77" || die "P102: состояние живого proxy не отслеживается"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NET_NO_PAUSE_R77" || die "P102: открытие медиа всё ещё ставит очередь на паузу"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_EPHEMERAL_IMAGE_LOAD_R77" || die "P102: ephemeral-фото блокируются text-only"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_EPHEMERAL_ACTIONS_R77" || die "P102: save/share действия ephemeral не добавлены"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_READ_EYE_R77" || die "P102: иконка «Прочитать» не заменена на глаз"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_EPHEMERAL_FORWARD_UPLOAD_R77" || die "P102: ephemeral forwarding не переводится в upload"
+    has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "KAMIGRAM_SECRET_VIEWER_SECURE_R77" || die "P102: secure flag SecretMediaViewer не условный"
+    has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_PHOTO_VIEWER_EPHEMERAL_SCREENSHOT_R77" || die "P102: secure flag PhotoViewer не условный"
+    has "$JAVA_ROOT/org/telegram/ui/SecretVoicePlayer.java" "KAMIGRAM_SECRET_VOICE_SCREENSHOT_R77" || die "P102: secure flag SecretVoicePlayer не условный"
+    has "$JAVA_ROOT/org/telegram/ui/Cells/ChatMessageCell.java" "KAMIGRAM_EPHEMERAL_CELL_SCREENSHOT_R77" || die "P102: secure flag one-time cell не условный"
+    has "$JAVA_ROOT/org/telegram/messenger/ProxyRotationController.java" "KAMIGRAM_PROXY_ROTATION_R77" || die "P102: native proxy rotation не защищён"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_CLEAN_R77" || die "P102: archive cleaner r77 не скопирован"
+    ok "P102 r77: overlay/fallback/queue исправлены, self-destruct media сохраняются и пересылаются, screenshot разрешён, глаз и stock-theme cleanup >500"
+else
+    skip "P102 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P103. r78 — обычные медиа снова работают как в Telegram:
+#      1) video/photo/audio/voice/round/document never stop at the economy gate;
+#         only stickers, premium emoji and GIFs remain deny-able;
+#      2) the selected proxy route is leased while an ordinary message is sent;
+#      3) the old AsuMeo auto-join marker is retained only for compatibility;
+#         r82 removes its live gate; no dialog-list sponsor row is injected;
+#      4) archive safety explicitly protects private dialogs and contacts;
+#      5) every folder tab, including «Все личные», uses the Sakura palette.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    python3 "$KAMIGRAM_SRC/apply_r78_patches.py" "$TG_DIR" || die "P103: патчи r78 не применились"
+    if grep -q -E 'Theme\.(applyTheme|setColor)|KAMIGRAM_FOLDER_(SURFACE|SELECTOR|COLORS)_R78' "$KAMIGRAM_SRC/ThemeHook.java" "$KAMIGRAM_SRC/apply_r78_patches.py"; then
+        die "P103: forced recolor of native Telegram themes is still enabled"
+    fi
+
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_SEND_GUARD_R78" || die "P103: отправка сообщения не защищена от proxy-ротации"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R78" || die "P103: обычные медиа всё ещё проходят старый фильтр"
+    has "$KAMI_PKG/KamiGramTextOnly.java" "KAMIGRAM_MEDIA_POLICY_R78" || die "P103: text-only блокирует нажатые медиа"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_PROXY_SEND_GUARD_R78" || die "P103: proxy send lease отсутствует"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_PROXY_SEND_FINISH_R78" || die "P103: proxy send lease не освобождается после ответа"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_SEND_FINISH_R78" || die "P103: отправка не освобождает proxy lease"
+    has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_PROXY_SEND_GUARD_R78" || die "P103: builtin route может переключиться во время отправки"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "KAMIGRAM_AUTO_JOIN_R78" || die "P103: автоматическая подписка AsuMeo отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_SAFETY_R78" || die "P103: archive safety marker отсутствует"
+    ok "P103 r78: обычные медиа не блокируются, GIF/sticker/premium-emoji ограничены, proxy send lease, AsuMeo compatibility marker, archive safety >500; цвета папок оставлены Telegram"
+else
+    skip "P103 r78 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P104. r80 — instant native Telegram behaviour:
+#      1) no Ghost/Scheduled rewrite: text, media and forwards go out now;
+#      2) protected channels/chats expose Forward and use copy/upload delivery;
+#      3) the old keep-deleted journal is disabled so Delete removes immediately;
+#      4) fixed proxy send lease is replaced by a real request-token guard;
+#      5) protected/one-time media keep native save/share actions;
+#      6) the launcher uses the generated Sakura Emilia + Telegram icon.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    python3 "$KAMIGRAM_SRC/apply_r80_patches.py" "$TG_DIR" || die "P104: патчи r80 не применились"
+
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_INSTANT_SEND_R80" || die "P104: отправка всё ещё может уйти в отложенные"
+    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_RESTRICTIONS_R80" || die "P104: меню защищённых сообщений не разблокировано"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_PROTECTED_FORWARD_COPY_R80" || die "P104: защищённая пересылка не использует copy/upload"
+    has "$JAVA_ROOT/org/telegram/messenger/MessageObject.java" "KAMIGRAM_FORWARD_RESTRICTIONS_R80_MESSAGE_OBJECT" || die "P104: MessageObject всё ещё запрещает пересылку"
+    has "$KAMI_PKG/KamiGramDeleted.java" "KAMIGRAM_NATIVE_DELETE_R80" || die "P104: старый фильтр удаления не отключён"
+    has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_INSTANT_SEND_R80" || die "P104: legacy auto-schedule всё ещё может включиться"
+    has "$KAMI_PKG/KamiGramCenter.java" "KAMIGRAM_NATIVE_DELETE_R80" || die "P104: legacy keep-deleted control всё ещё показан"
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_INSTANT_SEND_R80" || die "P104: фиксированный proxy send lease остался активным"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_INSTANT_PROXY_ROUTE_R80" || die "P104: route stability не привязана к реальному request token"
+
+    APP_RES_ROOT="$TG_DIR/TMessagesProj_App/src/main/res"
+    # P2A already rendered the checked-in Emilia artwork into the actual
+    # Telegram resource tree. Mirror every legacy, round, adaptive foreground,
+    # and any-density descriptor into the application module so aapt/resource
+    # shrinking cannot fall back to Telegram's original launcher.
+    for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+        for icon_name in ic_launcher.png ic_launcher_round.png kamigram_icon_foreground.png; do
+            [ -f "$RES_ROOT/mipmap-$density/$icon_name" ] \
+                || die "P104: generated icon is missing ($density/$icon_name)"
+            mkdir -p "$APP_RES_ROOT/mipmap-$density"
+            cp -f "$RES_ROOT/mipmap-$density/$icon_name" "$APP_RES_ROOT/mipmap-$density/$icon_name"
+        done
+    done
+    mkdir -p "$APP_RES_ROOT/mipmap-anydpi-v26" "$APP_RES_ROOT/drawable"
+    for icon_xml in ic_launcher.xml ic_launcher_round.xml; do
+        [ -f "$RES_ROOT/mipmap-anydpi-v26/$icon_xml" ] \
+            || die "P104: adaptive descriptor is missing ($icon_xml)"
+        cp -f "$RES_ROOT/mipmap-anydpi-v26/$icon_xml" "$APP_RES_ROOT/mipmap-anydpi-v26/$icon_xml"
+    done
+    [ -f "$RES_ROOT/drawable/kamigram_icon_background.xml" ] \
+        || die "P104: adaptive icon background is missing"
+    cp -f "$RES_ROOT/drawable/kamigram_icon_background.xml" \
+        "$APP_RES_ROOT/drawable/kamigram_icon_background.xml"
+
+    ICON_MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
+    ICON_CONFIG_RELEASE="$TG_DIR/TMessagesProj/config/release/AndroidManifest.xml"
+    ICON_CONFIG_SDK23="$TG_DIR/TMessagesProj/config/release/AndroidManifest_SDK23.xml"
+    ICON_CONFIG_STANDALONE="$TG_DIR/TMessagesProj/config/release/AndroidManifest_standalone.xml"
+    python3 - "$ICON_MANIFEST" "$ICON_CONFIG_RELEASE" "$ICON_CONFIG_SDK23" "$ICON_CONFIG_STANDALONE" <<'PYICON' || die "P104: не удалось подключить иконку Sakura"
+import io
+import os
+import re
+import sys
+
+main_path = sys.argv[1]
+extra_paths = sys.argv[2:]
+marker = "KAMIGRAM_LAUNCHER_R80"
+
+def patch_application(source):
+    pattern = re.compile(r'(<application\b[^>]*)(>)', re.DOTALL)
+    match = pattern.search(source)
+    if not match:
+        raise RuntimeError("application tag not found")
+    tag = match.group(1)
+    tag = re.sub(r'\s+android:icon="[^"]*"', '', tag)
+    tag = re.sub(r'\s+android:roundIcon="[^"]*"', '', tag)
+    tag += '\n        android:icon="@mipmap/ic_launcher_round"'
+    tag += '\n        android:roundIcon="@mipmap/ic_launcher_round"'
+    return source[:match.start()] + tag + match.group(2) + source[match.end():]
+
+def patch_default_alias(source):
+    pattern = re.compile(
+        r'(<activity-alias\b(?=[^>]*android:name="org\.telegram\.messenger\.DefaultIcon")[^>]*)(/?>)',
+        re.DOTALL,
+    )
+    match = pattern.search(source)
+    if not match:
+        raise RuntimeError("DefaultIcon alias not found")
+    tag = match.group(1)
+    tag = re.sub(r'\s+android:icon="[^"]*"', '', tag)
+    tag = re.sub(r'\s+android:roundIcon="[^"]*"', '', tag)
+    tag += '\n            android:icon="@mipmap/ic_launcher_round"'
+    patched = source[:match.start()] + tag + match.group(2) + source[match.end():]
+    if marker not in patched:
+        patched = patched.replace('<activity-alias', '        <!-- %s: existing Emilia artwork -->\n        <activity-alias' % marker, 1)
+    return patched
+
+source = io.open(main_path, encoding="utf-8").read()
+source = patch_application(source)
+source = patch_default_alias(source)
+io.open(main_path, "w", encoding="utf-8").write(source)
+
+for path in extra_paths:
+    if not os.path.isfile(path):
+        continue
+    text = io.open(path, encoding="utf-8").read()
+    text = patch_application(text)
+    io.open(path, "w", encoding="utf-8").write(text)
+PYICON
+    grep -q "KAMIGRAM_LAUNCHER_R80" "$ICON_MANIFEST" || die "P104: иконка не прописалась в DefaultIcon"
+    grep -q "@mipmap/ic_launcher_round" "$ICON_CONFIG_SDK23" || die "P104: afat SDK23 manifest не использует фирменную иконку"
+    [ -f "$RES_ROOT/mipmap-xxxhdpi/ic_launcher_round.png" ] || die "P104: ресурс фирменной иконки отсутствует"
+    [ -f "$APP_RES_ROOT/mipmap-xxxhdpi/ic_launcher_round.png" ] || die "P104: ресурс фирменной иконки не попал в application module"
+    ok "P104 r80: мгновенные send/forward/delete, protected copy-upload, save/share protected media, proxy с real request-token stability без artificial lease, фирменная Emilia/Sakura иконка"
+else
+    skip "P104 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P105. r81 — hidden reliability/speed pass:
+#      1) focus download starts without the queue debounce and never pauses an
+#         already active background operation;
+#      2) ordinary sends use only the native scheduleDate path, with no Ghost /
+#         Scheduled rewrite or callback timer;
+#      3) proxy request leases are account-safe and released by the exact native
+#         token on response, exception, retry, or cancellation;
+#      4) the cleaner and its private/contact safety markers are present;
+#      5) the former AsuMeo gate remains only as a compatibility marker (r82
+#         replaces its live call with a no-op; the link is settings-only);
+#      6) Telegram's native theme lifecycle remains the only theme path.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    for f in KamiGramConfig KamiGramCenter ThemeHook KamiGramSpeed KamiGramNetBoost KamiGramNetFilter KamiGramProxyPower KamiGramChannelGuard KamiGramAutoArchive; do
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P105: нет $KAMIGRAM_SRC/$f.java"
+        cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    [ -f "$KAMIGRAM_SRC/apply_r81_patches.py" ] || die "P105: нет apply_r81_patches.py"
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r81_patches.py" || die "P105: патчи r81 не применились"
+
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_QUEUE_IMMEDIATE_R81" || die "P105: очередь загрузок всё ещё ждёт debounce"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NO_ACTIVE_PAUSE_R81" || die "P105: фокус ставит активные загрузки на паузу"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_QUEUE_RECHECK_IMMEDIATE_R81" || die "P105: focus recheck не мгновенный"
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_INSTANT_SEND_R81" || die "P105: live send всё ещё проходит через legacy Ghost hook"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_REQUEST_ACCOUNT_R81" || die "P105: proxy lease не привязан к аккаунту"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_ROUTE_PARSE_FAIL_R81" || die "P105: proxy lease зависает при ошибке парсинга"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "KAMIGRAM_CHANNEL_GATE_R81" || die "P105: compatibility marker AsuMeo отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_CLEAN_R77" || die "P105: cleaner marker отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_SAFETY_R78" || die "P105: private/contact safety marker отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_THRESHOLD_R82" || die "P105: strict >500 cleaner marker отсутствует"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R81" || die "P105: media filter может блокировать обычные emoji/media"
+    has "$KAMI_PKG/KamiGramCenter.java" "Тема Telegram" || die "P105: кнопка «Тема Telegram» отсутствует"
+    ok "P105 r81: instant downloads/send, account-safe proxy guard, cleaner safety markers, no-op-compatible AsuMeo gate, native Telegram themes only"
+else
+    skip "P105 r81 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P106. r82 — critical send/gate/cleanup recovery:
+#      1) remove the last r81 onRealSend hook and leave Telegram's native
+#         SendMessagesHelper scheduleDate/send path untouched;
+#      2) let only ordinary message requests bypass the local economy/Ghost
+#         gates, while the sticker/premium-emoji/GIF filter remains installed;
+#      3) remove the mandatory AsuMeo call and run the >500 cleaner on resume;
+#      4) remove the legacy permanent sponsor row from the ordinary dialogs list;
+#         the developer channel is exposed only in Sakura settings;
+#      5) keep the independent built-in SakuProxy catalog, including akenai.tg.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    [ -f "$KAMIGRAM_SRC/apply_r82_patches.py" ] || die "P106: нет apply_r82_patches.py"
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r82_patches.py" || die "P106: патчи r82 не применились"
+
+    # Native send/schedule path: no Ghost scheduler, callback, timer, or
+    # scheduleDate rewrite can survive in the live message entry points.
+    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_NATIVE_SEND_R82" || die "P106: native send marker отсутствует"
+    if grep -q -E 'KamiGramGhost\.(onRealSend|autoScheduleDate)|KAMIGRAM_AUTO_SCHEDULE' "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java"; then
+        die "P106: live Ghost/Scheduled hook остался в send/forward path"
+    fi
+    if grep -q 'sendMessageParams.scheduleDate *=' "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java"; then
+        die "P106: SendMessageParams.scheduleDate переписывается"
+    fi
+    grep -q 'int scheduleDate = sendMessageParams.scheduleDate' "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" || die "P106: native scheduleDate path не найден"
+
+    # Request gates: the condition must be scoped to the message classifier,
+    # not replaced by a global removal of KamiGramNetFilter/Ghost.
+    grep -q 'if (!kamigramMessageRequest && !kamigramPushRequest && org.telegram.messenger.kamigram.KamiGramNetFilter.blockRequest(object))' "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" || die "P106: message-only NetFilter bypass отсутствует"
+    grep -q 'if (!kamigramMessageRequest && !kamigramPushRequest && org.telegram.messenger.kamigram.KamiGramGhost.interceptRequest(object, onComplete))' "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" || die "P106: message-only Ghost bypass отсутствует"
+    grep -q 'KamiGramNetFilter.blockDownload(document, parentObject)' "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" || die "P106: sticker/GIF download filter отключён"
+    has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_MEDIA_POLICY_R78" || die "P106: media policy marker отсутствует"
+
+    # No subscription gate or auto-join is allowed. Auto-cleanup is explicit
+    # on resume in addition to its own event/periodic sweep.
+    has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_CHANNEL_GATE_R82_DISABLED" || die "P106: AsuMeo gate marker отсутствует"
+    grep -q 'KamiGramAutoArchive.checkNow(currentAccount)' "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" || die "P106: auto-cleanup on resume отсутствует"
+    if grep -q 'KamiGramChannelGuard.check' "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java"; then
+        die "P106: LaunchActivity всё ещё вызывает subscription gate"
+    fi
+    if grep -q -E 'joinChannel|ImportChatInvite|CHANNEL_USERNAME.*join|setCancelable\(false\)' "$KAMI_PKG/KamiGramChannelGuard.java"; then
+        die "P106: обязательный auto-join/gate остался в ChannelGuard"
+    fi
+
+    # Cleaner: strict >500, normal and archive groups/channels, private users
+    # and contacts untouched, and a real inputPeerUser for leaving.
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_THRESHOLD_R82" || die "P106: strict unread threshold отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "dialog.isFolder" || die "P106: folder safety отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "getInputPeer(selfUser)" || die "P106: TL_inputPeerUser leave peer отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "deleteParticipantFromChat" || die "P106: native leave mechanics отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "ContactsController.getInstance(account).isContact" || die "P106: contacts safety отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "!user.bot" || die "P106: private user safety отсутствует"
+    if grep -q 'folder_id != ARCHIVE_FOLDER_ID' "$KAMI_PKG/KamiGramAutoArchive.java"; then
+        die "P106: cleaner снова ограничен архивом"
+    fi
+
+    # Built-in proxy catalog remains independent from user proxy records.
+    grep -q 'server=akenai.tg&port=853&secret=ee54ce330e4690cc297d2b031ff3f288b06d742e616b656e61692e636c69636b' "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P106: akenai.tg SakuProxy отсутствует"
+    has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_PROXY_CATALOG_R76" || die "P106: built-in proxy catalog marker отсутствует"
+
+    # The old sponsor view must not be copied or injected. The developer link
+    # is a settings-only action and the normal dialog adapter remains native.
+    if grep -q -E 'KamiGramSponsorCell|KAMIGRAM_ASUMEO_SPONSOR' "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java"; then
+        die "P106: legacy sponsor row остался в DialogsAdapter"
+    fi
+    has "$KAMI_PKG/KamiGramCenter.java" "Разработчик Sakura" || die "P106: developer settings action отсутствует"
+    has "$KAMI_PKG/KamiGramChannelGuard.java" "https://t.me/AsuMeo" || die "P106: developer URL отсутствует"
+
+    ok "P106 r82: native Telegram send/schedule path restored, message/push request bypass, stickers/premium-emoji/GIF filter preserved, AsuMeo gate removed, >500 groups/channels cleaner active, akenai.tg SakuProxy catalogued, legacy sponsor row removed"
+else
+    skip "P106 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P107. БЕЗОБРЫВНЫЕ ФОНОВЫЕ ВИДЕО-ЗАГРУЗКИ:
+#       P102-P106 are already reserved by the r77-r82 compatibility passes.
+#       This pass layers resumable FileLoader recovery and the Android foreground
+#       lifetime on top of the latest native Telegram/send/proxy patches.
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG"
     for f in KamiGramDownloadRecovery KamiGramDownloadService; do
-        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P102: нет $KAMIGRAM_SRC/$f.java"
+        [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P107: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
-    python3 "$KAMIGRAM_SRC/apply_download_resilience.py" "$TG_DIR" || die "P102: безобрывная загрузка не применилась"
-    has "$JAVA_ROOT/org/telegram/messenger/FileLoadOperation.java" "KAMIGRAM_PROXY_REBIND_OPERATION" || die "P102: операция не умеет продолжать загрузку после proxy switch"
-    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_PROXY_RETRY_DELEGATE" || die "P102: retry загрузки после proxy switch не встал"
-    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_SWITCH_HOOK" || die "P102: proxy switch не переподключает загрузки"
-    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST" || die "P102: download foreground service не объявлен"
-    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "startForeground" || die "P102: service не удерживает foreground lifetime"
-    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "setProgress" || die "P102: в уведомлении нет полосы прогресса"
-    has "$JAVA_ROOT/org/telegram/messenger/DownloadController.java" "KAMIGRAM_DOWNLOAD_SERVICE_START" || die "P102: сервис не стартует на скачивании"
-    ok "P102: скачивания продолжаются с сохранённого места после смены proxy, работают в фоне с полоской прогресса, медленный маршрут автоматически меняется на живой"
+
+    # DrKLO moved ProxySettings from org.telegram.proxy to
+    # org.telegram.utils.proxy after the pinned 12.10.3 tree. Keep the source
+    # files on the modern package and adapt only the copied target classes, so
+    # both the pinned workflow ref and current master compile.
+    if [ -f "$JAVA_ROOT/org/telegram/utils/proxy/ProxySettings.java" ]; then
+        KAMIGRAM_PROXY_SETTINGS_PACKAGE="org.telegram.utils.proxy"
+    else
+        KAMIGRAM_PROXY_SETTINGS_PACKAGE="org.telegram.proxy"
+    fi
+    KAMIGRAM_PROXY_SETTINGS_PACKAGE="$KAMIGRAM_PROXY_SETTINGS_PACKAGE" python3 - "$KAMI_PKG" <<'PY' || die "P107: ProxySettings package не согласован с upstream"
+import io
+import os
+import re
+import sys
+
+root = sys.argv[1]
+package = os.environ["KAMIGRAM_PROXY_SETTINGS_PACKAGE"]
+for name in ("KamiGramBuiltinProxy.java", "KamiGramProxyHelper.java", "KamiGramProxyPower.java"):
+    path = os.path.join(root, name)
+    if not os.path.isfile(path):
+        continue
+    text = io.open(path, encoding="utf-8").read()
+    text = re.sub(
+        r"import org\.telegram\.(?:utils\.)?proxy\.ProxySettings;",
+        "import %s.ProxySettings;" % package,
+        text,
+    )
+    io.open(path, "w", encoding="utf-8").write(text)
+PY
+    for f in KamiGramBuiltinProxy KamiGramProxyHelper KamiGramProxyPower; do
+        grep -q "import ${KAMIGRAM_PROXY_SETTINGS_PACKAGE}\\.ProxySettings;" "$KAMI_PKG/$f.java" || die "P107: $f использует несовместимый ProxySettings package"
+    done
+    python3 "$KAMIGRAM_SRC/apply_download_resilience.py" "$TG_DIR" || die "P107: безобрывная загрузка не применилась"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoadOperation.java" "KAMIGRAM_PROXY_REBIND_OPERATION" || die "P107: операция не умеет продолжать загрузку после proxy switch"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_PROXY_RETRY_DELEGATE" || die "P107: retry загрузки после proxy switch не встал"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PROXY_SWITCH_HOOK" || die "P107: proxy switch не переподключает загрузки"
+    has "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" "KAMIGRAM_DOWNLOAD_SERVICE_MANIFEST" || die "P107: download foreground service не объявлен"
+    grep -q 'android.permission.FOREGROUND_SERVICE' "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" || die "P107: foreground service permission отсутствует"
+    grep -q 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' "$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml" || die "P107: dataSync foreground permission отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "FOREGROUND_MIN_BYTES" || die "P107: порог foreground 10 МБ отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "START_NOT_STICKY" || die "P107: service не должен переживать завершённую загрузку"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "stopForeground(true)" || die "P107: foreground lifetime не освобождается"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadService.java" "setProgress" || die "P107: в уведомлении нет полосы прогресса"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_SERVICE_OPERATION" || die "P107: сервис не привязан к native operation/size"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_SERVICE_EXISTING_OPERATION_R83" || die "P107: preload-to-download lifecycle не покрыт"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_ACTIVE_DOWNLOADS_API_R83" || die "P107: active FileLoader API отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_DOWNLOAD_CANCEL_OPERATION_STATE_R83" || die "P107: native cancel не освобождает lifecycle"
+    has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_MAX_PARALLEL_DOWNLOADS_R83" || die "P107: лимит шести параллельных операций отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramDownloadRecovery.java" "KAMIGRAM_THERMAL_LIMIT_R83" || die "P107: thermal/power-save limit отсутствует"
+    ok "P107: native FileLoader продолжает temp/parts после proxy switch, foreground только для >10 МБ с прогрессом и idle-stop, до 6 native операций с thermal/power-save ограничением"
 else
-    skip "P102 безобрывные фоновые скачивания отключены (ZERO_TRAFFIC=0)"
+    skip "P107 безобрывные фоновые скачивания отключены (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P108. r83 — archive/developer/push cleanup and legacy sponsor removal.
+#      This is deliberately the final compatibility pass: it can also strip a
+#      sponsor row from a tree produced by an older r82 installer.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    [ -f "$KAMIGRAM_SRC/apply_r83_patches.py" ] || die "P108: нет apply_r83_patches.py"
+    TG_DIR="$TG_DIR" python3 "$KAMIGRAM_SRC/apply_r83_patches.py" "$TG_DIR" || die "P108: патчи r83 не применились"
+    has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_ARCHIVE_HIDE_BUTTON_R83" || die "P108: кнопка «Скрыть архив» отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramCenter.java" "Разработчик Sakura" || die "P108: кнопка разработчика отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramNetFilter.java" "KAMIGRAM_PUSH_SAFE_R83" || die "P108: FCM-safe classifier отсутствует"
+    has "$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramGhost.java" "KAMIGRAM_PUSH_GHOST_SAFE_R83" || die "P108: Ghost не пропускает push lifecycle"
+    has "$JAVA_ROOT/org/telegram/tgnet/ConnectionsManager.java" "KAMIGRAM_PUSH_NATIVE_BYPASS_R83" || die "P108: push native bypass отсутствует"
+    if grep -q -E 'KamiGramSponsorCell|KAMIGRAM_ASUMEO_SPONSOR|Спонсор SakuProxy' "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsAdapter.java"; then
+        die "P108: permanent sponsor row всё ещё попадает в основной список"
+    fi
+    has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_PROXY_WATCH_ACTIVE_ONLY_R83" || die "P108: proxy watchdog не ограничен active downloads"
+    has "$KAMI_PKG/KamiGramBuiltinProxy.java" "onDownloadActivityChanged" || die "P108: built-in proxy timer не останавливается"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "event/resume driven" || die "P108: auto-archive оставил постоянный timer"
+    ok "P108 r83: «Скрыть архив» работает, developer link только в настройках, sponsor row удалён, штатный FCM/push path защищён, proxy/watchdog idle, custom и built-in proxy каталоги независимы"
+else
+    skip "P108 r83 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P109. r94 — media-cache safety. AutoDeleteMediaTask вызывается из
+#      LaunchActivity при старте/resume, поэтому его no-op обязан быть
+#      безусловным. Native CacheControlActivity/FileLoader остаётся единственным
+#      destructive path и получает полный список выбранных файлов.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    AUTO_DELETE="$JAVA_ROOT/org/telegram/messenger/AutoDeleteMediaTask.java"
+    FILE_LOADER="$JAVA_ROOT/org/telegram/messenger/FileLoader.java"
+    CACHE_CENTER="$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramCenter.java"
+    MESSAGES_STORAGE="$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java"
+    has "$AUTO_DELETE" "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" || die "P109: AutoDeleteMediaTask no-op marker отсутствует"
+    if grep -q 'KamiGramCache.keep' "$AUTO_DELETE"; then
+        die "P109: AutoDeleteMediaTask всё ещё зависит от галочки Sakura"
+    fi
+    if grep -q -E 'lastKeepMediaCheckTime|SharedPreferences.*cache_limit|Utilities\.clearDir' "$AUTO_DELETE"; then
+        die "P109: автоматическая очистка по сроку/лимиту/sticker cache осталась"
+    fi
+    if grep -q -E 'KAMIGRAM_PROTECT_DOWNLOAD|KAMIGRAM_PROTECT_TAG|KamiGramCache\.isProtected|KamiGramCache\.protectByName' "$FILE_LOADER"; then
+        die "P109: protected-file filter блокирует штатную очистку FileLoader"
+    fi
+    if grep -q -E 'KamiGramCache\.(clear|clearAll|freeMemory)' "$CACHE_CENTER"; then
+        die "P109: центр Sakura содержит собственную очистку кэша"
+    fi
+    has "$CACHE_CENTER" "openCacheSettings" || die "P109: центр не открывает штатный CacheControlActivity"
+    if grep -q 'KAMIGRAM_CLEANUP_SAFE' "$MESSAGES_STORAGE"; then
+        die "P109: custom MessagesStorage cleanup guard вмешивается в native lifecycle"
+    fi
+    ok "P109 r94: media auto-cleanup полностью отключён независимо от настройки, temp/parts/resume не трогаются на startup, очистка оставлена штатному Telegram CacheControlActivity"
+else
+    skip "P109 r94 отключено (ZERO_TRAFFIC=0)"
 fi

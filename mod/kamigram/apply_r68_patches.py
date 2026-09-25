@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""KamiGram r68 source patches.
+"""Sakura r68 source patches.
 
 The native Telegram send path is intentionally left untouched. In particular,
 normal outgoing messages never receive a synthetic date and are not converted
@@ -167,7 +167,7 @@ def title_lock():
         "            org.telegram.messenger.kamigram.KamiGramProxyStatus.refresh();\n"
         "            return;\n"
         "        }\n",
-        "шапка: имя KamiGram возвращается, если его подменили",
+        "шапка: имя Sakura возвращается, если его подменили",
     )
 
 

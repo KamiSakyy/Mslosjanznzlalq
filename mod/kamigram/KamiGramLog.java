@@ -1,7 +1,7 @@
 package org.telegram.messenger.kamigram;
 
 /**
- * Deliberately empty error sink for optional KamiGram paths. KamiGram does not
+ * Deliberately empty error sink for optional Sakura paths. Sakura does not
  * persist technical diagnostics or expose a log viewer; failures fall back to
  * Telegram's normal behavior silently.
  */

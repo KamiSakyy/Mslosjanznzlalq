@@ -24,7 +24,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * KamiGram: рабочие ключи Telegram с автоподменой.
+ * Sakura: рабочие ключи Telegram с автоподменой.
  *
  * Почему это нужно: в открытых исходниках Telegram лежит ПРИМЕРНЫЙ api_id = 4
  * (api_hash 014b35b6…). Telegram прямо предупреждает, что этот ключ опубликован и

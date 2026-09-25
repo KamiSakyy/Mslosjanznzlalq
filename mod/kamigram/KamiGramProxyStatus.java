@@ -9,10 +9,10 @@ import org.telegram.ui.ActionBar.ActionBar;
 import java.lang.ref.WeakReference;
 
 /**
- * KamiGram: имя приложения в шапке главного экрана.
+ * Sakura: имя приложения в шапке главного экрана.
  *
  * Замечания пользователя:
- *   * «при включённом прокси название KamiGram исчезает» — родной оверлей Telegram
+ *   * «при включённом прокси название Sakura исчезает» — родной оверлей Telegram
  *     подменял заголовок строкой «Подключение к прокси…»;
  *   * «убери надпись Подключение… зачем она, она бесконечная даже если уже подключено».
  *
@@ -24,11 +24,11 @@ import java.lang.ref.WeakReference;
 public final class KamiGramProxyStatus {
 
     /**
-     * Базовая строка заголовка («KamiGram») и сама шапка.
+     * Базовая строка заголовка («Sakura») и сама шапка.
      *
      * r68: держим ОБЫЧНЫЕ (сильные) ссылки. Раньше здесь были WeakReference, и
      * после сборки мусора «базовая» строка исчезала — заголовок оставался пустым
-     * (пользователь видел «название KamiGram пропадает»). Теперь строка и шапка
+     * (пользователь видел «название Sakura пропадает»). Теперь строка и шапка
      * всегда под рукой: приложение всё равно живёт с ними до самого выхода.
      */
     private static CharSequence baseTitle = null;
@@ -86,7 +86,7 @@ public final class KamiGramProxyStatus {
                 return;
             }
             /* KAMIGRAM_TITLE_BACK: заголовок главного экрана всегда возвращаем на место —
-               если его подменило состояние соединения (прокси), имя KamiGram возвращается. */
+               если его подменило состояние соединения (прокси), имя Sakura возвращается. */
             actionBar.setTitle(base instanceof SpannableStringBuilder ? base : new SpannableStringBuilder(base),
                 rightDrawableRef);
         } catch (Throwable throwable) {

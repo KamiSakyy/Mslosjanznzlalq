@@ -16,7 +16,7 @@ import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.LaunchActivity;
 
 /**
- * KamiGram: красивый интерфейс вместо «дешёвых» уведомлений.
+ * Sakura: красивый интерфейс вместо «дешёвых» уведомлений.
  *
  * Вместо системных тостов используется родной баннер Telegram (Bulletin) —
  * такой же, каким само приложение показывает «Сообщение скопировано»: тёмная
@@ -176,11 +176,11 @@ public final class KamiGramUi {
             final float w = getMeasuredWidth();
             final float radius = h / 2f;
 
-            // дорожка: включено — фиолетовый Yoru, выключено — приглушённая #352A43
+            // дорожка и ручка следуют текущей теме Telegram.
             paint.setStyle(Paint.Style.FILL);
-            int track = checked ? ThemeHook.YORU_PURPLE : ThemeHook.YORU_LINE;
+            int track = checked ? ThemeHook.accent() : ThemeHook.separator();
             if (!isEnabled()) {
-                track = ThemeHook.YORU_SURFACE;
+                track = ThemeHook.surfaceNested();
             }
             paint.setColor(track);
             rect.set(0, 0, w, h);
@@ -189,7 +189,7 @@ public final class KamiGramUi {
             // ручка
             final float knobSize = h - AndroidUtilities.dp(4);
             final float left = checked ? w - knobSize - AndroidUtilities.dp(2) : AndroidUtilities.dp(2);
-            paint.setColor(isEnabled() ? ThemeHook.YORU_TEXT : ThemeHook.YORU_MUTED);
+            paint.setColor(isEnabled() ? ThemeHook.primaryText() : ThemeHook.secondaryText());
             rect.set(left, AndroidUtilities.dp(2), left + knobSize, AndroidUtilities.dp(2) + knobSize);
             canvas.drawRoundRect(rect, knobSize / 2f, knobSize / 2f, paint);
         }
