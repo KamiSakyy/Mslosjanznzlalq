@@ -9,13 +9,17 @@ import android.view.WindowManager;
 import org.telegram.messenger.AndroidUtilities;
 
 /**
- * Compatibility helpers for Sakura's own settings surfaces.
+ * Палитра и совместимость собственных экранов Sakura.
  *
- * Telegram's native theme registry is deliberately not touched here.  Sakura
- * ships only Telegram's original themes: stock Telegram themes only; there is no custom attheme,
- * no native theme mutation and no activity-lifecycle repaint. Sakura's own small settings surfaces read the currently selected
- * Telegram palette through the accessors below; they do not install a second
- * palette or write colors into Telegram's theme registry.
+ * KAMIGRAM_SAKURA_PALETTE_R101: возвращён прежний красивый дизайн (Yoru) для
+ * САМИХ настроек Sakura — карточки, чипы, переключатели, диалоги и кнопки снова
+ * рисуются в своей палитре, а не в цветах выбранной темы Telegram.
+ *
+ * При этом реестр тем Telegram не трогается: stock Telegram themes only —
+ * в приложении по-прежнему доступны только оригинальные темы Telegram (нет
+ * кастомного attheme, нет мутации нативной темы, нет перерисовки по lifecycle).
+ * Цвета ниже читает только код Sakura (KamiGramCenter / KamiGramDialog /
+ * KamiGramUi / KamiGramBranding).
  */
 public final class ThemeHook {
 
@@ -41,7 +45,7 @@ public final class ThemeHook {
     public static void toggleTelegramTheme(Context context) {
         try {
             KamiGramConfig.set(KamiGramConfig.KEY_TELEGRAM_THEME, true);
-            KamiGramUi.notify(context, "В Sakura доступны только оригинальные темы Telegram");
+            KamiGramUi.notify(context, "В Sakura доступны только оригинальные темы");
         } catch (Throwable ignore) {
         }
     }
@@ -94,50 +98,89 @@ public final class ThemeHook {
     public static void forget(Activity activity) {
     }
 
-    /** Colors for Sakura's private surfaces, always read from the active Telegram theme. */
-    private static int nativeColor(int key, int fallback) {
-        try {
-            final int color = org.telegram.ui.ActionBar.Theme.getColor(key);
-            return color != 0 ? color : fallback;
-        } catch (Throwable ignore) {
-            return fallback;
-        }
-    }
+    // ------------------------------------------------- палитра Sakura (Yoru)
+    //
+    // KAMIGRAM_SAKURA_PALETTE_R101: возвращён прежний красивый дизайн САМИХ
+    // настроек Sakura. Эти цвета использует только собственный интерфейс мода
+    // (KamiGramCenter / KamiGramDialog / KamiGramUi). Реестр тем Telegram не
+    // трогается: в приложении по-прежнему доступны только оригинальные темы.
+
+    /** Фон экрана Sakura-настроек. */
+    public static final int YORU_BG = 0xFF0D0B12;
+    /** Вложенная поверхность (чипы, поля). */
+    public static final int YORU_SURFACE = 0xFF15111C;
+    /** Карточка. */
+    public static final int YORU_CARD = 0xFF1C1724;
+    /** Приподнятая карточка. */
+    public static final int YORU_CARD_HIGH = 0xFF21192E;
+    /** Основной акцент. */
+    public static final int YORU_PURPLE = 0xFFC8A7FF;
+    /** Мягкий акцент. */
+    public static final int YORU_PURPLE_SOFT = 0xFFE2CCFF;
+    /** Основной текст. */
+    public static final int YORU_TEXT = 0xFFF7F0FF;
+    /** Вторичный текст. */
+    public static final int YORU_MUTED = 0xFFA99BB8;
+    /** Разделители и обводки. */
+    public static final int YORU_LINE = 0xFF352A43;
+    /** Тёплый акцент (предупреждения, «внимание»). */
+    public static final int YORU_AMBER = 0xFFFFCF70;
+    /** Положительный статус («включено», «загружается»). */
+    public static final int YORU_EMERALD = 0xFF88E0A0;
+    /** Текст на акцентной подложке. */
+    public static final int YORU_ON_ACCENT = 0xFF21152F;
 
     public static int surface() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhite, 0xFFFFFFFF);
+        return YORU_CARD;
+    }
+
+    public static int surfaceHigh() {
+        return YORU_CARD_HIGH;
     }
 
     public static int surfaceNested() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray, surface());
+        return YORU_SURFACE;
     }
 
     public static int background() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray, surface());
+        return YORU_BG;
     }
 
     public static int primaryText() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlackText, 0xFF000000);
+        return YORU_TEXT;
     }
 
     public static int secondaryText() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText, 0xFF777777);
+        return YORU_MUTED;
     }
 
     public static int separator() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_divider, 0x22000000);
+        return YORU_LINE;
     }
 
     public static int green() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_color_green, 0xFF2E9E55);
+        return YORU_EMERALD;
     }
 
     public static int red() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_color_red, 0xFFD93025);
+        return 0xFFFF453A;
+    }
+
+    public static int amber() {
+        return YORU_AMBER;
     }
 
     public static int accent() {
-        return nativeColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteBlueText, 0xFF2F80ED);
+        return YORU_PURPLE;
+    }
+
+    public static int accentSoft() {
+        return YORU_PURPLE_SOFT;
+    }
+
+    /** Цвет текста/иконки, нарисованных поверх accent(). */
+    public static int onAccent() {
+        return YORU_ON_ACCENT;
     }
 
     public static int dp(float value) {
@@ -150,7 +193,7 @@ public final class ThemeHook {
     }
 
     public static String designVersion() {
-        return "Sakura · Telegram themes";
+        return "Sakura · Yoru";
     }
 
     /** Preserve the optional screenshot setting without touching theme state. */

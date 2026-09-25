@@ -228,24 +228,31 @@ public final class KamiGramConfig {
 
     /** Значение по умолчанию для каждого ключа. */
     public static boolean defaultValue(String key) {
-        // Выключено по умолчанию — то, что меняет обычное поведение Telegram:
-        //   * призрак (пользователь включает сам, когда нужно);
-        //   * «только текст» (самый жёсткий режим экономии);
-        //   * обычные фото, видео, аудио, голосовые, кружочки и документы
-        //     всегда проходят native FileLoader;
-        //   * единственные медиакатегории с ограничением — stickers, premium
-        //     emoji и GIFs;
-        //   * noStories не является media block и по умолчанию выключен.
+        /* KAMIGRAM_DEFAULT_MEDIA_POLICY_R101.
+           По умолчанию НЕ загружаются ровно три категории, названные
+           пользователем: стикеры, премиум-эмодзи и истории. Истории — свой
+           отдельный тумблер (KEY_NO_STORIES), он не связан со стикерами и
+           премиум-эмодзи.
+
+           Всё остальное грузится штатно, как в оригинале: фото, видео, кружочки,
+           голосовые, документы, аудио, аватары (включая видео- и
+           эмодзи-аватары), фотообои, GIF, поиск GIF, превью ссылок и
+           «часто используемые». */
         if (KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
-            || KEY_NO_GIFS.equals(key)) {
+            || KEY_NO_STORIES.equals(key)) {
             return true;
+        }
+        if (KEY_NO_GIFS.equals(key) || KEY_NO_GIF_SEARCH.equals(key)
+            || KEY_NO_LINK_PREVIEW.equals(key) || KEY_NO_TOP_PEERS.equals(key)) {
+            return false;
         }
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
             || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
-            || KEY_NO_PREMIUM_UI.equals(key) || KEY_NO_STORIES.equals(key)
+            || KEY_NO_PREMIUM_UI.equals(key)
+            || KEY_FORWARD_EPHEMERAL.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
             return false;
         }

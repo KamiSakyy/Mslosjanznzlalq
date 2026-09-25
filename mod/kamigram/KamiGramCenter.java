@@ -18,7 +18,6 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -83,7 +82,7 @@ public final class KamiGramCenter {
             close.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
             close.setTextColor(ThemeHook.primaryText());
             close.setGravity(Gravity.CENTER);
-            close.setBackground(rounded(ThemeHook.surfaceNested(), 14));
+            close.setBackground(rounded(ThemeHook.surfaceHigh(), 14));
             close.setOnClickListener(v -> dismissAll());
             header.addView(close, new LinearLayout.LayoutParams(dp(34), dp(34)));
             root.addView(header, new LinearLayout.LayoutParams(
@@ -120,7 +119,7 @@ public final class KamiGramCenter {
             done.setText("Готово");
             done.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             done.setTypeface(AndroidUtilities.bold());
-            done.setTextColor(ThemeHook.primaryText());
+            done.setTextColor(ThemeHook.onAccent());
             done.setGravity(Gravity.CENTER);
             done.setBackground(gradient(ThemeHook.accent(), ThemeHook.accent(), 16));
             press(done);
@@ -202,15 +201,15 @@ public final class KamiGramCenter {
             Row.action("Открыть список прокси", () -> openProxyScreen(context))
         });
         card(root, context, new Row[]{
-            Row.toggle("Не грузить истории", KamiGramConfig.KEY_NO_STORIES, onChanged),
-            Row.toggle("Без рекламы и рекомендаций", KamiGramConfig.KEY_NO_ADS, onChanged),
-            Row.toggle("Скрывать рекламные посты", KamiGramConfig.KEY_ADS_FILTER, onChanged),
+            Row.toggle("Истории", KamiGramConfig.KEY_NO_STORIES, onChanged),
+            Row.toggle("Реклама и рекомендации", KamiGramConfig.KEY_NO_ADS, onChanged),
+            Row.toggle("Рекламные посты", KamiGramConfig.KEY_ADS_FILTER, onChanged),
             Row.action("Показать скрытую рекламу", () -> KamiGramAds.showHiddenReport(context))
         });
         card(root, context, new Row[]{
             Row.toggle("Стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
             Row.toggle("Премиум-эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
-            Row.toggle("Скрывать Premium и подарки", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
+            Row.toggle("Витрина Premium и подарки", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
             Row.toggle("GIF и анимации", KamiGramConfig.KEY_NO_GIFS, onChanged),
             Row.toggle("Превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged),
             Row.toggle("Поиск GIF и стикеров", KamiGramConfig.KEY_NO_GIF_SEARCH, onChanged),
@@ -242,7 +241,7 @@ public final class KamiGramCenter {
         card(root, context, new Row[]{
             Row.toggle("Плавные анимации", KamiGramConfig.KEY_SMOOTH_ANIMATIONS, onChanged),
             Row.toggle("Размытие интерфейса", KamiGramConfig.KEY_ALLOW_BLUR, onChanged),
-            Row.action("Тема Telegram", () -> {
+            Row.action("Темы оформления", () -> {
                 ThemeHook.toggleTelegramTheme(context);
                 if (onChanged != null) {
                     onChanged.run();
@@ -260,7 +259,7 @@ public final class KamiGramCenter {
         // родной CacheControlActivity Telegram, где пользователь выбирает
         // категории и подтверждает штатную кнопку очистки.
         card(root, context, new Row[]{
-            Row.action("Открыть настройки кэша Telegram", () -> openCacheSettings(context)),
+            Row.action("Открыть настройки кэша", () -> openCacheSettings(context)),
             Row.action("Загрузки", () -> openDownloads(context))
         });
     }
@@ -468,10 +467,12 @@ public final class KamiGramCenter {
 
     private static void styleTab(TextView tab, boolean active) {
         tab.setTypeface(active ? AndroidUtilities.bold() : Typeface.DEFAULT);
-        tab.setTextColor(active ? ThemeHook.primaryText() : ThemeHook.secondaryText());
+        // KAMIGRAM_SAKURA_PALETTE_R101: активный раздел видно сразу — акцентный
+        // фон Sakura и тёмный текст на нём, неактивный — приглушённый.
+        tab.setTextColor(active ? ThemeHook.onAccent() : ThemeHook.secondaryText());
         tab.setBackground(active
-            ? gradient(ThemeHook.accent(), ThemeHook.accent(), 13)
-            : stroke(ThemeHook.surfaceNested(), 13));
+            ? gradient(ThemeHook.accentSoft(), ThemeHook.accent(), 13)
+            : stroke(ThemeHook.surfaceHigh(), 13));
     }
 
     private static void press(View view) {
@@ -606,27 +607,55 @@ public final class KamiGramCenter {
                 // «Стикеры», «Премиум-эмодзи» и т.п. хранят ЗАПРЕТ, а переключатель
                 // показывает «включено» — так пользователю понятнее.
                 final boolean invert = invertible(key);
-                // Native Android switch: Telegram's own accessible control keeps
-                // the row familiar and handles touch, keyboard and TalkBack input.
-                final Switch toggle = new Switch(context);
-                toggle.setShowText(false);
+                final boolean blocked = invertible(key) && KamiGramConfig.value(key);
+                // KAMIGRAM_TOGGLE_STATE_R101: состояние видно сразу — свой
+                // переключатель Sakura (акцентная дорожка, когда включено) плюс
+                // текстовая подпись «вкл / выкл» или «загружаются / не
+                // загружаются» для строк-запретов.
+                final KamiGramUi.Toggle toggle = new KamiGramUi.Toggle(context);
                 toggle.setChecked(invert ? !KamiGramConfig.value(key) : KamiGramConfig.value(key));
-                toggle.setOnCheckedChangeListener((button, checked) -> {
+
+                final TextView state = new TextView(context);
+                state.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+                state.setTypeface(AndroidUtilities.bold());
+                state.setSingleLine(true);
+                final LinearLayout.LayoutParams stateParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                stateParams.leftMargin = dp(10);
+                stateParams.rightMargin = dp(10);
+
+                toggle.setOnToggleListener(checked -> {
                     KamiGramConfig.set(key, invert ? !checked : checked);
                     if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
                         ThemeHook.setTelegramTheme(checked);
                     } else {
                         KamiGramGhost.refreshAll();
                     }
+                    styleState(state, checked, blocked, invert);
                     if (onChanged != null) {
                         onChanged.run();
                     }
                 });
+                styleState(state, toggle.isChecked(), blocked, invert);
+                row.addView(state, stateParams);
+
                 final LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                switchParams.leftMargin = dp(8);
+                switchParams.leftMargin = dp(2);
                 row.addView(toggle, switchParams);
-                row.setOnClickListener(v -> toggle.setChecked(!toggle.isChecked()));
+                row.setOnClickListener(v -> {
+                    toggle.setChecked(!toggle.isChecked());
+                    KamiGramConfig.set(key, invert ? !toggle.isChecked() : toggle.isChecked());
+                    if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
+                        ThemeHook.setTelegramTheme(toggle.isChecked());
+                    } else {
+                        KamiGramGhost.refreshAll();
+                    }
+                    styleState(state, toggle.isChecked(), blocked, invert);
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                });
             } else {
                 row.setOnClickListener(v -> {
                     try {
@@ -639,6 +668,18 @@ public final class KamiGramCenter {
                 });
             }
             return row;
+        }
+
+        /** Подпись состояния: что именно сейчас происходит с этой настройкой. */
+        private static void styleState(TextView state, boolean checked, boolean blocked, boolean invert) {
+            final String text;
+            if (invert) {
+                text = checked ? "загружаются" : "не загружаются";
+            } else {
+                text = checked ? "вкл" : "выкл";
+            }
+            state.setText(text);
+            state.setTextColor(checked ? ThemeHook.green() : ThemeHook.secondaryText());
         }
 
         private static boolean invertible(String key) {

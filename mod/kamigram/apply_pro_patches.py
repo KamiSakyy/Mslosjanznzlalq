@@ -423,21 +423,35 @@ def cache():
 # =============================================================================
 
 def gifs():
+    # KAMIGRAM_DEFAULT_MEDIA_POLICY_R101: GIF — обычный контент. Автозагрузка
+    # GIF отключается ТОЛЬКО если пользователь сам выключил «GIF и анимации»
+    # (по умолчанию настройка выключена, то есть GIF грузятся как в оригинале).
     dc = 'messenger/DownloadController.java'
     for idx, anchor in enumerate([
         '    private int canDownloadMediaInternal(MessageObject message) {\n',
         '    private int canDownloadMediaInternal(MessageObject message, long overrideSize) {\n',
     ]):
-        replace_once(dc, 'KAMIGRAM_NO_GIF_AUTO%d' % idx,
+        replace_once(dc, 'KAMIGRAM_NO_GIF_AUTO_R101_%d' % idx,
                      anchor,
                      anchor +
-                     '        /* KAMIGRAM_NO_GIF_AUTO: GIF и анимации не качаются сами */\n'
-                     '        if (message != null && message.messageOwner != null\n'
+                     '        /* KAMIGRAM_NO_GIF_AUTO_R101: GIF не качаются сами только по желанию */\n'
+                     '        if (' + CFG + '.noGifs() && message != null && message.messageOwner != null\n'
                      '            && (MessageObject.isGifMessage(message.messageOwner)\n'
                      '                || MessageObject.isGifDocument(MessageObject.getDocument(message.messageOwner)))) {\n'
                      '            return 0;\n'
                      '        }\n',
-                     'GIF', 'GIF не скачиваются автоматически (0 байт)')
+                     'GIF', 'GIF не скачиваются автоматически, только если тумблер GIF включён')
+
+    # Истории — ОТДЕЛЬНЫЙ тумблер (по умолчанию включён: истории не грузятся).
+    # Предзагрузка историй в списке чатов отключается вместе с запросами.
+    replace_once(dc, 'KAMIGRAM_NO_STORIES_PRELOAD',
+                 '    public boolean canPreloadStories() {\n',
+                 '    public boolean canPreloadStories() {\n'
+                 '        /* KAMIGRAM_NO_STORIES_PRELOAD: отдельный тумблер историй */\n'
+                 '        if (' + CFG + '.noStories()) {\n'
+                 '            return false;\n'
+                 '        }\n',
+                 'Истории', 'истории не предзагружаются, пока включён тумблер историй')
 
     replace_once(dc, 'KAMIGRAM_NO_GIF_MANUAL',
                  '    public void startDownloadFile(TLRPC.Document document, MessageObject parentObject) {\n',
@@ -521,22 +535,17 @@ EXTRA_BLOCKS = [
     ('TL_payments_getGiveawayInfo', 'информация о розыгрышах не запрашивается'),
 ]
 
+# KAMIGRAM_DEFAULT_MEDIA_POLICY_R101: дефолты SharedConfig не переворачиваются.
+# Прежние «экономия/плоский iOS» выключали встроенную камеру, тени шапки и кэш
+# GIF — вместе с обоями и стримингом медиа это выглядело как «ничего не
+# грузится». Оставлены только записи, которые ничего не меняют (old == new).
 EXTRA_DEFAULTS = [
-    ('saveGifsToCache = preferences.getBoolean("save_gifs", true);',
-     'saveGifsToCache = preferences.getBoolean("save_gifs", false);',
-     'GIF не сохраняются в кэш (меньше трафика и места)'),
     ('useProximitySensor = preferences.getBoolean("useProximitySensor", true);',
      'useProximitySensor = preferences.getBoolean("useProximitySensor", true);',
      'датчик приближения работает как обычно (голосовые не «гаснут» зря)'),
     ('showNotificationsForAllAccounts = preferences.getBoolean("AllAccounts", true);',
      'showNotificationsForAllAccounts = preferences.getBoolean("AllAccounts", true);',
      'уведомления по всем аккаунтам как обычно'),
-    ('drawActionBarShadow = preferences.getBoolean("drawActionBarShadow", true);',
-     'drawActionBarShadow = preferences.getBoolean("drawActionBarShadow", false);',
-     'плоская шапка без тени (iOS 2026)'),
-    ('inappCamera = preferences.getBoolean("inappCamera", true);',
-     'inappCamera = preferences.getBoolean("inappCamera", false);',
-     'системная камера вместо встроенной (быстрее запуск)'),
 ]
 
 

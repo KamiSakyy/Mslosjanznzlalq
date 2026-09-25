@@ -293,64 +293,22 @@ def main():
 
 
     # =========================================================================
-    # 2. НАСТРОЙКИ ПО УМОЛЧАНИЮ: экономим трафик и батарею без спроса.
+    # =========================================================================
+    # 2. НАСТРОЙКИ ПО УМОЛЧАНИЮ.
+    #
+    # KAMIGRAM_DEFAULT_MEDIA_POLICY_R101: здесь больше НЕ переворачиваются
+    # дефолты SharedConfig. Раньше «экономия» выключала streamMedia,
+    # saveStreamMedia, fastWallpaperDisabled=true, inappCamera, directShare,
+    # nextMediaTap, blur и тени — из-за этого ФОТООБОИ И МЕДИА НЕ ГРУЗИЛИСЬ,
+    # а шеринг не показывал аватарки и превью. По требованию пользователя всё
+    # это работает как в оригинальном Telegram; единственное исключение —
+    # keepMedia=FOREVER: скачанное не удаляется автоматически.
     # =========================================================================
     config = os.path.join(java, 'messenger/SharedConfig.java')
     defaults = [
-        ('streamMedia = preferences.getBoolean("streamMedia", true);',
-         'streamMedia = preferences.getBoolean("streamMedia", false);',
-         'медиа не стримится автоматически (только по нажатию)'),
-        ('saveStreamMedia = preferences.getBoolean("saveStreamMedia", true);',
-         'saveStreamMedia = preferences.getBoolean("saveStreamMedia", false);',
-         'стриминговое медиа не кэшируется целиком'),
         ('keepMedia = preferences.getInt("keep_media", CacheByChatsController.KEEP_MEDIA_ONE_MONTH);',
          'keepMedia = preferences.getInt("keep_media", CacheByChatsController.KEEP_MEDIA_FOREVER);',
          'скачанное не удаляется по сроку: кэш больше не чистится за спиной'),
-        ('suggestAnimatedEmoji = preferences.getBoolean("suggestAnimatedEmoji", true);',
-         'suggestAnimatedEmoji = preferences.getBoolean("suggestAnimatedEmoji", false);',
-         'подсказки анимированных эмодзи выключены'),
-        ('updateStickersOrderOnSend = preferences.getBoolean("updateStickersOrderOnSend", true);',
-         'updateStickersOrderOnSend = preferences.getBoolean("updateStickersOrderOnSend", false);',
-         'порядок стикеров не отправляется на сервер'),
-        ('photoViewerBlur = preferences.getBoolean("photoViewerBlur", true);',
-         'photoViewerBlur = preferences.getBoolean("photoViewerBlur", false);',
-         'размытие в просмотрщике фото выключено (меньше GPU)'),
-        ('useNewBlur = preferences.getBoolean("useNewBlur", true);',
-         'useNewBlur = preferences.getBoolean("useNewBlur", false);',
-         'новый blur-движок выключен (меньше GPU)'),
-        ('useSurfaceInStories = preferences.getBoolean("useSurfaceInStories", Build.VERSION.SDK_INT >= 30);',
-         'useSurfaceInStories = preferences.getBoolean("useSurfaceInStories", false);',
-         'без «стекла» в историях'),
-        ('fastWallpaperDisabled = preferences.getBoolean("fastWallpaperDisabled", false);',
-         'fastWallpaperDisabled = preferences.getBoolean("fastWallpaperDisabled", true);',
-         'быстрые обои отключены (меньше памяти и GPU)'),
-        ('inappCamera = preferences.getBoolean("inappCamera", true);',
-         'inappCamera = preferences.getBoolean("inappCamera", false);',
-         'съёмка через системную камеру (меньше памяти)'),
-        ('directShare = preferences.getBoolean("direct_share", true);',
-         'directShare = preferences.getBoolean("direct_share", false);',
-         'быстрый шаринг не грузит аватарки и превью'),
-        ('pauseMusicOnMedia = preferences.getBoolean("pauseMusicOnMedia", false);',
-         'pauseMusicOnMedia = preferences.getBoolean("pauseMusicOnMedia", false);',
-         'музыка не ставится на паузу из-за медиа (без лишних переключений)'),
-        ('nextMediaTap = preferences.getBoolean("next_media_on_tap", true);',
-         'nextMediaTap = preferences.getBoolean("next_media_on_tap", false);',
-         'следующее медиа не открывается по тапу (меньше случайного трафика)'),
-        ('raiseToListen = preferences.getBoolean("raise_to_listen", true);',
-         'raiseToListen = preferences.getBoolean("raise_to_listen", false);',
-         'поднесение к уху не запускает запись (меньше случайных действий)'),
-        ('pauseMusicOnRecord = preferences.getBoolean("pauseMusicOnRecord", true);',
-         'pauseMusicOnRecord = preferences.getBoolean("pauseMusicOnRecord", true);',
-         'музыка на паузе во время записи (без лишних переключений аудио)'),
-        ('useFingerprintLock = preferences.getBoolean("useFingerprint", true);',
-         'useFingerprintLock = preferences.getBoolean("useFingerprint", true);',
-         'блокировка по отпечатку — только по желанию пользователя (как было)'),
-        ('drawActionBarShadow = preferences.getBoolean("drawActionBarShadow", true);',
-         'drawActionBarShadow = preferences.getBoolean("drawActionBarShadow", false);',
-         'тень под шапкой убрана (плоский iOS-вид, меньше отрисовки)'),
-        ('nextMediaTap = preferences.getBoolean("next_media_on_tap", true);',
-         'shadowsInSections = preferences.getBoolean("shadowsInSections", false);',
-         'тени секций выключены (плоский iOS-вид)'),
     ]
     src = io.open(config, encoding='utf-8').read()
     for old, new, desc in defaults:

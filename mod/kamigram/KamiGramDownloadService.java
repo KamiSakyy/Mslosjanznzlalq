@@ -21,6 +21,11 @@ import org.telegram.messenger.UserConfig;
  * Foreground lifetime for native FileLoader operations larger than 10 MiB.
  * FileLoader still owns every byte, retry, temp file, part range and resume
  * offset; this service only keeps Android's process alive and shows progress.
+ *
+ * KAMIGRAM_UPLOAD_SERVICE_R101: the same lifetime now covers outgoing files.
+ * A native FileUploadOperation still uploads every part itself; KamiGramUploads
+ * only reports the large ones here, so a >10 MiB photo, video or document keeps
+ * uploading in the background with a progress notification.
  */
 public final class KamiGramDownloadService extends Service implements NotificationCenter.NotificationCenterDelegate {
     public static final long FOREGROUND_MIN_BYTES = 10L * 1024L * 1024L;
@@ -74,6 +79,32 @@ public final class KamiGramDownloadService extends Service implements Notificati
         }
     }
 
+    /** Отправка файла крупнее 10 МБ: поднимаем сервис, если он ещё не живёт. */
+    public static void ensureStartedForLargeUpload(Context context, long size) {
+        if (context == null || size <= FOREGROUND_MIN_BYTES) {
+            return;
+        }
+        try {
+            final Context app = context.getApplicationContext();
+            final Intent intent = new Intent(app, KamiGramDownloadService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                androidx.core.content.ContextCompat.startForegroundService(app, intent);
+            } else {
+                app.startService(intent);
+            }
+        } catch (Throwable ignore) {
+            // Android может отклонить фоновый старт: родная отправка продолжает идти.
+        }
+    }
+
+    /** Отправка стартовала/изменилась/завершилась: обновить уведомление. */
+    public static void reportUploadStateChanged() {
+        final KamiGramDownloadService service = instance;
+        if (service != null) {
+            service.handleStateChanged();
+        }
+    }
+
     public static void reportStateChanged() {
         final KamiGramDownloadService service = instance;
         if (service != null) {
@@ -87,7 +118,7 @@ public final class KamiGramDownloadService extends Service implements Notificati
         instance = this;
         createChannel();
         observe();
-        if (!hasActiveLargeDownloads()) {
+        if (!hasActiveWork()) {
             stopSelf();
             return;
         }
@@ -102,7 +133,7 @@ public final class KamiGramDownloadService extends Service implements Notificati
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!hasActiveLargeDownloads()) {
+        if (!hasActiveWork()) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -129,6 +160,29 @@ public final class KamiGramDownloadService extends Service implements Notificati
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
+        /* KAMIGRAM_UPLOAD_SERVICE_R101: события отправки (фотографии идут через
+           ImageLoader, документы — через FileUploadOperation/SendMessagesHelper). */
+        if (id == NotificationCenter.fileUploadProgressChanged && args != null && args.length >= 3) {
+            try {
+                final Object key = args[0];
+                final Object loaded = args[1];
+                final Object total = args[2];
+                if (key instanceof String && loaded instanceof Long && total instanceof Long) {
+                    final long loadedValue = (Long) loaded;
+                    final long totalValue = (Long) total;
+                    if (loadedValue >= 0L && totalValue > 0L) {
+                        KamiGramUploads.onProgress(account, (String) key, loadedValue, totalValue);
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+        } else if ((id == NotificationCenter.fileUploaded || id == NotificationCenter.fileUploadFailed)
+            && args != null && args.length >= 1 && args[0] instanceof String) {
+            try {
+                KamiGramUploads.onFinished(account, (String) args[0]);
+            } catch (Throwable ignore) {
+            }
+        }
         if (id == NotificationCenter.fileLoadProgressChanged && args != null && args.length >= 3) {
             try {
                 final Object loaded = args[1];
@@ -152,6 +206,9 @@ public final class KamiGramDownloadService extends Service implements Notificati
                 center.addObserver(this, NotificationCenter.fileLoadProgressChanged);
                 center.addObserver(this, NotificationCenter.fileLoaded);
                 center.addObserver(this, NotificationCenter.fileLoadFailed);
+                center.addObserver(this, NotificationCenter.fileUploadProgressChanged);
+                center.addObserver(this, NotificationCenter.fileUploaded);
+                center.addObserver(this, NotificationCenter.fileUploadFailed);
             } catch (Throwable ignore) {
             }
         }
@@ -168,18 +225,23 @@ public final class KamiGramDownloadService extends Service implements Notificati
                 center.removeObserver(this, NotificationCenter.fileLoadProgressChanged);
                 center.removeObserver(this, NotificationCenter.fileLoaded);
                 center.removeObserver(this, NotificationCenter.fileLoadFailed);
+                center.removeObserver(this, NotificationCenter.fileUploadProgressChanged);
+                center.removeObserver(this, NotificationCenter.fileUploaded);
+                center.removeObserver(this, NotificationCenter.fileUploadFailed);
             } catch (Throwable ignore) {
             }
         }
         observing = false;
     }
 
-    private boolean hasActiveLargeDownloads() {
-        return KamiGramDownloadRecovery.hasActiveLargeDownloads();
+    /** Живая работа сервиса: крупные загрузки ИЛИ крупные отправки. */
+    private boolean hasActiveWork() {
+        return KamiGramDownloadRecovery.hasActiveLargeDownloads()
+            || KamiGramUploads.hasActiveLargeUploads();
     }
 
     private void handleStateChanged() {
-        if (!hasActiveLargeDownloads()) {
+        if (!hasActiveWork()) {
             stopNow();
             return;
         }
@@ -193,7 +255,7 @@ public final class KamiGramDownloadService extends Service implements Notificati
     }
 
     private void stopIfIdle() {
-        if (!hasActiveLargeDownloads()) {
+        if (!hasActiveWork()) {
             stopNow();
         }
     }
@@ -209,7 +271,7 @@ public final class KamiGramDownloadService extends Service implements Notificati
     }
 
     private void updateNotification(boolean force) {
-        if (!hasActiveLargeDownloads()) {
+        if (!hasActiveWork()) {
             stopNow();
             return;
         }
@@ -232,17 +294,57 @@ public final class KamiGramDownloadService extends Service implements Notificati
     }
 
     private Notification buildNotification() {
-        final boolean determinate = lastTotal > FOREGROUND_MIN_BYTES;
-        final int progress = determinate
-            ? (int) Math.max(0L, Math.min(100L, lastLoaded * 100L / Math.max(1L, lastTotal)))
+        /* KAMIGRAM_UPLOAD_SERVICE_R101: одна строка для скачивания, одна для
+           отправки. Если идёт и то и другое — показываем оба процента. */
+        final boolean uploading = KamiGramUploads.hasActiveLargeUploads();
+        final boolean downloading = KamiGramDownloadRecovery.hasActiveLargeDownloads();
+        final long uploadTotal = KamiGramUploads.totalBytes();
+        final long uploadLoaded = Math.min(KamiGramUploads.uploadedBytes(), uploadTotal);
+        final int uploadProgress = uploadTotal > FOREGROUND_MIN_BYTES
+            ? (int) Math.max(0L, Math.min(100L, uploadLoaded * 100L / Math.max(1L, uploadTotal)))
             : 0;
-        final String content = determinate
-            ? "Скачивание · " + formatSize(lastLoaded) + " / " + formatSize(lastTotal) + " · " + progress + "%"
-            : "Скачивание · ожидаю данные";
+        final boolean determinate = lastTotal > FOREGROUND_MIN_BYTES || uploadTotal > FOREGROUND_MIN_BYTES;
+
+        final StringBuilder content = new StringBuilder();
+        if (uploading) {
+            content.append("Отправка · ");
+            if (uploadTotal > FOREGROUND_MIN_BYTES) {
+                content.append(formatSize(uploadLoaded)).append(" / ").append(formatSize(uploadTotal))
+                    .append(" · ").append(uploadProgress).append("%");
+            } else {
+                content.append("ожидаю данные");
+            }
+        }
+        if (downloading) {
+            if (content.length() > 0) {
+                content.append("   ");
+            }
+            content.append("Скачивание · ");
+            if (lastTotal > FOREGROUND_MIN_BYTES) {
+                final int downloadProgress = (int) Math.max(0L,
+                    Math.min(100L, lastLoaded * 100L / Math.max(1L, lastTotal)));
+                content.append(formatSize(lastLoaded)).append(" / ").append(formatSize(lastTotal))
+                    .append(" · ").append(downloadProgress).append("%");
+            } else {
+                content.append("ожидаю данные");
+            }
+        }
+        if (content.length() == 0) {
+            content.append("Sakura · передача файлов");
+        }
+
+        final int icon = uploading && !downloading
+            ? android.R.drawable.stat_sys_upload
+            : android.R.drawable.stat_sys_download;
+        final int progress = uploadTotal > FOREGROUND_MIN_BYTES
+            ? uploadProgress
+            : (lastTotal > FOREGROUND_MIN_BYTES
+                ? (int) Math.max(0L, Math.min(100L, lastLoaded * 100L / Math.max(1L, lastTotal)))
+                : 0);
         final NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(icon)
             .setContentTitle("Sakura")
-            .setContentText(content)
+            .setContentText(content.toString())
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
@@ -287,7 +389,7 @@ public final class KamiGramDownloadService extends Service implements Notificati
             final NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {
                 final NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID, "Скачивания", NotificationManager.IMPORTANCE_LOW);
+                    CHANNEL_ID, "Загрузки и отправка файлов", NotificationManager.IMPORTANCE_LOW);
                 channel.setSound(null, null);
                 channel.setShowBadge(false);
                 manager.createNotificationChannel(channel);

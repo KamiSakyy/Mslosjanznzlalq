@@ -277,37 +277,18 @@ def downloads():
 # 3. ЕЩЁ ЭКОНОМИЯ ПО УМОЛЧАНИЮ
 # =============================================================================
 
+# KAMIGRAM_DEFAULT_MEDIA_POLICY_R101: SharedConfig остаётся стоковым.
+# Раньше здесь выключались автоплей GIF, анимированные стикеры, размытие чата,
+# прозрачные панели и «экономия в звонках» — это и давало жалобы «фотообои и
+# медиа не грузятся / всё стало плоским». Ниже только записи old == new: они
+# ничего не меняют и оставлены как документирование намерения.
 DEFAULTS = [
-    ('useLessDataForCalls = preferences.getBoolean("useLessDataForCalls", false);',
-     'useLessDataForCalls = preferences.getBoolean("useLessDataForCalls", true);',
-     'экономия трафика в звонках включена'),
     ('autoplayVideo = preferences.getBoolean("autoplayVideo", false);',
      'autoplayVideo = preferences.getBoolean("autoplayVideo", false);',
-     'видео не проигрывается само (трафик только по нажатию)'),
-    ('autoplayGifs = preferences.getBoolean("autoplayGifs", true);',
-     'autoplayGifs = preferences.getBoolean("autoplayGifs", false);',
-     'GIF не проигрываются автоматически'),
-    ('showAnimatedStickers = preferences.getBoolean("showAnimatedStickers", true);',
-     'showAnimatedStickers = preferences.getBoolean("showAnimatedStickers", false);',
-     'анимированные стикеры не проигрываются'),
-    ('loopAnimatedStickers = preferences.getBoolean("loopAnimatedStickers", true);',
-     'loopAnimatedStickers = preferences.getBoolean("loopAnimatedStickers", false);',
-     'зацикливание стикеров выключено (меньше CPU и батареи)'),
-    ('raiseToSpeak = preferences.getBoolean("raiseToSpeak", true);',
-     'raiseToSpeak = preferences.getBoolean("raiseToSpeak", false);',
-     'запись «поднесением к уху» выключена'),
-    ('chatBlur = preferences.getBoolean("chatBlur", true);',
-     'chatBlur = preferences.getBoolean("chatBlur", false);',
-     'размытие в чате выключено (плоский iOS-вид, меньше GPU)'),
-    ('translucentTheme = preferences.getBoolean("translucentTheme", true);',
-     'translucentTheme = preferences.getBoolean("translucentTheme", false);',
-     'прозрачные панели выключены (нет «стекла»)'),
+     'автоплей видео — как в оригинальном Telegram'),
     ('forceShowSystemBars = preferences.getBoolean("forceShowSystemBars", false);',
      'forceShowSystemBars = preferences.getBoolean("forceShowSystemBars", false);',
      'системные панели как обычно'),
-    ('hideGraySection = preferences.getBoolean("hideGraySection", false);',
-     'hideGraySection = preferences.getBoolean("hideGraySection", true);',
-     'серые разделы в списках скрыты (чище, как в iOS)'),
 ]
 
 
