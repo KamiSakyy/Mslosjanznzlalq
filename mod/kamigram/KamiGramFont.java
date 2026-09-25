@@ -20,7 +20,6 @@ import java.util.IdentityHashMap;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -81,7 +80,7 @@ public final class KamiGramFont {
             try {
                 cachedRegular = Typeface.createFromFile(file());
             } catch (Throwable throwable) {
-                FileLog.e(throwable);
+                KamiGramLog.e(throwable);
                 cachedRegular = null;
             }
         }
@@ -143,7 +142,7 @@ public final class KamiGramFont {
             activity.startActivityForResult(intent, REQUEST_CODE);
             KamiGramUi.notify(context, "Выберите файл шрифта .ttf");
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
             KamiGramUi.notify(context, "Проводник недоступен");
         }
     }
@@ -194,7 +193,7 @@ public final class KamiGramFont {
             KamiGramUi.notify(context, "Шрифт применён: " + describe());
             return true;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
             KamiGramUi.notify(context, "Не удалось прочитать файл шрифта");
             return true;
         }
@@ -215,7 +214,7 @@ public final class KamiGramFont {
             apply();
             onFontChanged();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -232,7 +231,7 @@ public final class KamiGramFont {
             typedGeneration = -1;
             applyToTheme();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -264,7 +263,7 @@ public final class KamiGramFont {
             org.telegram.messenger.NotificationCenter.getGlobalInstance()
                 .postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, 0);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -328,7 +327,7 @@ public final class KamiGramFont {
         try {
             applyToPaints(org.telegram.ui.ActionBar.Theme.class);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

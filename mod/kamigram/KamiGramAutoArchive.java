@@ -6,7 +6,6 @@ import androidx.collection.LongSparseArray;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
@@ -18,8 +17,8 @@ import java.util.HashMap;
 /**
  * KamiGram r68: авто-архив чатов с непрочитанными.
  *
- * Просьба пользователя: «чаты, где непрочитанных больше 100 — автоматически
- * отправлять в архив».
+ * Просьба пользователя: группы и каналы, где непрочитанных больше 500,
+ * автоматически отправлять в архив.
  *
  * Как работает: мод подписывается на обновления списка чатов
  * ({@code dialogsNeedReload} / {@code updateInterfaces}). Когда список обновился,
@@ -42,8 +41,8 @@ import java.util.HashMap;
  */
 public final class KamiGramAutoArchive implements NotificationCenter.NotificationCenterDelegate {
 
-    /** Порог: больше 100 непрочитанных. */
-    private static final int LIMIT = 100;
+    /** Порог: больше 500 непрочитанных. */
+    private static final int LIMIT = 500;
     /** Не чаще одной проверки в 5 секунд. */
     private static final long MIN_INTERVAL = 5000L;
     /** Пауза после обновления списка — чтобы Telegram успел применить свои изменения. */
@@ -71,7 +70,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 NotificationCenter.getInstance(a).addObserver(INSTANCE, NotificationCenter.updateInterfaces);
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -86,7 +85,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
             }
             schedule(account);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -138,8 +137,12 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 if (dialogId == self || dialogId == 777000) {
                     continue; // «Избранное» и сервисные чаты
                 }
-                if (DialogObject.isEncryptedDialog(dialogId)) {
-                    continue; // секретные чаты не архивируем
+                if (DialogObject.isEncryptedDialog(dialogId) || !DialogObject.isChatDialog(dialogId)) {
+                    continue; // личные чаты и контакты неприкосновенны
+                }
+                final TLRPC.Chat chat = controller.getChat(-dialogId);
+                if (chat == null) {
+                    continue; // только группы и каналы
                 }
                 final Integer was = ARCHIVED.get(dialogId);
                 if (was != null && unread <= was) {
@@ -156,7 +159,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                 controller.addDialogToFolder(archive.get(a), 1, 0, 0);
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 }

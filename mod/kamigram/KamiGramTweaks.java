@@ -2,7 +2,6 @@ package org.telegram.messenger.kamigram;
 
 import android.content.SharedPreferences;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.SharedConfig;
 
@@ -46,7 +45,7 @@ public final class KamiGramTweaks {
             SharedConfig.fontSize = size;
             SharedConfig.fontSizeIsDefault = size == KamiGramConfig.FONT_SIZE_DEFAULT;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -66,7 +65,7 @@ public final class KamiGramTweaks {
                 preferences.edit().putBoolean("send_by_enter", want).apply();
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -87,7 +86,7 @@ public final class KamiGramTweaks {
                 .putBoolean("EnablePreviewChannel", false)
                 .apply();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

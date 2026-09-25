@@ -474,44 +474,19 @@ def main():
         # Если нужно вернуть какой-то акцент, добавь строку вида
         # ('key_имя_ключа', '0xFFRRGGBB', 'описание').
     ]
+    # Native Telegram themes are the sole source of app colors.  Keep the
+    # legacy class as a compatibility shim, but never emit Theme.setColor or
+    # select a custom theme from this package.
     theme_class = os.path.join(java, 'messenger/kamigram/KamiGramTheme.java')
-    sets = ''.join('            set(Theme.%s, %s);\n' % (k, c) for k, c, _d in theme_colors)
     theme_src = (
         'package org.telegram.messenger.kamigram;\n\n'
-        'import org.telegram.messenger.ApplicationLoader;\n'
-        'import org.telegram.messenger.FileLog;\n'
-        'import org.telegram.ui.ActionBar.Theme;\n\n'
-        '/**\n'
-        ' * KamiGram: iOS-цвета кодом (генерируется пакетом улучшений).\n'
-        ' * Тема задаёт общий вид, а эти ключи Telegram берёт из своих значений,\n'
-        ' * поэтому они переопределяются прямо в коде - как в iOS.\n'
-        ' */\n'
-        'public final class KamiGramTheme {\n\n'
-        '    private KamiGramTheme() {\n    }\n\n'
-        '    /** Применяет iOS-цвета (только при включённом iOS-дизайне). */\n'
-        '    public static void apply() {\n'
-        '        try {\n'
-        '            if (!KamiGramConfig.iosDesign()) {\n'
-        '                return;\n'
-        '            }\n'
-        + sets +
-        '            if (ApplicationLoader.applicationContext != null) {\n'
-        '                Theme.createDialogsResources(ApplicationLoader.applicationContext);\n'
-        '            }\n'
-        '        } catch (Throwable e) {\n'
-        '            FileLog.e(e);\n'
-        '        }\n'
-        '    }\n\n'
-        '    private static void set(int key, int color) {\n'
-        '        try {\n'
-        '            Theme.setColor(key, color, false);\n'
-        '        } catch (Throwable ignore) {\n'
-        '        }\n'
-        '    }\n'
-        '}\n')
+        '/** Stock Telegram themes only; legacy no-op compatibility shim. */\n'
+        'public final class KamiGramTheme {\n'
+        '    private KamiGramTheme() { }\n'
+        '    public static void apply() { }\n'
+        '}\n'
+    )
     io.open(theme_class, 'w', encoding='utf-8').write(theme_src)
-    for key, color, desc in theme_colors:
-        DONE.append(('iOS-цвета', '%s = %s — %s' % (key.replace('key_', ''), color, desc), 'KamiGramTheme'))
 
     if FAILED:
         print('KamiGram: проблемы в пакете улучшений:')

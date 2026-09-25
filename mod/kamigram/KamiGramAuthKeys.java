@@ -12,7 +12,6 @@ import android.os.Process;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.SharedConfig;
@@ -157,7 +156,7 @@ public final class KamiGramAuthKeys {
             apply();
             loaded = true;
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 
@@ -191,7 +190,7 @@ public final class KamiGramAuthKeys {
                 currentHash = HASHES[index];
             }
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
             currentId = IDS[index];
             currentHash = HASHES[index];
         }
@@ -239,7 +238,7 @@ public final class KamiGramAuthKeys {
             reconnect();
             return true;
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
             return false;
         }
     }
@@ -276,11 +275,11 @@ public final class KamiGramAuthKeys {
                 try {
                     Process.killProcess(Process.myPid());
                 } catch (Throwable e) {
-                    FileLog.e(e);
+                    KamiGramLog.e(e);
                 }
             }, 500);
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 
@@ -291,7 +290,7 @@ public final class KamiGramAuthKeys {
             final ConnectionsManager connectionsManager = ConnectionsManager.getInstance(account);
             String deviceModel = Build.MANUFACTURER + Build.MODEL;
             String systemVersion = "SDK " + Build.VERSION.SDK_INT;
-            String appVersion = "KamiGram";
+            String appVersion = "Sakura";
             try {
                 final PackageInfo pInfo = ApplicationLoader.applicationContext.getPackageManager()
                     .getPackageInfo(ApplicationLoader.applicationContext.getPackageName(), 0);
@@ -313,11 +312,11 @@ public final class KamiGramAuthKeys {
             final boolean userPremium = userConfig.getCurrentUser() != null && userConfig.getCurrentUser().premium;
             connectionsManager.init(SharedConfig.buildVersion(), TLRPC.LAYER, appId(),
                 deviceModel, systemVersion, appVersion, langCode, systemLangCode, config.toString(),
-                FileLog.getNetworkLogPath(), pushString, AndroidUtilities.getCertificateSHA256Fingerprint(),
+                null, pushString, AndroidUtilities.getCertificateSHA256Fingerprint(),
                 timezoneOffset, userConfig.getClientUserId(), userPremium, true);
             connectionsManager.checkConnection();
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 }

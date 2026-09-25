@@ -2,9 +2,7 @@ package org.telegram.messenger.kamigram;
 
 import android.content.SharedPreferences;
 
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
@@ -33,8 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *       переживают и ручную очистку кэша: их пути лежат в постоянном списке
  *       (SharedPreferences), а не только в памяти;</li>
  *   <li>менеджер загрузок мода умеет показать размер каждой категории и
- *       удалить её отдельно: кэш, фото, видео, музыка, документы, стикеры,
- *       истории, логи. Это «детальный и мощный» менеджер из запроса.</li>
+ *       удалить её отдельно: кэш, фото, видео, музыка, документы, стикеры
+ *       и истории. Технические логи в интерфейс и в менеджер не попадают.</li>
  * </ul>
  */
 public final class KamiGramCache {
@@ -47,8 +45,7 @@ public final class KamiGramCache {
     public static final int TYPE_DOCUMENTS = 4;
     public static final int TYPE_STICKERS = 5;
     public static final int TYPE_STORIES = 6;
-    public static final int TYPE_LOGS = 7;
-    public static final int TYPE_COUNT = 8;
+    public static final int TYPE_COUNT = 7;
 
     private static final String PREFS = "kamigram_files";
     private static final String KEY_PROTECTED = "protected_files";
@@ -95,7 +92,7 @@ public final class KamiGramCache {
                 }
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -113,7 +110,7 @@ public final class KamiGramCache {
                 preferences.edit().putString(KEY_PROTECTED, builder.toString()).apply();
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -137,6 +134,29 @@ public final class KamiGramCache {
     /** Имя файла (без пути) тоже защищаем: FileLoader часто оперирует именами. */
     public static void protectByName(String name) {
         protect(name);
+    }
+
+    /**
+     * Mark the local representation of a message as explicitly saved. This is
+     * intentionally called from Telegram's native save path, so protected,
+     * view-once and disappearing media use the same gallery implementation as
+     * ordinary media and survive cache cleanup/restart.
+     */
+    public static void protectMessage(org.telegram.messenger.MessageObject message) {
+        if (message == null || message.messageOwner == null) {
+            return;
+        }
+        try {
+            if (message.messageOwner.attachPath != null) {
+                protect(message.messageOwner.attachPath);
+            }
+            final File file = FileLoader.getInstance(UserConfig.selectedAccount)
+                .getPathToMessage(message.messageOwner);
+            if (file != null) {
+                protect(file);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public static boolean isProtected(String path) {
@@ -200,8 +220,6 @@ public final class KamiGramCache {
                     + size(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_CACHE), 3);
             case TYPE_STORIES:
                 return size(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_STORIES), 0);
-            case TYPE_LOGS:
-                return size(AndroidUtilities.getLogsDir(), 1);
             default:
                 return 0;
         }
@@ -219,7 +237,7 @@ public final class KamiGramCache {
                 return dir.length();
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
         return 0;
     }
@@ -249,8 +267,6 @@ public final class KamiGramCache {
                 return "Стикеры и эмодзи";
             case TYPE_STORIES:
                 return "Истории";
-            case TYPE_LOGS:
-                return "Логи";
             default:
                 return "?";
         }
@@ -312,9 +328,6 @@ public final class KamiGramCache {
             case TYPE_STORIES:
                 collect(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_STORIES), targets);
                 break;
-            case TYPE_LOGS:
-                collect(AndroidUtilities.getLogsDir(), targets);
-                break;
             default:
                 break;
         }
@@ -328,7 +341,7 @@ public final class KamiGramCache {
             try {
                 FileLoader.getInstance(UserConfig.selectedAccount).deleteFiles(files, 0);
             } catch (Throwable throwable) {
-                FileLog.e(throwable);
+                KamiGramLog.e(throwable);
                 for (File file : files) {
                     deleteRecursive(file);
                 }
@@ -385,7 +398,7 @@ public final class KamiGramCache {
             //noinspection ResultOfMethodCallIgnored
             file.delete();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

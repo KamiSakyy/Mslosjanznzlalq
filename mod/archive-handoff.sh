@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  KamiGram — архивирование сборок в папке handoff/
+#  Sakura — архивирование сборок в папке handoff/
 #
 #  ПРАВИЛО: ничего не удаляем. Каждая сборка сохраняется отдельным файлом,
 #  старые версии APK и исходников остаются навсегда.
 #
 #  Что раскладывается:
-#    handoff/apk/KamiGram-<версия>-r<номер>.apk   — каждая сборка
-#    handoff/apk/KamiGram-latest.apk              — копия последней (удобная ссылка)
+#    handoff/apk/Sakura-<версия>-r<номер>.apk   — каждая сборка
+#    handoff/apk/Sakura-latest.apk              — копия последней (удобная ссылка)
 #    handoff/sources/MOD_INFO-<версия>-r<номер>.txt    — из какого коммита собрано, какие патчи
 #    handoff/sources/changes-<версия>-r<номер>.patch  — полный git diff против исходников Telegram
 #    handoff/sources/SHA256SUMS-<версия>-r<номер>.txt — контрольные суммы
@@ -35,7 +35,7 @@ APK_DIR="$ARCHIVE_DIR/apk"
 SRC_DIR="$ARCHIVE_DIR/sources"
 mkdir -p "$APK_DIR" "$SRC_DIR"
 
-APK_NAME="KamiGram-$VERSION-r$RUN.apk"
+APK_NAME="Sakura-$VERSION-r$RUN.apk"
 APK_OUT="$APK_DIR/$APK_NAME"
 
 if [ -f "$APK_OUT" ]; then
@@ -46,7 +46,7 @@ else
 fi
 
 # latest — всегда копия самой свежей успешной сборки
-cp "$APK_IN" "$APK_DIR/KamiGram-latest.apk"
+cp "$APK_IN" "$APK_DIR/Sakura-latest.apk"
 
 # исходники: MOD_INFO (что изменено и от какого коммита) + полный diff
 if [ -n "$MOD_INFO" ] && [ -f "$MOD_INFO" ]; then
@@ -63,7 +63,7 @@ if [ -n "$PATCH" ] && [ -f "$PATCH" ]; then
 fi
 
 # суммы по этой версии
-( cd "$APK_DIR" && sha256sum "$APK_NAME" KamiGram-latest.apk > "$SRC_DIR/SHA256SUMS-$VERSION-r$RUN.txt" ) 2>/dev/null || true
+( cd "$APK_DIR" && sha256sum "$APK_NAME" Sakura-latest.apk > "$SRC_DIR/SHA256SUMS-$VERSION-r$RUN.txt" ) 2>/dev/null || true
 
 # общий список сумм: пересобираем из всех файлов, ничего не теряя
 ( cd "$APK_DIR" && sha256sum *.apk 2>/dev/null | sort -k2 ) > "$ARCHIVE_DIR/SHA256SUMS.txt" || true
@@ -86,7 +86,7 @@ def sha(path):
 rows = []
 if os.path.isdir(apk_dir):
     for name in sorted(os.listdir(apk_dir)):
-        if not name.endswith('.apk') or name == 'KamiGram-latest.apk':
+        if not name.endswith('.apk') or name == 'Sakura-latest.apk':
             continue
         p = os.path.join(apk_dir, name)
         size = os.path.getsize(p) / 1048576
@@ -96,7 +96,7 @@ sources = sorted(os.listdir(src_dir)) if os.path.isdir(src_dir) else []
 legacy = sorted(n for n in os.listdir(root) if n.endswith('.apk'))
 
 out = []
-out.append('# KamiGram — архив сборок\n')
+out.append('# Sakura — архив сборок\n')
 out.append('Все версии APK и исходников сохраняются **навсегда**, ничего не удаляется.\n')
 out.append('\n## Версии APK\n')
 out.append('| файл | размер | sha256 |')
@@ -120,7 +120,7 @@ for n in sources:
 
 out.append('\n## Скачать\n')
 out.append('```')
-out.append('https://github.com/KamiSakyy/Mslosjanznzlalq/raw/<ветка>/handoff/apk/KamiGram-latest.apk')
+out.append('https://github.com/KamiSakyy/Mslosjanznzlalq/raw/<ветка>/handoff/apk/Sakura-latest.apk')
 out.append('```')
 out.append('\nОбновлено: %s UTC' % datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M'))
 

@@ -467,22 +467,18 @@ IOS_COLORS = [
 
 
 def ios_colors():
+    # Stock Telegram themes are authoritative.  Do not generate a custom
+    # KamiGram/Yoru color class or call Theme.setColor from the PRO package.
     theme = path('messenger', 'kamigram', 'KamiGramTheme.java')
     try:
         src = read(theme)
     except Exception as e:
         FAILED.append('KamiGramTheme: %s' % e)
         return
-    anchor = '        try {\n'
-    if anchor not in src:
-        FAILED.append('KamiGramTheme: не найдено начало apply()')
+    if 'public static void apply()' not in src:
+        FAILED.append('KamiGramTheme: compatibility shim is missing')
         return
-    for key, color, what in IOS_COLORS:
-        if key in src:
-            continue
-        src = src.replace(anchor, anchor + '            set(%s, 0x%08X);\n' % (key, color), 1)
-        DONE.append(('iOS-цвета', '%s — %s' % (key.replace('Theme.key_', ''), what), 'KamiGramTheme'))
-    write(theme, src)
+    DONE.append(('Темы', 'родные темы Telegram сохранены; принудительная перекраска отключена', 'KamiGramTheme'))
 
 
 # =============================================================================

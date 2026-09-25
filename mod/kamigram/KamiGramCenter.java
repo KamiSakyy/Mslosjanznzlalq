@@ -3,7 +3,9 @@ package org.telegram.messenger.kamigram;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -15,15 +17,15 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.ProxyListActivity;
 
 /**
- * KamiGram: центр настроек. Дизайн — палитра и приёмы Yoru (yoru-android),
+ * Sakura: центр настроек. Дизайн — палитра и приёмы Yoru (yoru-android),
  * перенесённые на Telegram:
  *
  *   * фон #0D0B12, карточки #1C1724 с обводкой #352A43 и радиусом 18;
@@ -69,7 +71,7 @@ public final class KamiGramCenter {
             header.setGravity(Gravity.CENTER_VERTICAL);
 
             final TextView title = new TextView(context);
-            title.setText("KamiGram");
+            title.setText("Sakura");
             title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
             title.setTypeface(AndroidUtilities.bold());
             title.setTextColor(ThemeHook.YORU_TEXT);
@@ -151,7 +153,7 @@ public final class KamiGramCenter {
                         try {
                             sections[index].fill(content, context, onChanged);
                         } catch (Throwable throwable) {
-                            FileLog.e(throwable);
+                            KamiGramLog.e(throwable);
                         }
                         scroll.scrollTo(0, 0);
                     }
@@ -175,7 +177,7 @@ public final class KamiGramCenter {
                 }
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -194,7 +196,7 @@ public final class KamiGramCenter {
 
     private static void fillConnection(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
-            Row.toggle("KamiProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
+            Row.toggle("SakuProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
             Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged),
             Row.action("Открыть список прокси", () -> openProxyScreen(context))
@@ -221,9 +223,7 @@ public final class KamiGramCenter {
     private static void fillPrivacy(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Призрак", KamiGramConfig.KEY_GHOST, onChanged),
-            // r68: при призраке отправка уходит через «Отложенные» — как в AyuGram
-            Row.toggle("Отправка через «Отложенные»", KamiGramConfig.KEY_AUTO_SCHEDULE, onChanged),
-            Row.toggle("Авто-архив (100+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
+            Row.toggle("Авто-архив групп и каналов (500+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
             Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
             Row.toggle("Удалённые сообщения", KamiGramConfig.KEY_KEEP_DELETED, onChanged),
             Row.toggle("Одноразовые без пометки", KamiGramConfig.KEY_VIEW_ONCE, onChanged),
@@ -284,12 +284,21 @@ public final class KamiGramCenter {
             Row.toggle("Пересылать сгорающие", KamiGramConfig.KEY_FORWARD_EPHEMERAL, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Плавающее окно (поверх приложений)", KamiGramConfig.KEY_FLOAT_WINDOW, onChanged),
             Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Применять KamiGram ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
+            Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged),
+            Row.action("Разработчик · @AsuMeo", () -> openDeveloper(context))
         });
+    }
+
+    private static void openDeveloper(Context context) {
+        try {
+            context.startActivity(new Intent(Intent.ACTION_VIEW,
+                Uri.parse(KamiGramChannelGuard.CHANNEL_URL)));
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
     }
 
     // ------------------------------------------------------------------ кэш по категориям
@@ -415,7 +424,7 @@ public final class KamiGramCenter {
                 ((LaunchActivity) activity).presentFragment(new ProxyListActivity());
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -445,7 +454,7 @@ public final class KamiGramCenter {
             }
             dismissAll();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -591,25 +600,27 @@ public final class KamiGramCenter {
                 // «Стикеры», «Премиум-эмодзи» и т.п. хранят ЗАПРЕТ, а переключатель
                 // показывает «включено» — так пользователю понятнее.
                 final boolean invert = invertible(key);
-                final KamiGramUi.Toggle toggle = new KamiGramUi.Toggle(context);
-                toggle.setChecked(invert ? !KamiGramConfig.value(key) : KamiGramConfig.value(key), false);
-                final Runnable apply = () -> {
-                    final boolean shown = toggle.isChecked();
-                    KamiGramConfig.set(key, invert ? !shown : shown);
-                    KamiGramGhost.refreshAll();
+                // Native Android switch: Telegram's own accessible control keeps
+                // the row familiar and handles touch, keyboard and TalkBack input.
+                final Switch toggle = new Switch(context);
+                toggle.setShowText(false);
+                toggle.setChecked(invert ? !KamiGramConfig.value(key) : KamiGramConfig.value(key));
+                toggle.setOnCheckedChangeListener((button, checked) -> {
+                    KamiGramConfig.set(key, invert ? !checked : checked);
+                    if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
+                        ThemeHook.setTelegramTheme(checked);
+                    } else {
+                        KamiGramGhost.refreshAll();
+                    }
                     if (onChanged != null) {
                         onChanged.run();
                     }
-                };
-                toggle.setOnToggleListener(checked -> {
-                    toggle.setChecked(checked, false);
-                    apply.run();
                 });
-                row.addView(toggle, new LinearLayout.LayoutParams(dp(42), dp(25)));
-                row.setOnClickListener(v -> {
-                    toggle.setChecked(!toggle.isChecked(), true);
-                    apply.run();
-                });
+                final LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                switchParams.leftMargin = dp(8);
+                row.addView(toggle, switchParams);
+                row.setOnClickListener(v -> toggle.setChecked(!toggle.isChecked()));
             } else {
                 row.setOnClickListener(v -> {
                     try {
@@ -617,7 +628,7 @@ public final class KamiGramCenter {
                             click.run();
                         }
                     } catch (Throwable throwable) {
-                        FileLog.e(throwable);
+                        KamiGramLog.e(throwable);
                     }
                 });
             }

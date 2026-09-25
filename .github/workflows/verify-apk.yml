@@ -22,11 +22,12 @@ jobs:
       - name: "Забрать файлы мода"
         uses: actions/checkout@v4
 
-      - name: "Разобрать handoff/KamiGram-latest.apk"
+      - name: "Разобрать handoff/Sakura-latest.apk"
         run: |
           set -euo pipefail
           mkdir -p notes /tmp/handoff
-          APK=handoff/KamiGram-latest.apk
+          APK=handoff/Sakura-latest.apk
+          [ -f "$APK" ] || APK=handoff/KamiGram-latest.apk
           ls -la "$APK"
           echo "sha256: $(sha256sum "$APK" | cut -c1-64)"
           unzip -o -q "$APK" -d /tmp/handoff

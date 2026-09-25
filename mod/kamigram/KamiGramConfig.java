@@ -54,7 +54,7 @@ public final class KamiGramConfig {
     public static final String KEY_TEXT_ONLY = "kamigram_text_only";
     /** Умный фильтр рекламы в сообщениях. */
     public static final String KEY_ADS_FILTER = "kamigram_ads_filter";
-    /** Встроенные прокси сборки с авто-роутингом (KamiProxy). */
+    /** Встроенные прокси сборки с авто-роутингом (SakuProxy). */
     public static final String KEY_BUILTIN_PROXY = "kamigram_builtin_proxy";
     /** Не грузить стикеры и наборы эмодзи. */
     public static final String KEY_NO_STICKERS = "kamigram_no_stickers";
@@ -85,6 +85,8 @@ public final class KamiGramConfig {
     // ------------------------------------------------------------- внешний вид
     /** iOS-дизайн: графит, скругления, плоская шапка. */
     public static final String KEY_IOS_DESIGN = "kamigram_ios_design";
+    /** Legacy preference; Sakura always uses Telegram's native theme registry. */
+    public static final String KEY_TELEGRAM_THEME = "kamigram_telegram_theme";
     /** iOS-скругления облаков сообщений. */
     public static final String KEY_IOS_BUBBLES = "kamigram_ios_bubbles";
     /** Акцентный цвет: 0 — iOS-синий, 1 — бирюзовый, 2 — зелёный, 3 — оранжевый, 4 — красный, 5 — графит, 6 — розовый. */
@@ -109,15 +111,7 @@ public final class KamiGramConfig {
     public static final String KEY_SILENT_SEND = "kamigram_silent_send";
 
     // ------------------------------------------------------------- r68
-    /**
-     * Призрак + отправка через «Отложенные» (как в AyuGram).
-     *
-     * Сообщение уходит не в момент нажатия, а через несколько секунд (сервер
-     * доставляет его по расписанию), поэтому по времени прихода сообщения
-     * нельзя понять, когда мы реально были в сети.
-     */
-    public static final String KEY_AUTO_SCHEDULE = "kamigram_auto_schedule";
-    /** Чаты со «100+» непрочитанных сами уходят в архив. */
+    /** Группы и каналы со свыше 500 непрочитанных сами уходят в архив. */
     public static final String KEY_AUTO_ARCHIVE = "kamigram_auto_archive";
 
     // ------------------------------------------------------------- r70
@@ -243,7 +237,7 @@ public final class KamiGramConfig {
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
-            || KEY_TEXT_ONLY.equals(key)
+            || KEY_TEXT_ONLY.equals(key) || KEY_TELEGRAM_THEME.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
             || KEY_NO_PREMIUM_UI.equals(key)
             || KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
@@ -285,9 +279,13 @@ public final class KamiGramConfig {
 
     public static void setInt(String key, int value) {
         try {
-            final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+            /* r76: числовые настройки должны использовать то же хранилище, что и
+               boolean-настройки. Раньше setInt() всегда писал в global main settings,
+               поэтому при режиме «отдельно для аккаунтов» фон/акцент/размер текста
+               визуально сбрасывались после перезапуска. */
+            final SharedPreferences preferences = store();
             if (preferences != null) {
-                preferences.edit().putInt(key, value).apply();
+                preferences.edit().putInt(key, value).commit();
             }
         } catch (Throwable ignore) {
         }
@@ -382,11 +380,6 @@ public final class KamiGramConfig {
         return value(KEY_BUILTIN_PROXY);
     }
 
-    /** Отправка через «Отложенные» при включённом призраке (r68). */
-    public static boolean autoSchedule() {
-        return value(KEY_AUTO_SCHEDULE);
-    }
-
     /** Авто-архив чатов со «100+» непрочитанных (r68). */
     public static boolean autoArchive() {
         return value(KEY_AUTO_ARCHIVE);
@@ -445,6 +438,11 @@ public final class KamiGramConfig {
 
     public static boolean iosDesign() {
         return value(KEY_IOS_DESIGN);
+    }
+
+    /** Sakura never installs a second theme: Telegram's native themes are always active. */
+    public static boolean telegramTheme() {
+        return true;
     }
 
 
@@ -595,12 +593,12 @@ public final class KamiGramConfig {
         return value(KEY_FORWARD_EPHEMERAL);
     }
 
+    /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
     /** «Плавающее окно»: поверх других приложений (по умолчанию включено). */
     public static boolean floatWindow() {
         return value(KEY_FLOAT_WINDOW);
     }
 
-    /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
     public static boolean netFocus() {
         return value(KEY_NET_FOCUS);
     }

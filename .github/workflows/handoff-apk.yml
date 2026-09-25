@@ -67,17 +67,17 @@ jobs:
           [ -n "$APK" ] || { echo "::error title=Handoff::в артефактах нет APK"; exit 1; }
 
           BASE=$(basename "$APK")
-          # KamiGram-12.10.3-mod-arm64-v8a.apk -> 12.10.3-mod
-          VERSION=$(echo "$BASE" | sed -E 's/^KamiGram-//; s/-arm64-v8a\.apk$//; s/\.apk$//')
+          # Sakura-12.10.3-mod-arm64-v8a.apk -> 12.10.3-mod
+          VERSION=$(echo "$BASE" | sed -E 's/^Sakura-//; s/-arm64-v8a\.apk$//; s/\.apk$//')
           [ -n "$VERSION" ] || VERSION="12.10.3-mod"
-          NAME="KamiGram-$VERSION-r$RUN_NUMBER.apk"
+          NAME="Sakura-$VERSION-r$RUN_NUMBER.apk"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "NAME=$NAME" >> "$GITHUB_ENV"
 
           mkdir -p handoff/apk handoff/sources
           [ -f "handoff/apk/$NAME" ] || cp "$APK" "handoff/apk/$NAME"
-          cp "$APK" "handoff/apk/KamiGram-latest.apk"
-          cp "$APK" "handoff/KamiGram-latest.apk"
+          cp "$APK" "handoff/apk/Sakura-latest.apk"
+          cp "$APK" "handoff/Sakura-latest.apk"
 
           find dl -name 'MOD_INFO.txt' -exec cp {} "handoff/sources/MOD_INFO-$VERSION-r$RUN_NUMBER.txt" \; || true
           DIFF=$(find dl -name '*.patch' -o -name '*.diff' | head -1)
@@ -93,7 +93,7 @@ jobs:
           echo "::notice title=Handoff::$NAME | $SIZE | sha256=$SHA..."
 
           {
-            echo '# KamiGram - архив сборок'
+            echo '# Sakura - архив сборок'
             echo
             echo 'Все версии APK и исходников сохраняются навсегда, ничего не удаляется.'
             echo
@@ -103,7 +103,7 @@ jobs:
             echo '|---|---|---|'
             for f in handoff/apk/*.apk; do
               BN=$(basename "$f")
-              [ "$BN" = "KamiGram-latest.apk" ] && continue
+              [ "$BN" = "Sakura-latest.apk" ] && continue
               echo "| \`apk/$BN\` | $(du -h "$f" | cut -f1) | \`$(sha256sum "$f" | cut -c1-16)...\` |"
             done
             echo

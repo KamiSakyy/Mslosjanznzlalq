@@ -97,7 +97,7 @@ def main():
 
         # 4. короткая памятка, как собрать
         readme = (
-            'KamiGram - исходники мода (версия %s, сборка r%s)\n'
+            'Sakura - исходники мода (версия %s, сборка r%s)\n'
             '=================================================\n\n'
             'Что внутри:\n'
             '  mod/        - патчер apply-mod.sh и все Java-классы KamiGram\n'
@@ -105,7 +105,7 @@ def main():
             '  reports/    - отчёты по улучшениям и diff против исходников Telegram\n\n'
             'Как собрать:\n'
             '  1. git clone --depth 1 https://github.com/DrKLO/Telegram.git\n'
-            '  2. TG_DIR=<куда склонировали> APP_NAME=KamiGram APP_PACKAGE=com.kami.gram \\\n'
+            '  2. TG_DIR=<куда склонировали> APP_NAME=Sakura APP_PACKAGE=com.kami.gram \\\n'
             '       bash mod/apply-mod.sh\n'
             '  3. cd <TG_DIR> && ./gradlew :TMessagesProj_App:assembleAfatRelease\n\n'
             'Подпись: оригинальный ключ Telegram (android / androidkey).\n'

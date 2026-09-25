@@ -1,0 +1,8 @@
+Sakura launcher artwork source
+
+Character: Emilia from Re:Zero
+Source page: https://www.peakpx.com/en/hd-wallpaper-desktop-pecwn
+Search result title: anime girls, Re:Zero Kara Hajimeru Isekai Seikatsu, Emilia (Re: Zero), white hair, anime, purple eyes, artwork, Kinty, HD phone wallpaper
+
+This file is an existing downloaded image selected from the image-search result. It was not generated or edited by an image model. The build script only crops and rasterizes the supplied artwork for Android resource sizes.
+SHA-256: f475503d6adbad57b774d8252e3944b2e594712469f78499c926ea8e5921a7c7

@@ -3,7 +3,6 @@ package org.telegram.messenger.kamigram;
 import android.content.SharedPreferences;
 
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 
 /**
  * KamiGram: счётчик трафика и экономия — «сколько реально ушло в сеть».
@@ -36,7 +35,7 @@ public final class KamiGramTraffic {
             sessionStartRx = totalRx();
             sessionStartTx = totalTx();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

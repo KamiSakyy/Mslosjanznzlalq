@@ -4,7 +4,6 @@ import android.graphics.drawable.Drawable;
 import android.text.SpannableStringBuilder;
 
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.ActionBar;
 
 import java.lang.ref.WeakReference;
@@ -33,7 +32,7 @@ public final class KamiGramProxyStatus {
      * всегда под рукой: приложение всё равно живёт с ними до самого выхода.
      */
     private static CharSequence baseTitle = null;
-    private static String baseText = "KamiGram";
+    private static String baseText = "Sakura";
     private static ActionBar actionBarRef = null;
     private static Drawable rightDrawableRef = null;
 
@@ -75,7 +74,7 @@ public final class KamiGramProxyStatus {
             CharSequence base = baseTitle;
             if (base == null || base.length() == 0) {
                 // строку могло унести сборщиком мусора — восстанавливаем из текста
-                base = baseText != null ? baseText : "KamiGram";
+                base = baseText != null ? baseText : "Sakura";
             }
             if (actionBar == null) {
                 return;
@@ -91,7 +90,7 @@ public final class KamiGramProxyStatus {
             actionBar.setTitle(base instanceof SpannableStringBuilder ? base : new SpannableStringBuilder(base),
                 rightDrawableRef);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -101,7 +100,7 @@ public final class KamiGramProxyStatus {
             return ApplicationLoader.applicationContext.getString(
                 org.telegram.messenger.R.string.AppName);
         } catch (Throwable ignore) {
-            return "KamiGram";
+            return "Sakura";
         }
     }
 }

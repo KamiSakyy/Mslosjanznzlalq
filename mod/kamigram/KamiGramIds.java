@@ -5,7 +5,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.widget.Toast;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 
 /**
@@ -70,7 +69,7 @@ public final class KamiGramIds {
             }
             menuItem.addSubItem(ID_COPY, 0, "ID: " + dialogId);
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
     }
 
@@ -83,12 +82,12 @@ public final class KamiGramIds {
             if (context != null && dialogId != 0) {
                 final ClipboardManager manager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
                 if (manager != null) {
-                    manager.setPrimaryClip(ClipData.newPlainText("KamiGram ID", Long.toString(dialogId)));
+                    manager.setPrimaryClip(ClipData.newPlainText("Sakura ID", Long.toString(dialogId)));
                     KamiGramUi.notify(context, "ID скопирован: " + dialogId);
                 }
             }
         } catch (Throwable e) {
-            FileLog.e(e);
+            KamiGramLog.e(e);
         }
         return true;
     }

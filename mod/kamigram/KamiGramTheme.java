@@ -1,34 +1,18 @@
 package org.telegram.messenger.kamigram;
 
-import org.telegram.messenger.FileLog;
-import org.telegram.ui.ActionBar.Theme;
-
 /**
- * KamiGram: совместимость с прошлыми сборками.
+ * Compatibility shim for legacy patch points.
  *
- * Раньше этот класс переопределял цвета кодом (красные счётчики, индиго-акценты)
- * — из-за этого цвета отличались от Telegram. Теперь цвета приходят только из
- * темы (assets), а здесь остаётся один вызов акцента, который пользователь
- * выбрал в центре KamiGram (по умолчанию — «как в Telegram», без правок).
+ * Sakura deliberately ships only Telegram's original themes.  Older patch
+ * stages may still call this method, so it remains as a harmless no-op instead
+ * of changing Theme colors or selecting a custom theme.
  */
 public final class KamiGramTheme {
 
     private KamiGramTheme() {
     }
 
-    /**
-     * Цвета в моде больше НЕ задаются кодом.
-     *
-     * Почему: любое переопределение цвета кодом ломало вид — появлялись
-     * «красные» счётчики и акценты, которых в Telegram нет. Теперь источник
-     * цвета один — тема приложения (assets, P16), а код применяет только тот
-     * акцент, который пользователь сам выбрал в центре KamiGram.
-     */
     public static void apply() {
-        try {
-            ThemeHook.applyAccent();
-        } catch (Throwable e) {
-            FileLog.e(e);
-        }
+        // Intentionally empty: native Telegram theme state belongs to Telegram.
     }
 }

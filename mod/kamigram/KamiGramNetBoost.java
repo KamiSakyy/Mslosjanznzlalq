@@ -1,6 +1,5 @@
 package org.telegram.messenger.kamigram;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.UserConfig;
 
@@ -66,7 +65,7 @@ public final class KamiGramNetBoost {
                 loader.kamigramRecheckQueues();
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 
@@ -86,7 +85,7 @@ public final class KamiGramNetBoost {
                 loader.kamigramRecheckQueues();
             }
         } catch (Throwable t) {
-            FileLog.e(t);
+            KamiGramLog.e(t);
         }
     }
 

@@ -1,6 +1,5 @@
 package org.telegram.messenger.kamigram;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.SharedConfig;
 
@@ -46,7 +45,7 @@ public final class KamiGramOptimize {
                 SharedConfig.photoViewerBlur = false;
             }
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

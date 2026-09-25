@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 
 /**
@@ -84,7 +83,7 @@ public final class KamiGramSelfCheck {
             safeMode = preferences.getBoolean(KEY_SAFE_MODE, false);
             loaded = true;
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -146,7 +145,7 @@ public final class KamiGramSelfCheck {
             }
             editor.apply();
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 
@@ -160,7 +159,7 @@ public final class KamiGramSelfCheck {
                 }
             }, ALIVE_DELAY);
         } catch (Throwable throwable) {
-            FileLog.e(throwable);
+            KamiGramLog.e(throwable);
         }
     }
 

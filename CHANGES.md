@@ -1,3 +1,44 @@
+# Sakura rebrand — stock Telegram themes, Emilia artwork and SakuProxy
+
+- Default display name and visible settings branding are now `Sakura`; the embedded proxy control is `SakuProxy`.
+- The exact `relay.surfvpn.app:443` MTProto link is part of the hidden built-in catalog. Built-ins stay routable internally, while the native proxy list shows only user-added rows and custom deletion cannot remove built-ins.
+- P16 no longer generates/registers a custom KamiGram/Yoru theme or repaints native Telegram themes. Telegram's original theme registry and assets remain authoritative.
+- The launcher uses the existing non-generated Emilia artwork from Peakpx, with circular legacy and adaptive/round resources for mdpi, hdpi, xhdpi, xxhdpi and xxxhdpi.
+
+# r76 — KamiProxy без смешивания custom, ghost в меню, удаление overlay и сохранение Premium
+
+> Патчер: `P101` (`mod/kamigram/apply_r76_patches.py`). Этот пакет **заменяет**
+> старое историческое описание r70 ниже: PiP/плавающий пузырёк и разрешение overlay
+> больше не входят в сборку.
+
+## 1. Overlay/PiP удалён полностью
+Удалены KamiGram-кнопка «поверх приложений», PiP/плавающий пузырёк, `KamiGramFloat`,
+переключатель «Плавающее окно» и `SYSTEM_ALERT_WINDOW`. В Telegram больше не добавляется
+ни один модовый overlay-хук.
+
+## 2. Ghost в меню «⋮»
+Иконка призрака убрана из action-bar и добавлена в overflow-меню главного экрана.
+Контур/заполненный drawable выбирается при открытии меню, поэтому состояние не требует
+отдельной кнопки в шапке.
+
+## 3. KamiProxy: два независимых слоя
+Встроенный каталог всегда восстанавливается после загрузки списка Telegram и скрыт только
+из пользовательского списка. `SharedConfig.deleteProxy()` защищает встроенные записи,
+`delete all` удаляет только custom, а включение KamiProxy не зависит от наличия custom строк.
+Когда custom-прокси подтверждённо не отвечает, движок проверяет и быстро активирует живой
+встроенный резерв; custom-объекты не используются для загрязнения встроенного пула.
+
+## 4. Загрузки
+`DownloadProgressIcon` остаётся статичным для очереди, паузы и нулевого прогресса. Цикл
+запускается только после ненулевого движения счётчика скачанных байтов и останавливается
+watchdog-ом после паузы.
+
+## 5. Локальный Premium
+`KamiGramPremiumState` сериализует per-account `PeerColor` и `profile_color` целиком,
+включая flags, collectible-поля и `background_emoji_id`. `PeerColorActivity.apply()`
+сохраняет состояние синхронно, а `UserConfig.setCurrentUser()` и загрузка сериализованного
+пользователя восстанавливают его после серверного обновления и перезапуска.
+
 # r60 — ОГРОМНЫЙ ПАКЕТ: ПОВЕРХ ПРИЛОЖЕНИЙ, ПОДПИСКА-ОБЯЗАЛОВКА, СКОРОСТЬ, ПРЕМИУМ, «СГОРЕТЬ» (сборка r75)
 
 > Сборка: **`mod-12.10.3-mod-r75`** · база — DrKLO/Telegram 12.10.3, коммит `9552e554`
@@ -880,6 +921,16 @@ api_id из своих секретов, а не с публичным ключ�
 | 13 | Цвет кнопки = состояние: зелёный (работает), жёлтый (проверяется), красный (не отвечает), серый (выключен) |
 | 14 | В меню «три точки» — строки «Прокси: адрес · пинг · живых N/M», «Вставить ссылку», «Подобрать лучший» |
 | 15 | Панель прокси: список с пингом, кнопка «Проверить все», поле для ссылки, «Подключить» |
+
+### 2.1. Безобрывная загрузка видео (P102)
+
+| # | Что сделано |
+|---|---|
+| 16 | При смене proxy активные native `FileLoadOperation` перепривязываются без удаления `.temp`/`.pt`; уже записанные диапазоны сохраняются |
+| 17 | Transient failure после handover возвращает ту же операцию в штатную `FileLoaderPriorityQueue`, вместо окончательного `fileLoadFailed` |
+| 18 | Android foreground service удерживает процесс в фоне и показывает persistent progress notification с полосой, размером, процентом и состоянием |
+| 19 | Watchdog измеряет движение байтов, timeout и низкую фактическую скорость; stall запускает fallback на живой proxy |
+| 20 | Built-in и custom proxy независимы; каталог встроенных маршрутов имеет заданный пользователем порядок и дедупликацию |
 
 ### 3. ID ЧАТОВ И ПОЛЬЗОВАТЕЛЕЙ (раньше не работало)
 

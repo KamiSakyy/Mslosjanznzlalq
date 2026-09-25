@@ -25,7 +25,7 @@ DONE = []
 MISS = []
 
 TG = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('TG_DIR', '.')
-APP_NAME = sys.argv[2] if len(sys.argv) > 2 else os.environ.get('APP_NAME', 'KamiGram')
+APP_NAME = sys.argv[2] if len(sys.argv) > 2 else os.environ.get('APP_NAME', 'Sakura')
 JAVA = os.path.join(TG, 'TMessagesProj/src/main/java/org/telegram')
 
 GHOST = 'org.telegram.messenger.kamigram.KamiGramGhost'
