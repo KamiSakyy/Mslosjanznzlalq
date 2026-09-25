@@ -57,7 +57,7 @@ def main():
     action = """                } else if (id == kamigram_chat_search) {
                     Bundle kamigramSearchArgs = new Bundle();
                     kamigramSearchArgs.putLong("dialog_id", getDialogId());
-                    kamigramSearchArgs.putInt("topic_id", getTopicId());
+                    kamigramSearchArgs.putLong("topic_id", getTopicId());
                     presentFragment(new org.telegram.messenger.kamigram.KamiGramChatSearch(kamigramSearchArgs)); /* KAMIGRAM_CHAT_SEARCH_ACTION */
 """
     source = source.replace(click_anchor, action + click_anchor, 1)

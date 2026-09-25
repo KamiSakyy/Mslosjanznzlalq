@@ -43,7 +43,7 @@ public class KamiGramChatSearch extends BaseFragment {
     };
 
     private long dialogId;
-    private int topicId;
+    private long topicId;
 
     private EditText searchField;
     private FilteredSearchView searchView;
@@ -55,7 +55,7 @@ public class KamiGramChatSearch extends BaseFragment {
         super(args);
         if (args != null) {
             dialogId = args.getLong("dialog_id", 0);
-            topicId = args.getInt("topic_id", 0);
+            topicId = args.getLong("topic_id", 0);
         }
     }
 
@@ -74,8 +74,8 @@ public class KamiGramChatSearch extends BaseFragment {
         actionBar.setTitle("Поиск в чате");
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
-            public void onItemClick(View view) {
-                if (view != null && view.getId() == ActionBar.MENU_BUTTON_BACK) {
+            public void onItemClick(int id) {
+                if (id == -1) { /* кнопка «назад» */
                     finishFragment();
                 }
             }
@@ -162,7 +162,7 @@ public class KamiGramChatSearch extends BaseFragment {
                 args.putLong("dialog_id", messageObject.getDialogId());
                 args.putInt("message_id", messageObject.getId());
                 if (topicId != 0) {
-                    args.putInt("topic_id", topicId);
+                    args.putLong("topic_id", topicId);
                 }
                 presentFragment(new ChatActivity(args), true);
             }
@@ -196,7 +196,7 @@ public class KamiGramChatSearch extends BaseFragment {
 
         final FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        contentParams.topMargin = ActionBar.getHeight();
+        contentParams.topMargin = ActionBar.getCurrentActionBarHeight();
         ((FrameLayout) fragmentView).addView(content, contentParams);
 
         AndroidUtilities.runOnUIThread(() -> {
