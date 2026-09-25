@@ -1,3 +1,46 @@
+# r95 — сборка доходит до APK: недостающие классы Sakura, ImageMagick и диагностика до Gradle
+
+> Патчер: `P110` + правка `P100` (`mod/apply-mod.sh`), workflow `build-tgmod.yml`.
+
+## Что исправлено
+
+- `P100` теперь копирует в дерево Telegram `KamiGramVideoGestures`, `KamiGramBulkSelector`
+  и `KamiGramDeleteMyMessages`. Патчи вставляли вызовы этих классов в `ChatActivity`,
+  `PhotoViewer` и `PipVideoOverlay`, но сами классы не копировались, поэтому
+  `:TMessagesProj:compileReleaseJavaWithJavac` падал с `cannot find symbol` ещё до сборки APK.
+- Из центра настроек Sakura убрана строка «Разработчик · @AsuMeo»: её обработчик
+  `openDeveloper()` был удалён вместе с legacy sponsor-строкой, а вызов остался
+  (вторая ошибка `cannot find symbol` в `KamiGramCenter`). Ссылка на канал разработчика
+  осталась одна — «Разработчик Sakura» через `openDeveloperChannel()`.
+- `P110` — новая статическая проверка перед Gradle: каждый класс
+  `org.telegram.{messenger,ui.Components}.kamigram.*`, на который ссылается пропатченное
+  дерево, обязан лежать в дереве, а у каждого статического вызова `Kami*.method()`
+  должно быть объявление. Проверка воспроизводит обе ошибки r94/r95 за секунды и
+  не даёт сжигать 40 минут Gradle на заведомо неудаляемой сборке.
+- Workflow ставит ImageMagick (`convert`/`identify`) до шага «Применить мод»:
+  без него `apply_icon_art.py` не может сделать density-варианты существующего
+  Emilia artwork и падает на `P2A` (причина падения сборки #95).
+- Вывод патчера пишется в `apply.log` (`tee`) и уходит в артефакт `build-log-<run>`;
+  при падении все ошибки `javac` (до 200 строк с контекстом «symbol/location») и
+  ключевые строки Gradle дублируются в job summary и в аннотации Checks API,
+  потому что логи и артефакты Actions иногда не скачиваются.
+
+## Что осталось в силе (без изменений)
+
+- Кэш: `AutoDeleteMediaTask.run()` — безусловный no-op (`KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94`),
+  никаких чисток по сроку, `cache_limit`, low-storage, background или таймеру;
+  `FileLoader.deleteFiles` и `CacheControlActivity` полностью штатные (0 мод-маркеров),
+  mod-фильтры защиты скачанных файлов из `FileLoader` убраны, temp/parts и resume offsets
+  не сбрасываются. Ручная очистка категорий в настройках Telegram реально удаляет файлы.
+- Уведомления: `ConnectionsManager` классифицирует FCM/push-критичные запросы через
+  `KamiGramNetFilter.isPushCriticalRequest` (`KAMIGRAM_PUSH_NATIVE_BYPASS_R83`) и обходит
+  локальные mod-фильтры; Ghost-режим не трогает регистрацию FCM и background update
+  (`KAMIGRAM_PUSH_GHOST_SAFE_R83`); `NotificationsController`/`PushListenerController`
+  не модифицированы.
+- Только оригинальные темы Telegram, брендинг `Sakura`/`SakuProxy`, встроенные прокси
+  скрыты из пользовательского списка, существующий (не сгенерированный) Emilia artwork
+  как launcher icon на всех плотностях.
+
 # r78 — обычные медиа без блокировок, автоматическая подписка и стабильная отправка через proxy
 
 > Патчер: `P103` (`mod/kamigram/apply_r78_patches.py`) поверх r76/r77.

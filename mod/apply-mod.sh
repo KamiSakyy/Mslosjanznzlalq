@@ -2163,9 +2163,16 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
+    done
+    # 1b) эти три класса вызываются из ChatActivity/PhotoViewer/PipVideoOverlay,
+    #     которые патчат apply_video_gestures/apply_bulk_selection/
+    #     apply_delete_my_messages. Без копирования javac падает с
+    #     «cannot find symbol» ещё до Gradle-сборки APK.
+    for f in KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages; do
+        has "$KAMI_PKG/$f.java" "class $f" || die "P100: $f не скопирован в дерево Telegram"
     done
     # 2) иконки: минималистичный призрак (контур/заполненный), «сгореть»
     for d in kamigram_ghost kamigram_ghost_on kamigram_burn; do
@@ -2654,4 +2661,82 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     ok "P109 r94: media auto-cleanup полностью отключён независимо от настройки, temp/parts/resume не трогаются на startup, очистка оставлена штатному Telegram CacheControlActivity"
 else
     skip "P109 r94 отключено (ZERO_TRAFFIC=0)"
+fi
+
+# =============================================================================
+# P110. r95 — статическая проверка символов перед Gradle.
+#      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
+#      P100-патчи вставляли вызовы классов Sakura, а сами классы в дерево не
+#      копировались. Здесь проверяем, что каждый класс
+#      org.telegram.{messenger,ui.Components}.kamigram.*, на который ссылается
+#      пропатченное дерево, реально лежит в дереве, и что у каждого
+#      статического вызова Kami*.method() есть объявление. Дёшево и до Gradle.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    python3 - "$JAVA_ROOT" <<'PYSYM' || die "P110: найдены недостающие символы Sakura — javac упадёт с cannot find symbol"
+import collections
+import io
+import os
+import re
+import sys
+
+root = sys.argv[1]
+pkg_re = re.compile(r'org\.telegram\.(?:messenger|ui\.Components)\.kamigram\.([A-Za-z_][A-Za-z0-9_]*)')
+call_re = re.compile(r'\b(Kami[A-Za-z0-9_]*|ThemeHook)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(')
+# Package-private declarations count too, so the modifier list is optional.
+decl_re = re.compile(
+    r'^[ \t]*(?:(?:public|protected|private|static|final|synchronized|abstract|native|default)\s+)*'
+    r'[\w<>\[\],\.\s]+?\b(\w+)\s*\(',
+    re.MULTILINE,
+)
+field_re = re.compile(
+    r'^[ \t]*(?:(?:public|protected|private|static|final|volatile|transient)\s+)+'
+    r'[\w<>\[\],\.]+\s+(\w+)\s*[=;]',
+    re.MULTILINE,
+)
+
+refs = collections.defaultdict(set)
+present = {}
+calls = collections.defaultdict(set)
+
+for dirpath, _dirs, files in os.walk(root):
+    for name in files:
+        if not name.endswith(".java"):
+            continue
+        path = os.path.join(dirpath, name)
+        source = io.open(path, encoding="utf-8", errors="replace").read()
+        if os.sep + "kamigram" in dirpath + os.sep:
+            present[name[:-5]] = path
+            members = set(decl_re.findall(source)) | set(field_re.findall(source))
+            present[name[:-5]] = (path, members)
+        for symbol in pkg_re.findall(source):
+            refs[symbol].add(path)
+        for klass, member in call_re.findall(source):
+            calls[(klass, member)].add(path)
+
+problems = []
+for symbol in sorted(refs):
+    if symbol not in present:
+        for path in sorted(refs[symbol]):
+            problems.append("класс %s не скопирован в дерево, но используется в %s"
+                            % (symbol, os.path.relpath(path, root)))
+for (klass, member) in sorted(calls):
+    if klass not in present:
+        continue
+    _path, members = present[klass]
+    if member not in members:
+        for path in sorted(calls[(klass, member)]):
+            problems.append("%s.%s() не объявлен, вызов в %s"
+                            % (klass, member, os.path.relpath(path, root)))
+
+for problem in problems[:40]:
+    sys.stderr.write("P110: %s\n" % problem)
+if problems:
+    sys.stderr.write("P110: всего проблем: %d\n" % len(problems))
+    sys.exit(1)
+print("P110: все классы и статические вызовы Sakura разрешаются в пропатченном дереве")
+PYSYM
+    ok "P110 r95: статическая проверка символов — классы и вызовы Sakura на месте до запуска Gradle"
+else
+    skip "P110 r95 отключено (ZERO_TRAFFIC=0)"
 fi

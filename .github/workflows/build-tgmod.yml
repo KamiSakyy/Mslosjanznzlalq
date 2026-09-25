@@ -272,15 +272,49 @@ jobs:
           for f in apply.log javac.log build.log; do
             [ -f "$f" ] && { echo "### последние строки $f"; tail -n 25 "$f"; }
           done
+
+          # Логи и артефакты Actions иногда не скачиваются (обрыв blob-хранилища),
+          # поэтому всё важное дублируем в job summary и в аннотации Checks API.
+          SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
+          {
+            echo "## Диагностика сборки"
+            echo
+          } >> "$SUMMARY"
+
           found=0
           for f in apply.log javac.log build.log; do
-            if [ -f "$f" ]; then
-              found=1
-              echo "### Аннотации из $f (Checks API)"
-              grep -nE "\[fail\]|Traceback|error:|error;|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" | tail -n 10 | tr -d '\r' | while IFS= read -r line; do
-                echo "::error title=Сбой ${f}::${line:0:900}"
+            [ -f "$f" ] || continue
+            found=1
+            echo "### Аннотации из $f (Checks API)"
+
+            # 1) Ошибки javac с двумя строками контекста (символ/место) — это
+            #    то, что реально надо читать при «cannot find symbol».
+            if grep -qE "error: |error; " "$f"; then
+              {
+                echo '### Ошибки компиляции Java'
+                echo '```'
+                grep -nE -A2 "error: |error; " "$f" | head -n 200 | tr -d '\r'
+                echo '```'
+                echo
+              } >> "$SUMMARY"
+              grep -nE "error: |error; " "$f" | head -n 30 | tr -d '\r' | while IFS= read -r line; do
+                echo "::error title=javac ${f}::${line:0:900}"
               done
             fi
+
+            # 2) Прочие сбои: патчер, Gradle, исключения.
+            {
+              echo "### Ключевые строки ${f}"
+              echo '```'
+              grep -nE "\[fail\]|Traceback|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" \
+                | head -n 60 | tr -d '\r'
+              echo '```'
+              echo
+            } >> "$SUMMARY"
+            grep -nE "\[fail\]|Traceback|FAILURE:|What went wrong|Execution failed|Caused by|Task '.*' not found|Could not|Exception" "$f" \
+              | tail -n 15 | tr -d '\r' | while IFS= read -r line; do
+              echo "::error title=Сбой ${f}::${line:0:900}"
+            done
           done
           [ "$found" = "0" ] && echo "::error title=Сборка::ни apply.log, ни javac.log, ни build.log не найдены"
           exit 0

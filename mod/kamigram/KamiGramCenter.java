@@ -277,8 +277,9 @@ public final class KamiGramCenter {
             Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged),
-            Row.action("Разработчик · @AsuMeo", () -> openDeveloper(context))
+            // The AsuMeo row is gone: its handler was removed together with the
+            // legacy sponsor entry, so only the Sakura developer channel stays.
+            Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
         card(root, context, new Row[]{
             Row.action("Разработчик Sakura", () -> openDeveloperChannel(context)),
