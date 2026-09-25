@@ -48,11 +48,12 @@
 | `apk/KamiGram-12.10.3-mod-r91.apk` | 35M | `7b8fc523c4671cf5...` |
 | `apk/KamiGram-12.10.3-mod-r93.apk` | 35M | `d22b7d3c377270cc...` |
 | `apk/KamiGram-12.10.3-mod-r94.apk` | 35M | `b69e72d124d5fa9f...` |
+| `apk/KamiGram-latest.apk` | 35M | `b69e72d124d5fa9f...` |
+| `apk/Sakura-KamiGram-12.10.3-mod-r94.apk` | 35M | `b69e72d124d5fa9f...` |
 
 ## Исходники версий
 
-Каждая запись = MOD_INFO (версия, коммит Telegram, патчи) + changes-*.patch.gz (полный diff).
-Восстановление: клонировать DrKLO/Telegram на коммит из MOD_INFO, затем gunzip -c changes-*.patch.gz | git apply.
+Каждая запись = MOD_INFO + changes-*.patch.gz (полный diff против Telegram).
 
 | файл | размер |
 |---|---|
@@ -99,6 +100,7 @@
 | `sources/MOD_INFO-12.10.3-mod-r91.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-mod-r93.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-mod-r94.txt` | 12K |
+| `sources/MOD_INFO-KamiGram-12.10.3-mod-r94.txt` | 12K |
 | `sources/changes-12.10.3-mod-r14.patch.gz` | 1.4M |
 | `sources/changes-12.10.3-mod-r14.stat.txt` | 0 |
 | `sources/changes-12.10.3-mod-r17.patch.gz` | 1.4M |
@@ -181,6 +183,8 @@
 | `sources/changes-12.10.3-mod-r93.stat.txt` | 0 |
 | `sources/changes-12.10.3-mod-r94.patch.gz` | 1.8M |
 | `sources/changes-12.10.3-mod-r94.stat.txt` | 0 |
+| `sources/changes-KamiGram-12.10.3-mod-r94.patch.gz` | 1.4M |
+| `sources/changes-KamiGram-12.10.3-mod-r94.stat.txt` | 0 |
 | `sources/kamigram-mod-src-12.10.3-mod-r40.zip` | 180K |
 | `sources/kamigram-mod-src-12.10.3-mod-r42.zip` | 204K |
 | `sources/kamigram-mod-src-12.10.3-mod-r45.zip` | 220K |
@@ -207,4 +211,4 @@
 | `sources/kamigram-mod-src-12.10.3-mod-r93.zip` | 3.9M |
 | `sources/kamigram-mod-src-12.10.3-mod-r94.zip` | 3.9M |
 
-Обновлено: 2026-09-24 19:23 UTC
+Обновлено: 2026-09-25 08:33 UTC
