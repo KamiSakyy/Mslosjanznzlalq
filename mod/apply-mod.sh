@@ -2870,7 +2870,7 @@ grep -q 'KAMIGRAM_KEEP_TTL_MEDIA_R106' "$JAVA_ROOT/org/telegram/messenger/Messag
     || die "P118: локальный таймер сгорающих медиа не отключён"
 for banned in "Запретить скриншоты" "Темы оформления" "Открыть список прокси" \
               "Показать скрытую рекламу" "Рекламные посты" "Реклама и рекомендации" \
-              "Кэш сейчас" "Показать архив" "Видео поверх приложений"; do
+              "Кэш сейчас" "Показать архив" "Видео поверх приложений" "Sakura канал"; do
     ! grep -q "$banned" "$CACHE_CENTER" || die "P118: в центре остался пункт «$banned»"
 done
 grep -q 'сборка k1' "$KAMIGRAM_SRC/KamiGramBuild.java" \
@@ -2878,6 +2878,15 @@ grep -q 'сборка k1' "$KAMIGRAM_SRC/KamiGramBuild.java" \
 grep -q 'openChannelInApp' "$KAMIGRAM_SRC/KamiGramBranding.java" \
     || die "P118: канал не открывается внутри приложения"
 ok "P118 r106: overlay-разрешение, сгорающие медиа, чистка центра"
+
+# P119. r107 — жёсткая защита APK (R8, obfuscation-словари) и фикс массового выбора.
+python3 "$KAMIGRAM_SRC/apply_r107_hardening.py" "$TG_DIR" || die "P119: защита APK не применилась"
+has "$TG_DIR/TMessagesProj_App/build.gradle" "proguard-sakura.pro" || die "P119: правила Sakura не подключены к release"
+grep -q "minifyEnabled true" "$TG_DIR/TMessagesProj_App/build.gradle" || die "P119: R8-минификация отключена"
+grep -q "shrinkResources true" "$TG_DIR/TMessagesProj_App/build.gradle" || die "P119: resource shrink отключён"
+grep -q "enableR8.fullMode=true" "$TG_DIR/gradle.properties" || die "P119: R8 full mode отключён"
+has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_BULK_SELECTION_SHOW" || die "P119: массовый выбор не показывает тулбар"
+ok "P119 r107: R8/обфускация подключены, массовый выбор показывает тулбар выделения"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

@@ -62,7 +62,27 @@ def main():
         if (picked.isEmpty()) {
             return;
         }
-        createActionMode();
+        /* KAMIGRAM_BULK_SELECTION_SHOW: тулбар выделения ПОКАЗЫВАЕТСЯ той же
+           последовательностью, что и при обычном долгом нажатии. */
+        if (!actionBar.isActionModeShowed()) {
+            createActionMode();
+            final org.telegram.ui.ActionBar.ActionBarMenu actionMode = actionBar.createActionMode();
+            if (actionMode == null) {
+                return;
+            }
+            actionMode.setItemVisibility(delete, View.VISIBLE);
+            if (actionsButtonsLayout != null) {
+                actionsButtonsLayout.bringToFront();
+            }
+            bottomViewsVisibilityController.setViewVisible(MESSAGE_ACTION_CONTAINER, true, true);
+            actionBar.showActionMode(true, null, null, null, null, null, 0);
+            if (getParentActivity() instanceof LaunchActivity) {
+                ((LaunchActivity) getParentActivity()).hideVisibleActionMode();
+            }
+            closeMenu();
+            chatLayoutManager.setCanScrollVertically(true);
+            updatePinnedMessageView(true);
+        }
         for (int i = 0; i < picked.size(); i++) {
             addToSelectedMessages(picked.get(i), false, i == picked.size() - 1);
         }

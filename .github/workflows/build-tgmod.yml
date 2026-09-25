@@ -267,6 +267,18 @@ jobs:
             :TMessagesProj_App:assembleAfatRelease 2>&1 | tee ../build.log
           df -h / || true
 
+      - name: Защита APK (диагностика R8 и dex-разбиения)
+        working-directory: telegram-src
+        run: |
+          APK=$(find TMessagesProj_App/build/outputs/apk -name '*.apk' 2>/dev/null | head -1)
+          echo "### APK: $APK"
+          ls -la "$APK" 2>/dev/null || true
+          echo "### Разбиение на dex (основной + мелкие)"
+          unzip -l "$APK" 2>/dev/null | grep -E 'classes[0-9]*\.dex' || true
+          echo "### R8 mapping — артефакт обфускации"
+          ls -la TMessagesProj_App/build/outputs/mapping/afatRelease/ 2>/dev/null || true
+          head -5 TMessagesProj_App/build/outputs/mapping/afatRelease/mapping.txt 2>/dev/null || true
+
       - name: Диагностика сборки (видно без доступа к логам)
         if: failure()
         run: |

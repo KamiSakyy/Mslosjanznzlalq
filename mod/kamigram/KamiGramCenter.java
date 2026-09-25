@@ -257,11 +257,11 @@ public final class KamiGramCenter {
             // legacy sponsor entry, so only the Sakura developer channel stays.
             Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
-        /* r106: канал и разработчик открываются ВНУТРИ приложения; лишние
-           надписи (кэш, архив, видео поверх приложений) убраны по просьбе
-           пользователя. Загрузки переехали сюда из вкладки «Память». */
+        /* r106: разработчик открывается ВНУТРИ приложения; лишние надписи
+           (кэш, архив, видео поверх приложений) убраны по просьбе пользователя.
+           Загрузки переехали сюда из вкладки «Память». r107: дубль строки
+           канала убран — такая кнопка уже есть в настройках Telegram. */
         card(root, context, new Row[]{
-            Row.action("Sakura канал", () -> KamiGramBranding.openChannelInApp(context)),
             Row.action("Разработчик Sakura", () -> KamiGramBranding.openChannelInApp(context)),
             Row.action("Загрузки", () -> openDownloads(context))
         });
