@@ -28,8 +28,6 @@ public final class KamiGramConfig {
     public static final String KEY_NO_RESTRICTIONS = "kamigram_no_restrictions";
     /** Показывать ID чатов и пользователей. */
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
-    /** r115: звонки и видеозвонки всегда через прокси (SOCKS5). */
-    public static final String KEY_CALLS_VIA_PROXY = "kamigram_calls_via_proxy";
     /** r116: поиск — только глобальный (без своих чатов и контактов). */
     public static final String KEY_SEARCH_GLOBAL_ONLY = "kamigram_search_global_only";
     /** r116: «чистый поиск» — включать в результаты людей. */
@@ -395,11 +393,6 @@ public final class KamiGramConfig {
 
     public static boolean showIds() {
         return value(KEY_SHOW_IDS);
-    }
-
-    /** r115: звонки и видеозвонки всегда через прокси (по умолчанию включено). */
-    public static boolean callsViaProxy() {
-        return value(KEY_CALLS_VIA_PROXY);
     }
 
     public static boolean noPermissionNags() {

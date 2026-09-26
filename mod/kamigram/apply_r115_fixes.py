@@ -20,13 +20,8 @@
      ни при загрузке списка диалогов — именно они стирали музыку/видео/фото
      «сами» (маркер KAMIGRAM_TTL_NO_LOCAL_TASKS_R115).
 
-2. ЗВОНКИ И ВИДЕОЗВОНКИ ЧЕРЕЗ ПРОКСИ (по умолчанию включено, отключается
-   в настройках Sakura, «Связь» → «Звонки через прокси»):
-   * VoIPService берёт активный SOCKS5-прокси для звонка даже без штатного
-     флага «использовать для звонков»;
-   * если активный прокси не годится для звонков (MTProto звонки не несёт)
-     или выключен — точечно для звонка выбирается SOCKS5 из сохранённого
-     списка прокси (KamiGramCallProxy), глобальные настройки не меняются.
+2. r117: принудительный прокси для звонков УБРАН по просьбе пользователя
+   (VoIPService остаётся девственным, KamiGramCallProxy удалён).
 
 Запуск: python3 apply_r115_fixes.py <TG_DIR>
 """
@@ -36,11 +31,9 @@ import sys
 
 TG = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("TG_DIR", ".")
 MS = os.path.join(TG, "TMessagesProj/src/main/java/org/telegram/messenger/MessagesStorage.java")
-VOIP = os.path.join(TG, "TMessagesProj/src/main/java/org/telegram/messenger/voip/VoIPService.java")
 
 FILES_MARK = "KAMIGRAM_FILES_SURVIVE_R115"
 TASKS_MARK = "KAMIGRAM_TTL_NO_LOCAL_TASKS_R115"
-CALLS_MARK = "KAMIGRAM_CALLS_VIA_PROXY_R115"
 
 
 def die(msg):
@@ -184,43 +177,8 @@ def patch_storage():
     print("r115 storage: медиафайлы переживают удаления сообщений, ttl-задачи не создаются")
 
 
-def patch_voip():
-    source = io.open(VOIP, encoding="utf-8", errors="replace").read()
-    if CALLS_MARK in source:
-        print("r115 voip: уже применено")
-        return
-
-    old_if = ('\t\t\tif (preferences.getBoolean("proxy_enabled", false) && preferences.getBoolean("proxy_enabled_calls", false)) {\n')
-    if source.count(old_if) != 1:
-        die("якорь proxy_enabled_calls найден %d раз" % source.count(old_if))
-    source = source.replace(
-        old_if,
-        '\t\t\tif (preferences.getBoolean("proxy_enabled", false) && (preferences.getBoolean("proxy_enabled_calls", false)\n'
-        '\t\t\t\t|| org.telegram.messenger.kamigram.KamiGramConfig.callsViaProxy())) { /* ' + CALLS_MARK + ' */\n',
-        1,
-    )
-
-    anchor = "\t\t\t// encryption key\n"
-    if source.count(anchor) != 1:
-        die("якорь «// encryption key» найден %d раз" % source.count(anchor))
-    source = source.replace(
-        anchor,
-        '\t\t\t/* ' + CALLS_MARK + ': звонки и видеозвонки всегда через прокси — если активный\n'
-        '\t\t\t   прокси не годится для звонков (MTProto) или выключен, точечно берётся\n'
-        '\t\t\t   SOCKS5 из сохранённого списка; глобальные настройки не меняются. */\n'
-        '\t\t\tif (proxy == null && org.telegram.messenger.kamigram.KamiGramConfig.callsViaProxy()) {\n'
-        '\t\t\t\tproxy = org.telegram.messenger.kamigram.KamiGramCallProxy.callProxy();\n'
-        '\t\t\t}\n\n' + anchor,
-        1,
-    )
-
-    io.open(VOIP, "w", encoding="utf-8").write(source)
-    print("r115 voip: звонки и видеозвонки идут через прокси (по умолчанию)")
-
-
 def main():
     patch_storage()
-    patch_voip()
     return 0
 
 

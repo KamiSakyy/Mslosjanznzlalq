@@ -229,6 +229,34 @@ jobs:
           git commit -m "chore(keys): собственный ключ подписи Sakura (alias=$KS_ALIAS) [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
 
+      - name: Кастомный ключ подписи Sakura Line (второй APK, генерируется один раз)
+        env:
+          KS_ALIAS: sakura
+          KS_PASSWORD: sakura2026line
+        run: |
+          set -euo pipefail
+          KS=modrepo/mod/keys/sakura-line.jks
+          if [ -f "$KS" ]; then
+            echo "::notice title=Подпись Sakura Line::ключ уже в репозитории"
+            exit 0
+          fi
+          echo "::notice title=Подпись Sakura Line::генерирую кастомный ключ (4096-bit RSA, JKS)"
+          mkdir -p "$(dirname "$KS")"
+          keytool -genkeypair -v \
+            -keystore "$KS" -storetype JKS -alias "$KS_ALIAS" \
+            -keyalg RSA -keysize 4096 -validity 10950 \
+            -storepass "$KS_PASSWORD" -keypass "$KS_PASSWORD" \
+            -dname "CN=Sakura Line, OU=Sakura, O=Sakura, L=Frankfurt, ST=Hesse, C=DE"
+          base64 -w0 "$KS" > "$KS.b64"
+          FP=$(keytool -list -v -keystore "$KS" -storepass "$KS_PASSWORD" 2>/dev/null | grep -m1 "SHA256:" | sed 's/SHA256: *//') || true
+          echo "::notice title=Подпись Sakura Line::alias=$KS_ALIAS | SHA-256 сертификата: ${FP:-н/д}"
+          cd modrepo
+          git config user.name "arena-ai-coding-agent[bot]"
+          git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
+          git add -f mod/keys/sakura-line.jks mod/keys/sakura-line.jks.b64
+          git commit -m "chore(keys): кастомный ключ подписи Sakura Line (alias=$KS_ALIAS) [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+
       - name: Применить мод (брендинг, package id, свой ключ подписи)
         env:
           TG_DIR: ${{ github.workspace }}/telegram-src
@@ -424,6 +452,82 @@ jobs:
             echo "sha=$(cut -d' ' -f1 SHA256SUMS.txt)"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Сборка APK 2 (пакет com.sakura.line, кастомная подпись Sakura Line)
+        if: steps.apk.outputs.out != ''
+        env:
+          TG_DIR: ${{ github.workspace }}/telegram-src
+          APP_PACKAGE: com.sakura.line
+          KEYSTORE_PASSWORD: sakura2026line
+          KEY_ALIAS: sakura
+          KEY_PASSWORD: sakura2026line
+        run: |
+          set -euo pipefail
+          echo "::notice title=APK 2::пакет com.sakura.line, кастомная подпись Sakura Line"
+          # первый APK уже упакован и лежит в корне workspace — возвращаем
+          # дерево к девственному состоянию и применяем мод заново
+          cp telegram-src/mod-changes.patch /tmp/mod-changes-apk1.patch 2>/dev/null || true
+          ( cd telegram-src && git checkout -f . && git clean -fdq )
+          KEYSTORE_B64=$(base64 -w0 modrepo/mod/keys/sakura-line.jks)
+          export KEYSTORE_B64
+          bash modrepo/mod/apply-mod.sh
+          cd telegram-src
+          set +e
+          ./gradlew --no-daemon --build-cache --stacktrace --console=plain \
+            :TMessagesProj_App:assembleAfatRelease 2>&1 | tee ../build2.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != "0" ]; then
+            grep -nE "error:|FAILURE:|What went wrong|Execution failed|Caused by" ../build2.log | tail -n 8 | tr -d '\r' | while IFS= read -r line; do
+              echo "::error title=Gradle build2.log::${line:0:900}"
+            done
+            exit "$code"
+          fi
+
+      - name: Проверка и упаковка APK 2
+        if: steps.apk.outputs.out != ''
+        id: apk2
+        env:
+          TG_DIR: ${{ github.workspace }}/telegram-src
+        run: |
+          set -uo pipefail
+          APK=$(find telegram-src/TMessagesProj_App/build/outputs/apk -name '*.apk' 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then echo "::error title=APK2::файл не найден в build/outputs"; exit 1; fi
+          echo "APK2: $APK"
+
+          BT=$(ls -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/*/ 2>/dev/null | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$APK" > /tmp/badging2.txt 2>/dev/null || true
+          VERSION=$(grep -oP '^APP_VERSION_NAME=\K.*' telegram-src/gradle.properties || echo "")
+
+          FAILED=0
+          grep -q "name='com.sakura.line'" /tmp/badging2.txt || { echo "::error title=APK2::неверный package id (ждали com.sakura.line)"; FAILED=1; }
+          grep -q "application-label:'$APP_NAME'" /tmp/badging2.txt || { echo "::error title=APK2::неверное название приложения"; FAILED=1; }
+          [ "$FAILED" = "1" ] && exit 1
+
+          echo "=== подпись APK2 (apksigner) ==="
+          CERTS=$("$BT/apksigner" verify --print-certs "$APK" 2>&1 || true)
+          echo "$CERTS" | head -8
+          SIGNER=$(echo "$CERTS" | grep -m1 "certificate DN" | sed 's/^ *//') || true
+          echo "::notice title=Подпись APK2::${SIGNER:-не удалось прочитать сертификат}"
+          case "$SIGNER" in *Sakura*) ;; *) echo "::warning title=Подпись APK2::ожидался кастомный сертификат Sakura Line";; esac
+
+          OUT2="$APP_NAME-Line-$VERSION-${ABIS//,/_}.apk"
+          cp "$APK" "$OUT2"
+          sha256sum "$OUT2" >> SHA256SUMS.txt
+          ls -lh "$OUT2"
+          {
+            echo "out2=$OUT2"
+            echo "size2=$(du -h "$OUT2" | cut -f1)"
+            echo "sha2=$(sha256sum "$OUT2" | cut -d' ' -f1)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Загрузить лог сборки 2 при падении
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build2-log-${{ github.run_number }}
+          path: build2.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Архив в handoff/ (APK + исходники всех версий, ничего не удаляем)
         if: steps.apk.outputs.out != ''
         run: |
@@ -441,6 +545,10 @@ jobs:
           rm -rf "$OUT"; mkdir -p "$OUT/sources"
           cp "$APK" "$OUT/$NAME"
           cp "$APK" "$OUT/Sakura-latest.apk"
+          APK2="${{ steps.apk2.outputs.out2 }}"
+          if [ -n "$APK2" ] && [ -f "$APK2" ]; then
+            cp "$APK2" "$OUT/SakuraLine-$VERSION-r$RUN.apk"
+          fi
           cp telegram-src/MOD_INFO.txt "$OUT/sources/MOD_INFO-$VERSION-r$RUN.txt" 2>/dev/null || true
 
           if [ -d telegram-src/.git ]; then
@@ -540,8 +648,10 @@ jobs:
             echo "| автоскачивание медиа | \`$AUTODOWNLOAD_OFF\` (1 = выключено по умолчанию) |"
             echo "| локали | \`$RES_CONFIGS\` |"
             echo "| урезание анимаций | \`$SLIM_HEAVY\` |"
-            echo "| APK | \`${{ steps.apk.outputs.out || '—' }}\` (${{ steps.apk.outputs.size || '—' }}) |"
+            echo "| APK | \`${{ steps.apk.outputs.out || '—' }}\` (${{ steps.apk.outputs.size || '—' }}) — package \`$APP_PACKAGE\`, текущая подпись |"
             echo "| SHA-256 | \`${{ steps.apk.outputs.sha || '—' }}\` |"
+            echo "| APK 2 | \`${{ steps.apk2.outputs.out2 || '—' }}\` (${{ steps.apk2.outputs.size2 || '—' }}) — package \`com.sakura.line\`, кастомная подпись Sakura Line |"
+            echo "| SHA-256 (APK 2) | \`${{ steps.apk2.outputs.sha2 || '—' }}\` |"
             echo "| исходники | DrKLO/Telegram @ \`$TG_REF\` |"
             echo
             echo "Ключ Telegram: в сборку вшит рабочий api_id (сервер отклоняет только примерный api_id = 4 с ошибкой API_ID_PUBLISHED_FLOOD)."
@@ -551,7 +661,7 @@ jobs:
       - name: Аннотация с итогом сборки (видно даже без логов)
         if: always()
         run: |
-          echo "::notice title=$APP_NAME ${{ steps.apk.outputs.version }}::package=$APP_PACKAGE | ABI=$ABIS | apk=${{ steps.apk.outputs.out }} | size=${{ steps.apk.outputs.size }} | sha256=${{ steps.apk.outputs.sha }} | locales=$RES_CONFIGS | maxEconomy=$MAX_ECONOMY | noStickers=$NO_STICKERS | autodownloadOff=$AUTODOWNLOAD_OFF | slimHeavy=$SLIM_HEAVY"
+          echo "::notice title=$APP_NAME ${{ steps.apk.outputs.version }}::package=$APP_PACKAGE | ABI=$ABIS | apk=${{ steps.apk.outputs.out }} | size=${{ steps.apk.outputs.size }} | sha256=${{ steps.apk.outputs.sha }} | apk2=${{ steps.apk2.outputs.out2 }} (com.sakura.line, кастомная подпись) | size2=${{ steps.apk2.outputs.size2 }} | sha256_2=${{ steps.apk2.outputs.sha2 }} | locales=$RES_CONFIGS | maxEconomy=$MAX_ECONOMY | noStickers=$NO_STICKERS | autodownloadOff=$AUTODOWNLOAD_OFF | slimHeavy=$SLIM_HEAVY"
 
       - name: Загрузить APK как artifact
         uses: actions/upload-artifact@v7
@@ -559,6 +669,7 @@ jobs:
           name: tgmod-apk-${{ steps.apk.outputs.version }}-${{ github.run_number }}
           path: |
             ${{ steps.apk.outputs.out }}
+            ${{ steps.apk2.outputs.out2 }}
             SHA256SUMS.txt
             telegram-src/MOD_INFO.txt
           retention-days: 30
@@ -580,21 +691,24 @@ jobs:
         run: |
           set -uo pipefail
           APK="${{ steps.apk.outputs.out }}"
+          APK2="${{ steps.apk2.outputs.out2 }}"
+          FILES=("$APK" SHA256SUMS.txt)
+          if [ -n "$APK2" ] && [ -f "$APK2" ]; then FILES+=("$APK2"); fi
           TAG="mod-${{ steps.apk.outputs.version }}-r${{ github.run_number }}"
           TITLE="$APP_NAME ${{ steps.apk.outputs.version }} (мод Telegram)"
           NOTES="Модифицированная сборка Telegram из исходников DrKLO/Telegram.
           Свои api_id/api_hash не требуются — используются официальные встроенные.
-          package: $APP_PACKAGE, ABI: $ABIS, upstream: $TG_REF"
+          APK 1: package $APP_PACKAGE (текущая подпись). APK 2: package com.sakura.line (кастомная подпись Sakura Line). ABI: $ABIS, upstream: $TG_REF"
 
-          echo "файлы: $(ls -la "$APK" SHA256SUMS.txt 2>&1 | tr '\n' ' ')"
+          echo "файлы: $(ls -la "${FILES[@]}" 2>&1 | tr '\n' ' ')"
           echo "gh: $(gh --version 2>&1 | head -1)"
 
           create_release() {
             if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$APK" SHA256SUMS.txt
+              gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${FILES[@]}"
             else
               gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-                --title "$TITLE" --notes "$NOTES" --latest "$APK" SHA256SUMS.txt
+                --title "$TITLE" --notes "$NOTES" --latest "${FILES[@]}"
             fi
           }
 
@@ -606,7 +720,7 @@ jobs:
             echo "=== первая попытка не удалась, повтор без --latest ==="
             tail -n 10 /tmp/release.log | while IFS= read -r line; do echo "::warning title=Release::${line:0:400}"; done
             if gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-                 --title "$TITLE" --notes "$NOTES" "$APK" SHA256SUMS.txt > /tmp/release2.log 2>&1; then
+                 --title "$TITLE" --notes "$NOTES" "${FILES[@]}" > /tmp/release2.log 2>&1; then
               cat /tmp/release2.log
             else
               tail -n 10 /tmp/release2.log | while IFS= read -r line; do echo "::error title=Release::${line:0:400}"; done

@@ -1,8 +1,11 @@
 package org.telegram.messenger.kamigram;
 
+import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+
+import java.io.File;
 
 /**
  * Sakura: фильтр «нулевого трафика».
@@ -528,5 +531,38 @@ public final class KamiGramNetFilter {
             }
         }
         return emoji && !video;
+    }
+
+    /**
+     * r117: заблокированный стикер/премиум-эмодзи не просто не скачивается —
+     * если файл уже лежал в кэше (скачан до включения блокировки), он сразу
+     * удаляется, поэтому стикеры исчезают и на устройствах, где они уже были
+     * загружены. Касается только стикерных/эмодзи-файлов (вызов стоит внутри
+     * сработавшего гейта), никогда — пользовательских медиа. Temp/parts и
+     * resume не трогаются: операция загрузки для этого файла не создавалась
+     * (гейт срабатывает до очереди). KAMIGRAM_STICKER_PURGE_R117
+     */
+    public static void purgeCached(TLRPC.Document document,
+                                   TLRPC.TL_fileLocationToBeDeprecated location,
+                                   String locationExt) {
+        try {
+            String fileName = null;
+            if (location != null) {
+                fileName = FileLoader.getAttachFileName(location, locationExt);
+            } else if (document != null) {
+                fileName = FileLoader.getAttachFileName(document);
+            }
+            if (fileName == null || fileName.isEmpty()) {
+                return;
+            }
+            final File cacheFile = new File(
+                FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
+            if (cacheFile.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                cacheFile.delete();
+            }
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
     }
 }

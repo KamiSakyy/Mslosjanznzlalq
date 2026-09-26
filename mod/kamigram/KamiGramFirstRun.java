@@ -57,6 +57,17 @@ public final class KamiGramFirstRun {
                     KamiGramConfig.set(KamiGramConfig.KEY_NO_ANIMATED_EMOJI, true);
                     preferences.edit().putInt("stickers_redefaulted_r114", 1).apply();
                 }
+                /* KAMIGRAM_STICKERS_ZERO_R117: жалоба «стикеры всё равно
+                   загружаются везде» — ещё раз принудительно возвращаем
+                   нулевую политику (значение могло потеряться при смене
+                   хранилища/случайном переключении). Вдобавок фильтр загрузки
+                   теперь сразу удаляет ранее закэшированные стикерные файлы,
+                   поэтому уже скачанные стикеры тоже исчезают. */
+                if (preferences.getInt("stickers_redefaulted_r117", 0) == 0) {
+                    KamiGramConfig.set(KamiGramConfig.KEY_NO_STICKERS, true);
+                    KamiGramConfig.set(KamiGramConfig.KEY_NO_ANIMATED_EMOJI, true);
+                    preferences.edit().putInt("stickers_redefaulted_r117", 1).apply();
+                }
             }
             keepActiveAccount();
         } catch (Throwable throwable) {

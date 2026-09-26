@@ -1513,6 +1513,7 @@ if mark not in src:
         '        /* ' + mark + ': только stickers, premium-emoji and GIF files are denied */\n'
         '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)\n'
         '            || (document == null && org.telegram.messenger.kamigram.KamiGramNetFilter.blockThumb(parentObject))) { /* KAMIGRAM_THUMB_FILTER_R114 */\n'
+        '            org.telegram.messenger.kamigram.KamiGramNetFilter.purgeCached(document, location, locationExt); /* KAMIGRAM_STICKER_PURGE_R117 */\n'
         '            if (BuildVars.LOGS_ENABLED) {\n'
         '                FileLog.d("Sakura: файл не скачивается (экономия трафика) " + document);\n'
         '            }\n'
@@ -2165,7 +2166,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch KamiGramCallProxy KamiGramWordFilter KamiGramSearchFilter; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch KamiGramWordFilter KamiGramSearchFilter; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2935,17 +2936,13 @@ ok "P123 r114: миниатюры стикеров = 0 трафика, наст�
 #          сохраняются, не пересылаются, FLAG_SECURE (скриншоты запрещены)
 #          восстановлен; удалённые сообщения не сохраняются (ещё с r80).
 #          Призрак (не в сети / нечиталка / скрытие «печатает») не тронут.
-#       3) звонки и видеозвонки всегда через прокси (SOCKS5), тумблер «Звонки
-#          через прокси» в «Связь», по умолчанию включено.
-python3 "$KAMIGRAM_SRC/apply_r115_fixes.py" "$TG_DIR" || die "P124: защита кэша/звонки через прокси не встали"
+#       3) r117: принудительный прокси для звонков УБРАН по просьбе пользователя
+#          (тумблер «Звонки через прокси» удалён, VoIPService девственный).
+python3 "$KAMIGRAM_SRC/apply_r115_fixes.py" "$TG_DIR" || die "P124: защита кэша не встала"
 N115=$(grep -c "KAMIGRAM_FILES_SURVIVE_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
 [ "$N115" -ge 5 ] || die "P124: защита медиафайлов встала не полностью (найдено $N115 маркеров)"
 N115T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
 [ "$N115T" -eq 3 ] || die "P124: закрыты не все 3 пути ttl-задач (найдено $N115T)"
-has "$JAVA_ROOT/org/telegram/messenger/voip/VoIPService.java" "KAMIGRAM_CALLS_VIA_PROXY_R115" || die "P124: звонки через прокси не встали"
-has "$KAMI_PKG/KamiGramCallProxy.java" "callProxy" || die "P124: подбор SOCKS5-прокси для звонков не скопирован"
-has "$KAMI_PKG/KamiGramConfig.java" "callsViaProxy" || die "P124: настройка «Звонки через прокси» не добавлена"
-has "$KAMI_PKG/KamiGramCenter.java" "Звонки через прокси" || die "P124: тумблер «Звонки через прокси» не в центре"
 has "$KAMI_PKG/KamiGramAutoArchive.java" "addDialogToFolder" || die "P124: авто-архив не переведён в режим «только архивация»"
 if grep -q "deleteDialog\|blockPeer\|deleteParticipantFromChat" "$KAMI_PKG/KamiGramAutoArchive.java"; then
     die "P124: авто-архив всё ещё умеет удалять диалоги"
@@ -2959,7 +2956,7 @@ for banned_mark in KAMIGRAM_TTL_MEDIA_R109 KAMIGRAM_TTL_GALLERY_R109 KAMIGRAM_KE
                    KAMIGRAM_SECRET_VOICE_SCREENSHOT_R77 KAMIGRAM_EPHEMERAL_CELL_SCREENSHOT_R77 \
                    KAMIGRAM_KEEP_TTL_MEDIA_R106 KAMIGRAM_TTL_NO_LOCAL_TASKS_R111 \
                    KAMIGRAM_ENC_TASKS_PURGE_R111 KAMIGRAM_FILES_SURVIVE_R114 \
-                   KAMIGRAM_TTL_NO_LOCAL_TASKS_R114; do
+                   KAMIGRAM_TTL_NO_LOCAL_TASKS_R114 KAMIGRAM_CALLS_VIA_PROXY_R115; do
     if grep -rq "$banned_mark" "$JAVA_ROOT/org/telegram"; then
         die "P124: след отменённой функции остался: $banned_mark"
     fi
@@ -2967,7 +2964,7 @@ done
 # FLAG_SECURE для сгорающих/одноразовых снова оригинальный
 has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "FLAG_SECURE" || die "P124: SecretMediaViewer потерял FLAG_SECURE"
 has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "FLAG_SECURE" || die "P124: PhotoViewer потерял FLAG_SECURE"
-ok "P124 r115: кэш видео/фото/файлов/музыки не очищается сам, сгорающие/одноразовые как в оригинале (без скриншотов), звонки всегда через прокси"
+ok "P124 r115: кэш видео/фото/файлов/музыки не очищается сам, сгорающие/одноразовые как в оригинале (без скриншотов); r117: принудительный прокси звонков убран"
 
 # =============================================================================
 # P125. r116 — «ТОЛЬКО ГЛОБАЛЬНЫЙ ПОИСК» + «ЧИСТЫЙ ПОИСК» (люди/группы/боты/
@@ -2994,6 +2991,26 @@ has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_NEW_R11
 has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_LOCAL_R116" || die "P125: фильтр поиска не встал на локальную выдачу"
 has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_GLOBAL_R116" || die "P125: фильтр поиска не встал на серверную выдачу"
 ok "P125 r116: поиск «только глобальный» и «чистый» по типам, фильтр по словам в ленте и поиске, перемотка аудио не вылетает, стикеры/премиум-эмодзи не грузятся ниоткуда"
+
+# =============================================================================
+# P126. r117 — стикеры исчезают даже если были скачаны раньше (кэш стикерных
+#      файлов удаляется в момент срабатывания гейта), политика нулевого
+#      трафика принудительно возвращается разовым сидом; «Звонки через прокси»
+#      и «Снять запреты защищённого контента» убраны из настроек; диалог
+#      фильтра слов — в стиле Sakura (без белых системных окон).
+# =============================================================================
+has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_STICKER_PURGE_R117" || die "P126: самоочистка кэша стикеров не встала в FileLoader"
+has "$KAMI_PKG/KamiGramNetFilter.java" "purgeCached" || die "P126: purgeCached не добавлен в фильтр"
+has "$KAMI_PKG/KamiGramFirstRun.java" "stickers_redefaulted_r117" || die "P126: разовый возврат нулевой политики стикеров не добавлен"
+if grep -q "Звонки через прокси\|KEY_CALLS_VIA_PROXY" "$KAMI_PKG/KamiGramCenter.java" "$KAMI_PKG/KamiGramConfig.java"; then
+    die "P126: «Звонки через прокси» должны быть полностью убраны"
+fi
+if grep -q "Снять запреты защищённого контента" "$KAMI_PKG/KamiGramCenter.java"; then
+    die "P126: строка «Снять запреты защищённого контента» должна быть убрана из настроек"
+fi
+[ ! -f "$KAMI_PKG/KamiGramCallProxy.java" ] || die "P126: KamiGramCallProxy не должен копироваться в дерево"
+has "$KAMI_PKG/KamiGramCenter.java" "rounded(ThemeHook.accent(), 16)" || die "P126: диалог фильтра слов не в стиле Sakura"
+ok "P126 r117: кэш стикеров самоочищается, политика нулевого трафика возвращается, «Звонки через прокси» и «Снять запреты» убраны, диалог слов в стиле Sakura"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

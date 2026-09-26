@@ -196,7 +196,6 @@ public final class KamiGramCenter {
     private static void fillConnection(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("SakuProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
-            Row.toggle("Звонки через прокси", KamiGramConfig.KEY_CALLS_VIA_PROXY, onChanged),
             Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
         });
@@ -228,7 +227,10 @@ public final class KamiGramCenter {
             Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
             // KAMIGRAM_NATIVE_DELETE_R80: legacy keep-deleted is intentionally not exposed.
             // r115: «Одноразовые без пометки» убраны — сгорающие медиа как в оригинале.
-            Row.toggle("Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged)
+            // r117: строка снятия запретов для защищённого контента убрана из
+            // настроек по просьбе пользователя; для каналов/чатов снятие
+            // запретов остаётся включённым по умолчанию (KEY_NO_RESTRICTIONS),
+            // секретные чаты не трогаются.
         });
         card(root, context, new Row[]{
             Row.toggle("Скрывать текст уведомлений", KamiGramConfig.KEY_HIDE_NOTIFICATION_TEXT, onChanged)
@@ -296,6 +298,40 @@ public final class KamiGramCenter {
 
     private static void editWords(final Context context) {
         try {
+            /* r117: диалог в стиле Sakura — тёмная округлая карточка,
+               sakura-акцент на кнопке «Сохранить», никаких белых системных
+               окон. */
+            final Dialog dialog = new Dialog(context);
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            }
+
+            final LinearLayout root = new LinearLayout(context);
+            root.setOrientation(LinearLayout.VERTICAL);
+            root.setBackground(rounded(ThemeHook.surfaceNested(), 24));
+            root.setPadding(dp(22), dp(20), dp(22), dp(18));
+
+            final TextView title = new TextView(context);
+            title.setText("Фильтр по словам");
+            title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+            title.setTypeface(AndroidUtilities.bold());
+            title.setTextColor(ThemeHook.primaryText());
+            root.addView(title);
+
+            final TextView subtitle = new TextView(context);
+            subtitle.setText("Посты, сообщения, каналы, чаты и боты с этими словами "
+                + "исчезнут из ленты и из поиска. Слова через запятую. "
+                + "Пустой список — фильтр выключен.");
+            subtitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+            subtitle.setTextColor(ThemeHook.secondaryText());
+            subtitle.setLineSpacing(dp(2), 1f);
+            final LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            subtitleParams.topMargin = dp(6);
+            root.addView(subtitle, subtitleParams);
+
             final android.widget.EditText input = new android.widget.EditText(context);
             input.setHint("кот, реклама, спам");
             input.setText(KamiGramWordFilter.getString());
@@ -303,23 +339,60 @@ public final class KamiGramCenter {
             input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
                 | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
             input.setMinLines(3);
+            input.setGravity(Gravity.TOP | Gravity.START);
+            input.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
             input.setTextColor(ThemeHook.primaryText());
             input.setHintTextColor(ThemeHook.secondaryText());
+            input.setBackground(rounded(ThemeHook.surfaceHigh(), 14));
+            input.setPadding(dp(14), dp(12), dp(14), dp(12));
+            final LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            inputParams.topMargin = dp(14);
+            root.addView(input, inputParams);
 
-            final FrameLayout container = new FrameLayout(context);
-            container.setPadding(dp(20), dp(8), dp(20), 0);
-            container.addView(input);
+            final LinearLayout buttons = new LinearLayout(context);
+            buttons.setOrientation(LinearLayout.HORIZONTAL);
+            buttons.setGravity(Gravity.END);
+            final LinearLayout.LayoutParams buttonsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            buttonsParams.topMargin = dp(16);
+            root.addView(buttons, buttonsParams);
 
-            new android.app.AlertDialog.Builder(context)
-                .setTitle("Фильтр по словам")
-                .setMessage("Посты, сообщения, каналы, чаты и боты с этими словами "
-                    + "исчезнут из ленты и из поиска. Слова через запятую. "
-                    + "Пустой список — фильтр выключен.")
-                .setView(container)
-                .setPositiveButton("Сохранить", (dialog, which) ->
-                    KamiGramWordFilter.setWords(input.getText().toString()))
-                .setNegativeButton("Отмена", null)
-                .show();
+            final TextView cancel = new TextView(context);
+            cancel.setText("Отмена");
+            cancel.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+            cancel.setTextColor(ThemeHook.secondaryText());
+            cancel.setGravity(Gravity.CENTER);
+            cancel.setBackground(rounded(ThemeHook.surfaceHigh(), 16));
+            cancel.setPadding(dp(18), dp(10), dp(18), dp(10));
+            cancel.setOnClickListener(v -> dialog.dismiss());
+            buttons.addView(cancel);
+
+            final TextView save = new TextView(context);
+            save.setText("Сохранить");
+            save.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+            save.setTypeface(AndroidUtilities.bold());
+            save.setTextColor(0xFFFFFFFF);
+            save.setGravity(Gravity.CENTER);
+            save.setBackground(rounded(ThemeHook.accent(), 16));
+            save.setPadding(dp(18), dp(10), dp(18), dp(10));
+            save.setOnClickListener(v -> {
+                KamiGramWordFilter.setWords(input.getText().toString());
+                dialog.dismiss();
+            });
+            final LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            saveParams.leftMargin = dp(10);
+            buttons.addView(save, saveParams);
+
+            dialog.setContentView(root);
+            if (dialog.getWindow() != null) {
+                final WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+                lp.width = Math.min(AndroidUtilities.displaySize.x - dp(48), dp(420));
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                dialog.getWindow().setAttributes(lp);
+            }
+            dialog.show();
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
