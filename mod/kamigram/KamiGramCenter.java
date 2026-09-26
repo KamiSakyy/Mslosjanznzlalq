@@ -269,6 +269,60 @@ public final class KamiGramCenter {
             Row.action("Разработчик Sakura", () -> KamiGramBranding.openChannelInApp(context)),
             Row.action("Загрузки", () -> openDownloads(context))
         });
+        /* r116: глобальный поиск — «только глобальный» и «чистый поиск»
+           по категориям (люди / группы / боты / каналы). */
+        card(root, context, new Row[]{
+            Row.toggle("Поиск: только глобальный", KamiGramConfig.KEY_SEARCH_GLOBAL_ONLY, onChanged),
+            Row.toggle("Искать людей", KamiGramConfig.KEY_SEARCH_PEOPLE, onChanged),
+            Row.toggle("Искать группы", KamiGramConfig.KEY_SEARCH_GROUPS, onChanged),
+            Row.toggle("Искать ботов", KamiGramConfig.KEY_SEARCH_BOTS, onChanged),
+            Row.toggle("Искать каналы", KamiGramConfig.KEY_SEARCH_CHANNELS, onChanged)
+        });
+        /* r116: фильтр по словам — посты/чаты/боты/каналы со словом-
+           исключением исчезают из ленты и поиска. */
+        card(root, context, new Row[]{
+            Row.action("Фильтр по словам" + wordsSuffix(), () -> editWords(context))
+        });
+    }
+
+    private static String wordsSuffix() {
+        try {
+            final int count = KamiGramWordFilter.words().length;
+            return count == 0 ? "" : " · " + count + " сл.";
+        } catch (Throwable ignore) {
+            return "";
+        }
+    }
+
+    private static void editWords(final Context context) {
+        try {
+            final android.widget.EditText input = new android.widget.EditText(context);
+            input.setHint("кот, реклама, спам");
+            input.setText(KamiGramWordFilter.getString());
+            input.setSelection(input.getText().length());
+            input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            input.setMinLines(3);
+            input.setTextColor(ThemeHook.primaryText());
+            input.setHintTextColor(ThemeHook.secondaryText());
+
+            final FrameLayout container = new FrameLayout(context);
+            container.setPadding(dp(20), dp(8), dp(20), 0);
+            container.addView(input);
+
+            new android.app.AlertDialog.Builder(context)
+                .setTitle("Фильтр по словам")
+                .setMessage("Посты, сообщения, каналы, чаты и боты с этими словами "
+                    + "исчезнут из ленты и из поиска. Слова через запятую. "
+                    + "Пустой список — фильтр выключен.")
+                .setView(container)
+                .setPositiveButton("Сохранить", (dialog, which) ->
+                    KamiGramWordFilter.setWords(input.getText().toString()))
+                .setNegativeButton("Отмена", null)
+                .show();
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
     }
 
     // ------------------------------------------------------------------ размер текста (полоска)

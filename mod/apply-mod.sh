@@ -2165,7 +2165,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch KamiGramCallProxy; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch KamiGramCallProxy KamiGramWordFilter KamiGramSearchFilter; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2968,6 +2968,32 @@ done
 has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "FLAG_SECURE" || die "P124: SecretMediaViewer потерял FLAG_SECURE"
 has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "FLAG_SECURE" || die "P124: PhotoViewer потерял FLAG_SECURE"
 ok "P124 r115: кэш видео/фото/файлов/музыки не очищается сам, сгорающие/одноразовые как в оригинале (без скриншотов), звонки всегда через прокси"
+
+# =============================================================================
+# P125. r116 — «ТОЛЬКО ГЛОБАЛЬНЫЙ ПОИСК» + «ЧИСТЫЙ ПОИСК» (люди/группы/боты/
+#      каналы), ФИЛЬТР ПО СЛОВАМ (посты/чаты/боты/каналы со словом-исключением
+#      исчезают из ленты и поиска), ЗАЩИТА ПЕРЕМОТКИ АУДИО (catch Throwable в
+#      MediaController.seekToProgress/seekToProgressMs и MusicPlayerService.
+#      onSeekTo — перемотка больше не роняет приложение), СТИКЕРЫ/ПРЕМИУМ-
+#      ЭМОДЗИ не скачиваются ниоткуда (document-level deny: панель стикеров и
+#      панель эмодзи грузят документы с parentObject=document и раньше обходили
+#      фильтр сообщений).
+# =============================================================================
+python3 "$KAMIGRAM_SRC/apply_r116_features.py" "$TG_DIR" || die "P125: патчи r116 не встали"
+has "$KAMI_PKG/KamiGramWordFilter.java" "KAMIGRAM_WORD_FILTER_R116" || die "P125: фильтр по словам не скопирован"
+has "$KAMI_PKG/KamiGramSearchFilter.java" "KAMIGRAM_SEARCH_FILTER_R116" || die "P125: фильтр поиска не скопирован"
+has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_STICKER_DOC_DENY_R116" || die "P125: стикеры/премиум-эмодзи обходят фильтр загрузки"
+has "$KAMI_PKG/KamiGramConfig.java" "KEY_SEARCH_GLOBAL_ONLY" || die "P125: настройка «только глобальный поиск» не добавлена"
+has "$KAMI_PKG/KamiGramConfig.java" "getStringValue" || die "P125: строковые настройки фильтра слов не добавлены"
+has "$KAMI_PKG/KamiGramCenter.java" "Поиск: только глобальный" || die "P125: тумблеры поиска не в центре"
+has "$KAMI_PKG/KamiGramCenter.java" "Фильтр по словам" || die "P125: фильтр по словам не в центре"
+has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KAMIGRAM_AUDIO_SEEK_SAFE_R116" || die "P125: защита перемотки не встала"
+has "$JAVA_ROOT/org/telegram/messenger/MusicPlayerService.java" "KAMIGRAM_MUSIC_SEEK_SAFE_R116" || die "P125: защита системной перемотки не встала"
+has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_LOADED_R116" || die "P125: фильтр слов не встал на загрузку истории"
+has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_NEW_R116" || die "P125: фильтр слов не встал на новые сообщения"
+has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_LOCAL_R116" || die "P125: фильтр поиска не встал на локальную выдачу"
+has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_GLOBAL_R116" || die "P125: фильтр поиска не встал на серверную выдачу"
+ok "P125 r116: поиск «только глобальный» и «чистый» по типам, фильтр по словам в ленте и поиске, перемотка аудио не вылетает, стикеры/премиум-эмодзи не грузятся ниоткуда"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

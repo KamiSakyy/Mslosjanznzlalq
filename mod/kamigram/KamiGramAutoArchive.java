@@ -130,7 +130,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                     || DialogObject.isEncryptedDialog(dialogId)) {
                     continue;
                 }
-                if (dialog.folder_id == 1 || dialog.pinned != 0) {
+                if (dialog.folder_id == 1 || dialog.pinned) {
                     continue; // уже в архиве или закреплён — не трогаем
                 }
 
@@ -155,7 +155,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                    Диалог переезжает в архив штатным механизмом Telegram —
                    сообщение остаётся, файлы медиа остаются, ничего не
                    блокируется и не покидается. */
-                controller.addDialogToFolder(dialogId, 1, 0, 0);
+                controller.addDialogToFolder(dialogId, 1, -1, 0);
             }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);

@@ -30,6 +30,16 @@ public final class KamiGramConfig {
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
     /** r115: звонки и видеозвонки всегда через прокси (SOCKS5). */
     public static final String KEY_CALLS_VIA_PROXY = "kamigram_calls_via_proxy";
+    /** r116: поиск — только глобальный (без своих чатов и контактов). */
+    public static final String KEY_SEARCH_GLOBAL_ONLY = "kamigram_search_global_only";
+    /** r116: «чистый поиск» — включать в результаты людей. */
+    public static final String KEY_SEARCH_PEOPLE = "kamigram_search_people";
+    /** r116: «чистый поиск» — включать в результаты группы. */
+    public static final String KEY_SEARCH_GROUPS = "kamigram_search_groups";
+    /** r116: «чистый поиск» — включать в результаты ботов. */
+    public static final String KEY_SEARCH_BOTS = "kamigram_search_bots";
+    /** r116: «чистый поиск» — включать в результаты каналы. */
+    public static final String KEY_SEARCH_CHANNELS = "kamigram_search_channels";
     /** Не спрашивать разрешения (контакты, телефон, уведомления). */
     public static final String KEY_NO_PERMISSION_NAGS = "kamigram_no_permission_nags";
     /** Запрет скриншотов во всём приложении (FLAG_SECURE). */
@@ -130,6 +140,37 @@ public final class KamiGramConfig {
     public static final String KEY_FAST_LOGIN = "kamigram_fast_login";
 
     private KamiGramConfig() {
+    }
+
+    /** r116: строковое значение из выбранного хранилища (фильтр по словам). */
+    public static String getStringValue(String key, String fallback) {
+        try {
+            final SharedPreferences preferences = store();
+            if (preferences == null) {
+                return fallback;
+            }
+            String value = preferences.getString(key, null);
+            if (value == null && preferences != alternateStore()) {
+                final SharedPreferences backup = alternateStore();
+                if (backup != null) {
+                    value = backup.getString(key, null);
+                }
+            }
+            return value == null ? fallback : value;
+        } catch (Throwable ignore) {
+            return fallback;
+        }
+    }
+
+    /** r116: строковое значение в выбранное хранилище. */
+    public static void setStringValue(String key, String value) {
+        try {
+            final SharedPreferences preferences = store();
+            if (preferences != null) {
+                preferences.edit().putString(key, value == null ? "" : value).apply();
+            }
+        } catch (Throwable ignore) {
+        }
     }
 
     private static boolean get(String key, boolean fallback) {
@@ -267,7 +308,7 @@ public final class KamiGramConfig {
         if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
-            || KEY_TEXT_ONLY.equals(key)
+            || KEY_TEXT_ONLY.equals(key) || KEY_SEARCH_GLOBAL_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
             || KEY_NO_PREMIUM_UI.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию

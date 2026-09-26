@@ -253,6 +253,21 @@ public final class KamiGramNetFilter {
                 && KamiGramGhost.isEphemeralMedia(((MessageObject) parentObject).messageOwner)) {
                 return false;
             }
+            /* KAMIGRAM_STICKER_DOC_DENY_R116: стикеры и премиум-эмодзи не
+               скачиваются НИ ОТКУДА — панель стикеров, «недавние», подсказки
+               при вводе и панель эмодзи грузят документ с parentObject =
+               сам документ (не MessageObject) и раньше обходили фильтр.
+               Аватары не страдают: стикер-атрибут у аватаров не встречается,
+               а эмодзи-статусы и видео-аватары несут атрибут видео вместе
+               с CustomEmoji и исключены проверкой isPremiumEmojiDocument. */
+            if (document != null) {
+                final boolean stickerFile = isStickerFile(document);
+                final boolean emojiFile = isPremiumEmojiDocument(document);
+                if ((KamiGramConfig.noStickers() && (stickerFile || emojiFile))
+                    || (KamiGramConfig.noAnimatedEmoji() && emojiFile)) {
+                    return denyFile(document);
+                }
+            }
             /* KAMIGRAM_MEDIA_POLICY_R78 → KAMIGRAM_AVATAR_SAFE_R101:
                фильтры медиа применяются ТОЛЬКО к
                сообщениям чата. Аватары, видео-аватары, премиум/эмодзи-аватары,
@@ -305,23 +320,36 @@ public final class KamiGramNetFilter {
      */
     public static boolean blockThumb(Object parentObject) {
         try {
-            if (!KamiGramConfig.noStickers()) {
+            final boolean noStickers = KamiGramConfig.noStickers();
+            final boolean noEmoji = KamiGramConfig.noAnimatedEmoji();
+            if (!noStickers && !noEmoji) {
                 return false;
             }
+            /* KAMIGRAM_STICKER_DOC_DENY_R116: превью премиум-эмодзи
+               (videoThumbs) грузятся с parentObject = документ — теперь
+               отсекаются вместе со стикерными миниатюрами. */
             if (parentObject instanceof TLRPC.Document) {
-                return isStickerDocument((TLRPC.Document) parentObject);
+                final TLRPC.Document doc = (TLRPC.Document) parentObject;
+                final boolean emojiFile = isPremiumEmojiDocument(doc);
+                return (noStickers && (isStickerFile(doc) || emojiFile))
+                    || (noEmoji && emojiFile);
             }
             if (parentObject instanceof MessageObject) {
                 final MessageObject messageObject = (MessageObject) parentObject;
-                if (messageObject.isSticker()) {
+                if (noStickers && messageObject.isSticker()) {
                     return true;
                 }
                 final TLRPC.Document document = messageObject.getDocument();
-                return document != null && isStickerDocument(document);
+                if (document == null) {
+                    return false;
+                }
+                return (noStickers && isStickerDocument(document))
+                    || (noEmoji && isPremiumEmojiDocument(document));
             }
-            return parentObject instanceof TLRPC.TL_stickerSet
-                || parentObject instanceof TLRPC.TL_messages_stickerSet
-                || parentObject instanceof TLRPC.StickerSetCovered;
+            return noStickers
+                && (parentObject instanceof TLRPC.TL_stickerSet
+                    || parentObject instanceof TLRPC.TL_messages_stickerSet
+                    || parentObject instanceof TLRPC.StickerSetCovered);
         } catch (Throwable e) {
             KamiGramLog.e(e);
         }
@@ -460,5 +488,45 @@ public final class KamiGramNetFilter {
             }
         }
         return false;
+    }
+
+    /** r116: чистый стикер-файл (.tgs/.webm-стикер, атрибут Sticker). */
+    private static boolean isStickerFile(TLRPC.Document document) {
+        if (document == null) {
+            return false;
+        }
+        if ("application/x-tgsticker".equals(document.mime_type)) {
+            return true;
+        }
+        if (document.attributes != null) {
+            for (int a = 0; a < document.attributes.size(); a++) {
+                if (document.attributes.get(a) instanceof TLRPC.TL_documentAttributeSticker) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * r116: документ премиум-эмодзи (атрибут CustomEmoji) без видео-атрибута —
+     * видео-атрибут означает эмодзи-статус/видео-аватар, они неприкосновенны
+     * (KAMIGRAM_AVATAR_SAFE_R101).
+     */
+    private static boolean isPremiumEmojiDocument(TLRPC.Document document) {
+        if (document == null || document.attributes == null) {
+            return false;
+        }
+        boolean emoji = false;
+        boolean video = false;
+        for (int a = 0; a < document.attributes.size(); a++) {
+            final TLRPC.DocumentAttribute attribute = document.attributes.get(a);
+            if (attribute instanceof TLRPC.TL_documentAttributeCustomEmoji) {
+                emoji = true;
+            } else if (attribute instanceof TLRPC.TL_documentAttributeVideo) {
+                video = true;
+            }
+        }
+        return emoji && !video;
     }
 }
