@@ -77,27 +77,10 @@ public final class KamiGramGhost {
                 return true;
             }
 
-            if (viewOnce() && isReadContents(object)) {
-                // «просмотрено» не уходит: сервер не удаляет одноразовое сообщение
-                if (bypassActive()) {
-                    return false;
-                }
-                answerLocally(onComplete);
-                return true;
-            }
             return false;
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
             return false;
-        }
-    }
-
-    /** Смотреть одноразовые сообщения, не отправляя серверу «просмотрено». */
-    public static boolean viewOnce() {
-        try {
-            return KamiGramConfig.viewOnce();
-        } catch (Throwable ignore) {
-            return true;
         }
     }
 
@@ -106,11 +89,6 @@ public final class KamiGramGhost {
             || object instanceof TLRPC.TL_channels_readHistory
             || object instanceof TLRPC.TL_messages_readEncryptedHistory
             || object instanceof TLRPC.TL_messages_readDiscussion;
-    }
-
-    private static boolean isReadContents(TLObject object) {
-        return object instanceof TLRPC.TL_messages_readMessageContents
-            || object instanceof TLRPC.TL_channels_readMessageContents;
     }
 
     /**

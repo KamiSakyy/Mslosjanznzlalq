@@ -171,35 +171,6 @@ def title_lock():
     )
 
 
-def keep_viewonce_media():
-    storage = "messenger/MessagesStorage.java"
-    replace(
-        storage,
-        "KAMIGRAM_KEEP_VIEWONCE_MEDIA2",
-        "    public void emptyMessagesMedia(long dialogId, ArrayList<Integer> mids) {\n"
-        "        storageQueue.postRunnable(() -> {\n"
-        "            SQLiteCursor cursor = null;\n",
-        "    public void emptyMessagesMedia(long dialogId, ArrayList<Integer> mids) {\n"
-        "        /* KAMIGRAM_KEEP_VIEWONCE_MEDIA2: не превращаем сохранённое медиа\n"
-        "           защищённых/одноразовых сообщений в photoEmpty. */\n"
-        "        if (org.telegram.messenger.kamigram.KamiGramConfig.keepExpiredMedia()) {\n"
-        "            return;\n"
-        "        }\n"
-        "        storageQueue.postRunnable(() -> {\n"
-        "            SQLiteCursor cursor = null;\n",
-        "одноразовые фото: «истёкшая фотография» больше не появляется",
-    )
-    replace(
-        storage,
-        "KAMIGRAM_KEEP_VIEWONCE_MEDIA3",
-        "                if (arrayList != null) {\n"
-        "                    emptyMessagesMedia(dialogId, arrayList);\n"
-        "                }\n",
-        "                /* KAMIGRAM_KEEP_VIEWONCE_MEDIA3: медиа остаётся локально. */\n",
-        "самоуничтожающиеся фото: медиа не вычищается после прочтения",
-    )
-
-
 def keep_deleted_private():
     patch(
         "messenger/MessagesController.java",
@@ -223,7 +194,6 @@ def main():
     folder_counter()
     downloads_idle()
     title_lock()
-    keep_viewonce_media()
     keep_deleted_private()
     print("r68: изменений — %d" % len(DONE))
     for what in DONE:

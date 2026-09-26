@@ -196,6 +196,7 @@ public final class KamiGramCenter {
     private static void fillConnection(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("SakuProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
+            Row.toggle("Звонки через прокси", KamiGramConfig.KEY_CALLS_VIA_PROXY, onChanged),
             Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
         });
@@ -226,7 +227,7 @@ public final class KamiGramCenter {
             Row.toggle("Авто-архив (500+ непрочитанных)", KamiGramConfig.KEY_AUTO_ARCHIVE, onChanged),
             Row.toggle("Призрак для историй", KamiGramConfig.KEY_STORIES_STEALTH, onChanged),
             // KAMIGRAM_NATIVE_DELETE_R80: legacy keep-deleted is intentionally not exposed.
-            Row.toggle("Одноразовые без пометки", KamiGramConfig.KEY_VIEW_ONCE, onChanged),
+            // r115: «Одноразовые без пометки» убраны — сгорающие медиа как в оригинале.
             Row.toggle("Снять запреты защищённого контента", KamiGramConfig.KEY_NO_RESTRICTIONS, onChanged)
         });
         card(root, context, new Row[]{
@@ -250,8 +251,7 @@ public final class KamiGramCenter {
     private static void fillOther(LinearLayout root, final Context context, final Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("Отправлять всегда HD", KamiGramConfig.KEY_SEND_HD, onChanged),
-            Row.toggle("Пересылать без имени", KamiGramConfig.KEY_FORWARD_NO_NAME, onChanged),
-            Row.toggle("Пересылать сгорающие", KamiGramConfig.KEY_FORWARD_EPHEMERAL, onChanged)
+            Row.toggle("Пересылать без имени", KamiGramConfig.KEY_FORWARD_NO_NAME, onChanged)
         });
         card(root, context, new Row[]{
             Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)

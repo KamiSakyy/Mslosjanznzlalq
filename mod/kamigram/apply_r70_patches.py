@@ -23,11 +23,8 @@ Sakura r70: патчи поверх исходников Telegram (DrKLO 12.10.3
       Искусственные ограничения Telegram (лимиты очередей) подняты.
       (KamiGramNetBoost)
 
-  9.  В меню сообщения добавлены «Сгореть» и «Прочитать» (для сгорающих и
-      по таймеру): «Сгореть» — сообщение уничтожается у собеседника, а у нас
-      локально остаётся (наши защиты от удаления); «Прочитать» — пометить
-      прочитанным без сгорания. Сгорающие и по таймеру теперь можно пересылать
-      (как в AyuGram: снят только клиентский запрет).
+  9.  (r115: «Сгореть»/«Прочитать» и пересылка сгорающих убраны — сгорающие
+      и одноразовые медиа снова как в оригинальном Telegram.)
 
   10. Иконка загрузок анимируется ТОЛЬКО пока реально идут байты: загрузка
       замерла (очередь/пауза) — анимация гасится сама через 3 секунды.
@@ -267,101 +264,6 @@ def download_icon_live():
             '        } else if (!kamigramDownloadAnim && progress != 1f) {',
             '        } else if (!kamigramDownloadAnim && progress != 1f && (kamigramLastProgressAt == 0L || System.currentTimeMillis() - kamigramLastProgressAt <= 3000L)) { /* KAMIGRAM_DOWNLOAD_ANIM_LIVE_DRAW (r70): перезапуск только при свежем прогрессе — замерла загрузка, анимация не оживает сама */',
             'загрузки: авто-перезапуск анимации только при свежем прогрессе')
-
-
-# =============================================================================
-# 9. «Сгореть» / «Прочитать» в меню + пересылка сгорающих
-# =============================================================================
-def burn_read_menu():
-    chat = 'ui/ChatActivity.java'
-
-    patch(chat, 'KAMIGRAM_OPTIONS_R70',
-          '    public final static int OPTION_WELCOME_REVERT = 116;',
-          '\n    /* KAMIGRAM_OPTIONS_R70: «Сгореть» и «Прочитать» в меню сообщения */\n'
-          '    public final static int OPTION_KAMIGRAM_BURN = 201;\n'
-          '    public final static int OPTION_KAMIGRAM_READ = 202;',
-          'меню: новые опции «Сгореть» и «Прочитать»')
-
-    replace(chat, 'KAMIGRAM_MENU_BURN',
-            '                if (canForward) {\n'
-            '                    items.add(LocaleController.getString(R.string.Forward));\n'
-            '                    options.add(OPTION_FORWARD);\n'
-            '                    icons.add(R.drawable.msg_forward);\n'
-            '                }',
-            '                if (canForward) {\n'
-            '                    items.add(LocaleController.getString(R.string.Forward));\n'
-            '                    options.add(OPTION_FORWARD);\n'
-            '                    icons.add(R.drawable.msg_forward);\n'
-            '                }\n'
-            '                /* KAMIGRAM_MENU_BURN (r70): «Сгореть» — уничтожить у\n'
-            '                   собеседника (у нас локально остаётся); «Прочитать» —\n'
-            '                   просто пометить прочитанным, без сгорания. Показываем\n'
-            '                   для одноразовых/по таймеру сообщений. */\n'
-            '                try {\n'
-            '                    if (selectedObject != null && selectedObject.messageOwner != null\n'
-            '                        && ' + GHOST + '.isEphemeralMedia(selectedObject.messageOwner)) {\n'
-            '                        items.add("Сгореть");\n'
-            '                        options.add(OPTION_KAMIGRAM_BURN);\n'
-            '                        icons.add(org.telegram.messenger.R.drawable.kamigram_burn);\n'
-            '                        if (!selectedObject.isOut()) {\n'
-            '                            items.add("Прочитать");\n'
-            '                            options.add(OPTION_KAMIGRAM_READ);\n'
-            '                            icons.add(R.drawable.msg_actions);\n'
-            '                        }\n'
-            '                    }\n'
-            '                } catch (Throwable kamigramBurnIgnore) {\n'
-            '                }',
-            'меню: пункты «Сгореть» и «Прочитать»')
-
-    replace(chat, 'KAMIGRAM_CASE_BURN',
-            '    private void processSelectedOption(int option) {\n'
-            '        if (selectedObject == null || getParentActivity() == null) {\n'
-            '            return;\n'
-            '        }\n'
-            '        boolean preserveDim = false;\n'
-            '        switch (option) {',
-            '    private void processSelectedOption(int option) {\n'
-            '        if (selectedObject == null || getParentActivity() == null) {\n'
-            '            return;\n'
-            '        }\n'
-            '        boolean preserveDim = false;\n'
-            '        switch (option) {\n'
-            '            /* KAMIGRAM_CASE_BURN (r70): «Сгореть» — у собеседника сгорает,\n'
-            '               у нас локальная копия остаётся (защиты от удаления). */\n'
-            '            case OPTION_KAMIGRAM_BURN: {\n'
-            '                try {\n'
-            '                    ' + GHOST + '.burnMessage(currentAccount, dialog_id, selectedObject);\n'
-            '                    ' + UI + '.notify(getParentActivity(), "Сообщение будет уничтожено у собеседника");\n'
-            '                } catch (Throwable kamigramBurnIgnore) {\n'
-            '                }\n'
-            '                break;\n'
-            '            }\n'
-            '            /* KAMIGRAM_CASE_READ (r70): «Прочитать» — пометить прочитанным,\n'
-            '               без сгорания. */\n'
-            '            case OPTION_KAMIGRAM_READ: {\n'
-            '                try {\n'
-            '                    ' + GHOST + '.readMessage(currentAccount, dialog_id, selectedObject);\n'
-            '                    ' + UI + '.notify(getParentActivity(), "Отмечено прочитанным");\n'
-            '                } catch (Throwable kamigramReadIgnore) {\n'
-            '                }\n'
-            '                break;\n'
-            '            }',
-            'меню: действия «Сгореть» и «Прочитать»')
-
-    replace(chat, 'KAMIGRAM_FORWARD_EPHEMERAL',
-            '                final boolean canForward = !selectedObject.isSponsored()\n'
-            '                    && !isQuickRepliesOrWelcomeMessagesMode()\n'
-            '                    && chatMode != MODE_SCHEDULED\n'
-            '                    && (!selectedObject.needDrawBluredPreview() || selectedObject.hasExtendedMediaPreview())',
-            '                final boolean canForward = !selectedObject.isSponsored()\n'
-            '                    && !isQuickRepliesOrWelcomeMessagesMode()\n'
-            '                    && chatMode != MODE_SCHEDULED\n'
-            '                    && (!selectedObject.needDrawBluredPreview() || selectedObject.hasExtendedMediaPreview()\n'
-            '                        || (/* KAMIGRAM_FORWARD_EPHEMERAL (r70): как в AyuGram — */\n'
-            '                            ' + CFG + '.forwardEphemeral()\n'
-            '                            && selectedObject.messageOwner != null\n'
-            '                            && ' + GHOST + '.isEphemeralMedia(selectedObject.messageOwner)))',
-            'меню: сгорающие и по таймеру можно пересылать')
 
 
 # =============================================================================
@@ -608,7 +510,6 @@ def float_window():
 def main():
     connecting_subtitle()
     download_icon_live()
-    burn_read_menu()
     forward_no_name()
     net_boost()
     premium_local()

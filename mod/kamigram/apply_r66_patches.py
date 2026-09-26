@@ -153,103 +153,6 @@ def no_fake_downloads():
 
 
 # =============================================================================
-# 3. ОДНОРАЗОВЫЕ И «ИСЧЕЗАЮЩИЕ» ФОТО: НЕ УНИЧТОЖАЕМ
-# =============================================================================
-def keep_view_once():
-    chat = 'ui/ChatActivity.java'
-
-    # 3.1 подтверждение прочтения без таймера уничтожения (мгновенное открытие)
-    replace(chat, 'KAMIGRAM_KEEP_VIEWONCE_READ',
-            '            final boolean delete = messageObject.messageOwner.ttl != 0x7FFFFFFF;\n'
-            '            final int ttl = messageObject.messageOwner.ttl == 0x7FFFFFFF ? 0 : messageObject.messageOwner.ttl;\n'
-            '            messageObject.messageOwner.destroyTime = ttl + getConnectionsManager().getCurrentTime();\n',
-            '            /* KAMIGRAM_KEEP_VIEWONCE_READ: одноразовое/«исчезающее» фото сообщаем\n'
-            '               прочитанным, но БЕЗ таймера уничтожения: сервер такое фото не удаляет,\n'
-            '               оно остаётся в чате и его можно открыть снова. */\n'
-            '            final boolean delete = false;\n'
-            '            final int ttl = 0;\n',
-            'одноразовые фото: нет таймера уничтожения при открытии')
-
-    # 3.2 то же для отложенного подтверждения (когда фото открывают из просмотрщика)
-    replace(chat, 'KAMIGRAM_KEEP_VIEWONCE_READ2',
-            '            return () -> {\n'
-            '                final boolean delete = messageObject.messageOwner.ttl != 0x7FFFFFFF;\n'
-            '                final int ttl = messageObject.messageOwner.ttl == 0x7FFFFFFF ? 0 : messageObject.messageOwner.ttl;\n'
-            '                messageObject.messageOwner.destroyTime = ttl + getConnectionsManager().getCurrentTime();\n'
-            '                messageObject.messageOwner.destroyTimeMillis = ttl * 1000L + getConnectionsManager().getCurrentTimeMillis();\n',
-            '            return () -> {\n'
-            '                /* KAMIGRAM_KEEP_VIEWONCE_READ2: без таймера уничтожения и без пометки\n'
-            '                   «истекло» — фото остаётся доступным в чате. */\n'
-            '                final boolean delete = false;\n'
-            '                final int ttl = 0;\n',
-            'одноразовые фото: нет таймера уничтожения в отложенном подтверждении')
-
-    # 3.3 «удалить после просмотра» — больше ничего не удаляем
-    replace(chat, 'KAMIGRAM_KEEP_VIEWONCE_DELETE',
-            '    private Runnable sendSecretMediaDelete(MessageObject messageObject) {\n'
-            '        if (messageObject == null || messageObject.isOut() || !messageObject.isSecretMedia() || messageObject.messageOwner.ttl != 0x7FFFFFFF) {\n'
-            '            return null;\n'
-            '        }\n'
-            '        final long taskId = getMessagesController().createDeleteShowOnceTask(dialog_id, messageObject.getId());\n'
-            '        messageObject.forceExpired = true;\n'
-            '        if (messageObject.isOutOwner() || !messageObject.isRoundOnce() && !messageObject.isVoiceOnce()) {\n'
-            '            ArrayList<MessageObject> msgs = new ArrayList<>();\n'
-            '            msgs.add(messageObject);\n'
-            '            updateMessages(msgs, true);\n'
-            '        }\n'
-            '        return () -> getMessagesController().doDeleteShowOnceTask(taskId, dialog_id, messageObject.getId());\n'
-            '    }\n',
-            '    private Runnable sendSecretMediaDelete(MessageObject messageObject) {\n'
-            '        /* KAMIGRAM_KEEP_VIEWONCE_DELETE: просмотренное одноразовое фото/видео НЕ стираем.\n'
-            '           Раньше здесь создавалась задача «удалить после просмотра» и сообщение\n'
-            '           помечалось истёкшим — теперь не удаляем и не помечаем. */\n'
-            '        return null;\n'
-            '    }\n',
-            'одноразовые фото: убрана задача «удалить после просмотра»')
-
-    # 3.4 фоновая задача «удалить показанное один раз» — заглушена
-    mc = 'messenger/MessagesController.java'
-    replace(mc, 'KAMIGRAM_KEEP_VIEWONCE_TASK81',
-            '                            final int id = viewerObject.getId();\n'
-            '                            mids.remove((Integer) id);\n'
-            '                            viewerObject.forceExpired = true;\n'
-            '                            final long taskId = createDeleteShowOnceTask(dialogId, id);\n'
-            '                            SecretMediaViewer.getInstance().setOnClose(() -> doDeleteShowOnceTask(taskId, dialogId, id));\n'
-            '                            getNotificationCenter().postNotificationName(NotificationCenter.updateMessageMedia, viewerObject.messageOwner);\n',
-            '                            final int id = viewerObject.getId();\n'
-            '                            mids.remove((Integer) id);\n'
-            '                            /* KAMIGRAM_KEEP_VIEWONCE_TASK81: фото не удаляем и не помечаем\n'
-            '                               истёкшим — оно остаётся в чате. */\n'
-            '                            getNotificationCenter().postNotificationName(NotificationCenter.updateMessageMedia, viewerObject.messageOwner);\n',
-            'одноразовые фото: фоновая задача удаления больше не создаётся')
-
-    replace(mc, 'KAMIGRAM_KEEP_VIEWONCE_NOOP_TASK',
-            '    public void doDeleteShowOnceTask(long taskId, long dialogId, int mid) {\n'
-            '        getMessagesStorage().removePendingTask(taskId);\n'
-            '        ArrayList<Integer> mids = new ArrayList<>();\n'
-            '        mids.add(mid);\n'
-            '        getMessagesStorage().emptyMessagesMedia(dialogId, mids);\n'
-            '    }\n',
-            '    public void doDeleteShowOnceTask(long taskId, long dialogId, int mid) {\n'
-            '        /* KAMIGRAM_KEEP_VIEWONCE_TASK: задача «удалить после просмотра» больше ничего\n'
-            '           не удаляет — снимаем её с очереди и оставляем фото на месте. */\n'
-            '        getMessagesStorage().removePendingTask(taskId);\n'
-            '    }\n',
-            'одноразовые фото: выполнение задачи удаления обезврежено')
-
-    # 3.5 стирание медиа из базы (путь для «исчезающих» по таймеру) — не стираем
-    patch('messenger/MessagesStorage.java', 'KAMIGRAM_KEEP_VIEWONCE_MEDIA',
-          '                        message.readAttachPath(data, getUserConfig().clientUserId);\n'
-          '                        data.reuse();\n',
-          '                        /* KAMIGRAM_KEEP_VIEWONCE_MEDIA: медиа одноразовых и «исчезающих»\n'
-          '                           сообщений в базе не стираем — фото остаётся на месте. */\n'
-          '                        if (message.ttl > 0 || org.telegram.messenger.MessageObject.isSecretMedia(message)) {\n'
-          '                            continue;\n'
-          '                        }\n',
-          'одноразовые фото: медиа не вычищается из базы')
-
-
-# =============================================================================
 # 4. УДАЛЁННОЕ В ЛИЧНЫХ ЧАТАХ ТОЖЕ ОСТАЁТСЯ
 # =============================================================================
 def keep_deleted_private():
@@ -271,7 +174,6 @@ def main():
     title_text()
     title_lock()
     no_fake_downloads()
-    keep_view_once()
     keep_deleted_private()
 
     print('r66: изменений — %d' % len(DONE))

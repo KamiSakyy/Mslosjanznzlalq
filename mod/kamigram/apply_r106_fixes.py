@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""r106: разрешение «поверх других окон», сгорающие медиа, крупная иконка.
+"""r106: разрешение «поверх других окон».
 
 P118 (запускается из mod/apply-mod.sh перед проверкой символов):
 
 1. Гарантия `android.permission.SYSTEM_ALERT_WINDOW` в манифесте: без него
    плавающее окно видео не может работать поверх приложений (жалоба r105).
-2. Локальный таймер уничтожения сгорающих/одноразовых медиа не создаётся —
-   контент остаётся в чате и галерее после просмотра (жалоба r105). Серверный
-   updateDeleteMessages не трогаем: это протокол Telegram.
+
+r115: отключение локального таймера сгорающих/одноразовых медиа убрано —
+сгорающие медиа снова ведут себя как в оригинальном Telegram.
 """
 import os
 import re
@@ -58,34 +58,8 @@ for variant in ("main", "debug", "release"):
     write(manifest, text)
     DONE.append("manifest %s: SYSTEM_ALERT_WINDOW добавлено" % variant)
 
-# --- 2. локальный таймер сгорающих медиа ------------------------------
-mc = os.path.join(TG, "TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java")
-if os.path.isfile(mc):
-    text = read(mc)
-    marker = "KAMIGRAM_KEEP_TTL_MEDIA_R106"
-    if marker in text:
-        DONE.append("MessagesController: keepTtlMedia уже применён")
-    else:
-        old = ("        if (createDeleteTask) {\n"
-               "            getMessagesStorage().createTaskForMid(dialogId, mid, time, time, ttl, false);\n"
-               "        }")
-        new = ("        if (createDeleteTask) {\n"
-               "            /* %s: сгорающие и одноразовые медиа не уничтожаются\n"
-               "               локально после просмотра (keepTtlMedia). */\n"
-               "            if (org.telegram.messenger.kamigram.KamiGramConfig.keepTtlMedia()) {\n"
-               "                createDeleteTask = false;\n"
-               "            }\n"
-               "        }\n"
-               "        if (createDeleteTask) {\n"
-               "            getMessagesStorage().createTaskForMid(dialogId, mid, time, time, ttl, false);\n"
-               "        }") % marker
-        if old in text:
-            write(mc, text.replace(old, new, 1))
-            DONE.append("MessagesController: локальный таймер уничтожения отключён")
-        else:
-            die("MessagesController: якорь createTaskForMid не найден")
-else:
-    die("MessagesController.java не найден")
+# --- 2. (r115) локальный таймер сгорающих медиа больше НЕ отключается:
+#        сгорающие и одноразовые медиа ведут себя как в оригинальном Telegram.
 
 print("=== r106 fixes done ===")
 for line in DONE:

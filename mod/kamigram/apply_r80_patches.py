@@ -407,7 +407,7 @@ def patch_forward_restrictions():
     replace_once(
         chat,
         "KAMIGRAM_FORWARD_RESTRICTIONS_R80_CAN_FORWARD",
-        "                    && (!noforwards || kamigramEphemeralMedia) && selectedObject.type != MessageObject.TYPE_SHARING_OFFER\n",
+        "                    && !noforwards && selectedObject.type != MessageObject.TYPE_SHARING_OFFER\n",
         "                    && true /* KAMIGRAM_FORWARD_RESTRICTIONS_R80_CAN_FORWARD */ && selectedObject.type != MessageObject.TYPE_SHARING_OFFER\n",
         "forwarding: single-message Forward action ignores no-forwards flag",
     )
@@ -430,16 +430,15 @@ def patch_forward_restrictions():
     )
 
     # The original P22 source patch only bypassed noforwards while the setting
-    # was enabled. r80 makes this particular forwarding restriction unconditional
-    # and also allows one-time media from a secret chat to use copy/upload.
+    # was enabled. r80 makes this particular forwarding restriction
+    # unconditional. r115: секретные сообщения и непросмотренные одноразовые
+    # не пересылаются НИКОГДА (как в оригинальном Telegram).
     replace_once(
         "messenger/MessageObject.java",
         "KAMIGRAM_FORWARD_RESTRICTIONS_R80_MESSAGE_OBJECT",
-        """        return org.telegram.messenger.kamigram.KamiGramConfig.noRestrictions() || (!(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && !messageOwner.noforwards);
+        """        return !(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && (org.telegram.messenger.kamigram.KamiGramConfig.noRestrictions() || !messageOwner.noforwards);
 """,
-        """        return org.telegram.messenger.kamigram.KamiGramConfig.noRestrictions()
-            || org.telegram.messenger.kamigram.KamiGramGhost.isEphemeralMedia(messageOwner)
-            || (!(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && true /* KAMIGRAM_FORWARD_RESTRICTIONS_R80_MESSAGE_OBJECT */);
+        """        return !(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored(); /* KAMIGRAM_FORWARD_RESTRICTIONS_R80_MESSAGE_OBJECT */
 """,
         "forwarding: MessageObject.canForwardMessage ignores protected-source bit",
     )
@@ -479,33 +478,48 @@ def patch_forward_restrictions():
 
 
 def patch_protected_forward_copy():
+    # r115: патч ставится на оригинальный текст (r77 больше не правит этот файл).
+    # Защищённый контент (noforwards) пересылается повторной загрузкой копии;
+    # одноразовые/сгорающие медиа исключены — они не пересылаются, как в
+    # оригинальном Telegram (needDrawBluredPreview обрабатывается штатно).
     rel = "messenger/SendMessagesHelper.java"
     replace_once(
         rel,
         "KAMIGRAM_PROTECTED_FORWARD_COPY_R80",
-        """                final boolean kamigramEphemeralMedia = msgObj != null && msgObj.getId() > 0
-                    && msgObj.messageOwner != null
-                    && org.telegram.messenger.kamigram.KamiGramGhost.isEphemeralMedia(msgObj.messageOwner);
-                if (msgObj.getId() <= 0 || msgObj.needDrawBluredPreview() && !kamigramEphemeralMedia) {
+        """            for (int a = 0; a < messages.size(); a++) {
+                MessageObject msgObj = messages.get(a);
+                if (msgObj.getId() <= 0 || msgObj.needDrawBluredPreview()) {
 """,
-        """                final boolean kamigramEphemeralMedia = msgObj != null && msgObj.getId() > 0
-                    && msgObj.messageOwner != null
-                    && org.telegram.messenger.kamigram.KamiGramGhost.isEphemeralMedia(msgObj.messageOwner);
+        """            for (int a = 0; a < messages.size(); a++) {
+                MessageObject msgObj = messages.get(a);
+                /* KAMIGRAM_PROTECTED_FORWARD_COPY_R80: защищённый контент сервер не
+                   даёт переслать — копия загружается заново как новое сообщение. */
                 final boolean kamigramProtectedSource = msgObj != null && msgObj.messageOwner != null
                     && (msgObj.messageOwner.noforwards
                         || getMessagesController().isPeerNoForwards(msgObj.getDialogId()));
-                if (msgObj.getId() <= 0 || msgObj.needDrawBluredPreview() && !kamigramEphemeralMedia && !kamigramProtectedSource) {
+                if (msgObj.getId() <= 0 || msgObj.needDrawBluredPreview()) {
 """,
         "forwarding: detect protected source for copy/upload path",
     )
     replace_once(
         rel,
         "KAMIGRAM_PROTECTED_FORWARD_COPY_R80_BRANCH",
-        """                if (kamigramEphemeralMedia) {
-                    processForwardFromMyName(msgObj, peer, payStars, monoForumPeerId, suggestionParams);
+        """                }
+
+                final TLRPC.Message newMsg = new TLRPC.TL_message();
+                if (!forwardFromMyName) {
 """,
-        """                if (kamigramEphemeralMedia || kamigramProtectedSource) { /* KAMIGRAM_PROTECTED_FORWARD_COPY_R80 */
+        """                }
+
+                /* KAMIGRAM_PROTECTED_FORWARD_COPY_R80_BRANCH: копия защищённого
+                   контента уходит новым аплоадом — без серверного запрета пересылки. */
+                if (kamigramProtectedSource) {
                     processForwardFromMyName(msgObj, peer, payStars, monoForumPeerId, suggestionParams);
+                    continue;
+                }
+
+                final TLRPC.Message newMsg = new TLRPC.TL_message();
+                if (!forwardFromMyName) {
 """,
         "forwarding: protected source is copied/uploaded as a new message",
     )

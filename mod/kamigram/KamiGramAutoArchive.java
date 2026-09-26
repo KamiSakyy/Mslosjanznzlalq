@@ -5,7 +5,6 @@ import android.os.SystemClock;
 import androidx.collection.LongSparseArray;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MessagesController;
@@ -17,21 +16,21 @@ import org.telegram.tgnet.TLRPC;
 import java.util.HashMap;
 
 /**
- * Sakura r83: remove overloaded group/channel dialogs automatically
- * without a permanent timer; sweeps are event/resume driven.
+ * Sakura r115: перегруженные диалоги (строго больше 500 непрочитанных)
+ * автоматически уходят В АРХИВ — и только; sweeps are event/resume driven
+ * (без постоянного таймера). Ничего не удаляется: диалоги не стираются,
+ * боты не блокируются, каналы и группы не покидаются, медиа-кэш (видео,
+ * фото, файлы, музыка) не трогается вообще — перемещение в архив файлы
+ * не удаляет.
  *
- * A dialog is eligible when Telegram's own unread_count is strictly greater
- * than 500. Channels and group chats are left immediately wherever they are
- * (archive or the main list), then Telegram's native dialog removal clears the
- * row. Private user chats and contacts remain protected; only an untrusted,
- * non-contact bot can be blocked and removed. Saved Messages, the service
- * account, folders, secret chats, missing peers, and channels owned by the
- * account are conservative no-ops.
+ * Защищены: «Избранное», служебный аккаунт, секретные чаты, закреплённые
+ * диалоги, личные переписки с живыми людьми и контакты, каналы/группы,
+ * где аккаунт — создатель или уже покинул их.
  *
- * The old implementation accidentally passed TL_inputPeerSelf to
- * deleteParticipantFromChat(). That API detects the current user only when it
- * receives TL_inputPeerUser, so it sent a ban request instead of leaving the
- * channel. r82 deliberately obtains the current-user object first.
+ * KAMIGRAM_ARCHIVE_CLEAN_R77 (r115: только архивация, без удалений —
+ * прежняя чистка стирала медиа-кэш «сама»),
+ * KAMIGRAM_ARCHIVE_SAFETY_R78 (личные и контакты неприкосновенны),
+ * KAMIGRAM_ARCHIVE_THRESHOLD_R82 (строго больше 500 непрочитанных).
  */
 public final class KamiGramAutoArchive implements NotificationCenter.NotificationCenterDelegate {
 
@@ -63,7 +62,7 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
         }
     }
 
-    /** r82: explicit on-resume trigger so already-loaded dialogs are handled. */
+    /** r82: явный триггер при возврате в приложение. */
     public static void checkNow(int account) {
         if (account >= 0 && account < UserConfig.MAX_ACCOUNT_COUNT) {
             schedule(account);
@@ -101,10 +100,6 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
         }, DELAY);
     }
 
-    /**
-     * KAMIGRAM_ARCHIVE_CLEAN_R77 + KAMIGRAM_ARCHIVE_SAFETY_R78
-     * + KAMIGRAM_ARCHIVE_THRESHOLD_R82.
-     */
     private void sweep(int account) {
         try {
             if (!KamiGramConfig.autoArchive()) {
@@ -117,16 +112,14 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
             }
             final UserConfig config = UserConfig.getInstance(account);
             final long self = config.getClientUserId();
-            final TLRPC.User selfUser = config.getCurrentUser();
-            final TLRPC.InputPeer selfPeer = selfUser == null ? null : controller.getInputPeer(selfUser);
 
             for (int a = 0; a < dialogs.size(); a++) {
                 final TLRPC.Dialog dialog = dialogs.valueAt(a);
                 if (dialog == null || dialog.isFolder) {
-                    continue; // folders themselves are never peers to remove
+                    continue; // папки не переносятся сами в себя
                 }
-                /* KAMIGRAM_ARCHIVE_THRESHOLD_R82: no unread_mark inflation;
-                   strictly more than 500 server-counted unread messages. */
+                /* KAMIGRAM_ARCHIVE_THRESHOLD_R82: строго больше 500
+                   непрочитанных, посчитанных сервером. */
                 final int unread = Math.max(0, dialog.unread_count);
                 if (unread <= LIMIT) {
                     continue;
@@ -137,31 +130,32 @@ public final class KamiGramAutoArchive implements NotificationCenter.Notificatio
                     || DialogObject.isEncryptedDialog(dialogId)) {
                     continue;
                 }
+                if (dialog.folder_id == 1 || dialog.pinned != 0) {
+                    continue; // уже в архиве или закреплён — не трогаем
+                }
 
                 if (dialogId > 0) {
-                    /* Private people and contacts are always untouchable. */
+                    /* KAMIGRAM_ARCHIVE_SAFETY_R78: живые люди и контакты
+                       неприкосновенны; в архив может уйти только
+                       перегруженный неконтатный бот. */
                     final TLRPC.User user = controller.getUser(dialogId);
                     if (user == null || UserObject.isService(user.id)
                         || ContactsController.getInstance(account).isContact(user.id)
                         || !user.bot) {
                         continue;
                     }
-                    controller.blockPeer(dialogId);
-                    controller.deleteDialog(dialogId, 0, true);
-                    continue;
+                } else {
+                    final TLRPC.Chat chat = controller.getChat(-dialogId);
+                    if (chat == null || chat.creator || chat.left || chat.kicked) {
+                        continue;
+                    }
                 }
 
-                final TLRPC.Chat chat = controller.getChat(-dialogId);
-                if (chat == null || chat.creator || chat.left || chat.kicked || selfPeer == null) {
-                    continue;
-                }
-
-                /* Negative dialog ids are groups/channels. This is deliberately
-                   not limited to folder_id == 1 in r82: the user asked that an
-                   overloaded ordinary chat/channel be left as well. Passing a
-                   TL_inputPeerUser is essential; TL_inputPeerSelf is treated as
-                   a moderator target by MessagesController. */
-                controller.deleteParticipantFromChat(-dialogId, selfPeer, false, false);
+                /* KAMIGRAM_ARCHIVE_CLEAN_R77 (r115): ТОЛЬКО архивация.
+                   Диалог переезжает в архив штатным механизмом Telegram —
+                   сообщение остаётся, файлы медиа остаются, ничего не
+                   блокируется и не покидается. */
+                controller.addDialogToFolder(dialogId, 1, 0, 0);
             }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);

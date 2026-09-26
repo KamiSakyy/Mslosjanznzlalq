@@ -51,12 +51,10 @@ public final class KamiGramFirstRun {
                     preferences.edit().putInt("stickers_redefaulted_r112", 1).apply();
                 }
                 /* r114: страховка «настройки не сохраняются» — ещё раз жёстко
-                   выставляем политику: стикеры/премиум-эмодзи не грузятся,
-                   медиафайлы удалённых сообщений остаются в кэше. */
+                   выставляем политику: стикеры/премиум-эмодзи не грузятся. */
                 if (preferences.getInt("stickers_redefaulted_r114", 0) == 0) {
                     KamiGramConfig.set(KamiGramConfig.KEY_NO_STICKERS, true);
                     KamiGramConfig.set(KamiGramConfig.KEY_NO_ANIMATED_EMOJI, true);
-                    KamiGramConfig.set(KamiGramConfig.KEY_KEEP_DELETED, true);
                     preferences.edit().putInt("stickers_redefaulted_r114", 1).apply();
                 }
             }

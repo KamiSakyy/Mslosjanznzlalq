@@ -1013,7 +1013,7 @@ if marker not in src:
     if old not in src:
         sys.stderr.write('P22: не найден canForwardMessage\n')
         sys.exit(1)
-    new = ('return ' + config + '.noRestrictions() || (!(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && !messageOwner.noforwards);')
+    new = ('return !(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != MessageObject.TYPE_PHONE_CALL && !isSponsored() && (' + config + '.noRestrictions() || !messageOwner.noforwards);')
     src = src.replace(old, marker + '\n        ' + new, 1)
     io.open(mo_path, 'w', encoding='utf-8').write(src)
     changed.append('canForwardMessage')
@@ -2108,9 +2108,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK" || die "P98: защита заголовка (прокси) не встала"
     has "$JAVA_ROOT/org/telegram/ui/DialogsActivity.java" "KAMIGRAM_TITLE_TEXT" || die "P98: имя Sakura текстом не встало"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_UPDATE" || die "P98: ложная анимация загрузки не убрана"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_KEEP_VIEWONCE_DELETE" || die "P98: одноразовые фото не защищены"
-    has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA" || die "P98: медиа одноразовых не защищено в базе"
-    ok "P98 r66: имя Sakura в шапке не пропадает, нет ложной анимации загрузки, одноразовые фото остаются, папки — белый текст"
+    ok "P98 r66: имя Sakura в шапке не пропадает, нет ложной анимации загрузки, папки — белый текст"
 else
     skip "P98 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2139,8 +2137,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_AUTO_ARCHIVE" || die "P99: авто-архив не запускается"
     has "$JAVA_ROOT/org/telegram/ui/Components/FilterTabsView.java" "KAMIGRAM_TAB_UNREAD_COLOR" || die "P99: цвет счётчика у папок не встал"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_NO_FAKE_DOWNLOAD_IDLE" || die "P99: покой иконки загрузок не встал"
-    has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_KEEP_VIEWONCE_MEDIA2" || die "P99: медиа одноразовых не защищено"
-    ok "P99 r68: native scheduleDate сохранён, авто-архив 100+, счётчик папок нашего цвета, фото не исчезают, иконка загрузок в покое статичная"
+    ok "P99 r68: native scheduleDate сохранён, авто-архив 500+, счётчик папок нашего цвета, иконка загрузок в покое статичная"
 else
     skip "P99 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2155,8 +2152,8 @@ fi
 #      3)  «Подключение…» как в оригинале: нет сети — надпись, есть — пропадает;
 #      4)  иконка загрузок анимируется только пока реально идут байты;
 #      5)  иконка призрака минималистичная, белая: контур / заполнена;
-#      6)  меню сообщения: «Сгореть» (у собеседника) и «Прочитать», сгорающие
-#          можно пересылать; «Пересылать без имени»;
+#      6)  (r115: «Сгореть»/«Прочитать» и пересылка сгорающих убраны — как в
+#          оригинальном Telegram); «Пересылать без имени» остаётся;
 #      7)  точечный буст мобильного интернета: нажатое медиа — все потоки,
 #          остальные загрузки на паузу; лимиты очередей сняты;
 #      8)  премиум разблокирован локально (весь премиум доступен);
@@ -2168,7 +2165,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch KamiGramCallProxy; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2193,8 +2190,6 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
         || has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK") \
         || die "P100: защита имени Sakura не встала"
     has "$JAVA_ROOT/org/telegram/ui/DownloadProgressIcon.java" "KAMIGRAM_DOWNLOAD_ANIM_LIVE" || die "P100: живая анимация загрузок не встала"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CASE_BURN" || die "P100: «Сгореть/Прочитать» в меню не встало"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_EPHEMERAL" || die "P100: пересылка сгорающих не встала"
     has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_FORWARD_NONAME" || die "P100: пересылка без имени не встала"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NET_FOCUS_LOOP" || die "P100: фокус скорости в очередях не встал"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoadOperation.java" "KAMIGRAM_NET_FOCUS_PARAMS" || die "P100: буст потока фокусного файла не встал"
@@ -2253,9 +2248,9 @@ fi
 # P102. r77 — по новому запросу пользователя:
 #      1) «Настроить прокси >» скрывается только после подтверждённого
 #         Connected/Updating и возвращается при потере связи;
-#      2) self-destruct media скачиваются, сохраняются и пересылаются как обычные
-#         медиа, без FLAG_SECURE;
-#      3) «Прочитать» использует иконку глаза;
+#      2) (r115: self-destruct media снова как в оригинале — не сохраняются,
+#         не пересылаются, FLAG_SECURE на месте; открывать в text-only можно);
+#      3) (r115: меню «Сгореть»/«Прочитать» убрано);
 #      4) открытие файла ускоряет его, но не ставит остальные загрузки на паузу;
 #      5) ротация выбирает самый быстрый живой SakuProxy и не трогает live custom;
 #      6) очищается только архив: unread > 500, боты блокируются и удаляются,
@@ -2275,16 +2270,9 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_CONNECTION_HEALTHY_R77" || die "P102: состояние живого proxy не отслеживается"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java" "KAMIGRAM_NET_NO_PAUSE_R77" || die "P102: открытие медиа всё ещё ставит очередь на паузу"
     has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_EPHEMERAL_IMAGE_LOAD_R77" || die "P102: ephemeral-фото блокируются text-only"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_EPHEMERAL_ACTIONS_R77" || die "P102: save/share действия ephemeral не добавлены"
-    has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_READ_EYE_R77" || die "P102: иконка «Прочитать» не заменена на глаз"
-    has "$JAVA_ROOT/org/telegram/messenger/SendMessagesHelper.java" "KAMIGRAM_EPHEMERAL_FORWARD_UPLOAD_R77" || die "P102: ephemeral forwarding не переводится в upload"
-    has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "KAMIGRAM_SECRET_VIEWER_SECURE_R77" || die "P102: secure flag SecretMediaViewer не условный"
-    has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_PHOTO_VIEWER_EPHEMERAL_SCREENSHOT_R77" || die "P102: secure flag PhotoViewer не условный"
-    has "$JAVA_ROOT/org/telegram/ui/SecretVoicePlayer.java" "KAMIGRAM_SECRET_VOICE_SCREENSHOT_R77" || die "P102: secure flag SecretVoicePlayer не условный"
-    has "$JAVA_ROOT/org/telegram/ui/Cells/ChatMessageCell.java" "KAMIGRAM_EPHEMERAL_CELL_SCREENSHOT_R77" || die "P102: secure flag one-time cell не условный"
     has "$JAVA_ROOT/org/telegram/messenger/ProxyRotationController.java" "KAMIGRAM_PROXY_ROTATION_R77" || die "P102: native proxy rotation не защищён"
-    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_CLEAN_R77" || die "P102: archive cleaner r77 не скопирован"
-    ok "P102 r77: overlay/fallback/queue исправлены, self-destruct media сохраняются и пересылаются, screenshot разрешён, глаз и stock-theme cleanup >500"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_CLEAN_R77" || die "P102: авто-архив не скопирован"
+    ok "P102 r77: overlay/fallback/queue исправлены, ephemeral-фото открываются в text-only, ротация прокси защищена (r115: сохранение/пересылка сгорающих и снятие FLAG_SECURE убраны — как в оригинале)"
 else
     skip "P102 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2474,7 +2462,8 @@ fi
 #         SendMessagesHelper scheduleDate/send path untouched;
 #      2) let only ordinary message requests bypass the local economy/Ghost
 #         gates, while the sticker/premium-emoji/GIF filter remains installed;
-#      3) remove the mandatory AsuMeo call and run the >500 cleaner on resume;
+#      3) remove the mandatory AsuMeo call and run the >500 auto-archive on
+#         resume (r115: archive-only — nothing is deleted or left);
 #      4) remove the legacy permanent sponsor row from the ordinary dialogs list;
 #         the developer channel is exposed only in Sakura settings;
 #      5) keep the independent built-in SakuProxy catalog, including akenai.tg.
@@ -2513,16 +2502,16 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
         die "P106: обязательный auto-join/gate остался в ChannelGuard"
     fi
 
-    # Cleaner: strict >500, normal and archive groups/channels, private users
-    # and contacts untouched, and a real inputPeerUser for leaving.
+    # r115: авто-архив — ТОЛЬКО архивация перегруженных диалогов (строго >500
+    # непрочитанных). Никаких удалений диалогов, блокировок ботов и выходов из
+    # каналов: прежняя «чистка» стирала медиа-кэш видео/фото/файлов «сама».
     has "$KAMI_PKG/KamiGramAutoArchive.java" "KAMIGRAM_ARCHIVE_THRESHOLD_R82" || die "P106: strict unread threshold отсутствует"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "dialog.isFolder" || die "P106: folder safety отсутствует"
-    has "$KAMI_PKG/KamiGramAutoArchive.java" "getInputPeer(selfUser)" || die "P106: TL_inputPeerUser leave peer отсутствует"
-    has "$KAMI_PKG/KamiGramAutoArchive.java" "deleteParticipantFromChat" || die "P106: native leave mechanics отсутствует"
+    has "$KAMI_PKG/KamiGramAutoArchive.java" "addDialogToFolder" || die "P106: авто-архив не переносит диалоги в архив"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "ContactsController.getInstance(account).isContact" || die "P106: contacts safety отсутствует"
     has "$KAMI_PKG/KamiGramAutoArchive.java" "!user.bot" || die "P106: private user safety отсутствует"
-    if grep -q 'folder_id != ARCHIVE_FOLDER_ID' "$KAMI_PKG/KamiGramAutoArchive.java"; then
-        die "P106: cleaner снова ограничен архивом"
+    if grep -q -E 'deleteDialog|blockPeer|deleteParticipantFromChat' "$KAMI_PKG/KamiGramAutoArchive.java"; then
+        die "P106: авто-архив всё ещё умеет удалять диалоги/ботов/каналы"
     fi
 
     # Built-in proxy catalog remains independent from user proxy records.
@@ -2537,7 +2526,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$KAMI_PKG/KamiGramCenter.java" "Разработчик Sakura" || die "P106: developer settings action отсутствует"
     has "$KAMI_PKG/KamiGramChannelGuard.java" "https://t.me/AsuMeo" || die "P106: developer URL отсутствует"
 
-    ok "P106 r82: native Telegram send/schedule path restored, message/push request bypass, stickers/premium-emoji/GIF filter preserved, AsuMeo gate removed, >500 groups/channels cleaner active, akenai.tg SakuProxy catalogued, legacy sponsor row removed"
+    ok "P106 r82: native Telegram send/schedule path restored, message/push request bypass, stickers/premium-emoji/GIF filter preserved, AsuMeo gate removed, >500 dialogs auto-archive only (r115: без удалений), akenai.tg SakuProxy catalogued, legacy sponsor row removed"
 else
     skip "P106 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2862,13 +2851,11 @@ else
 fi
 
 # =============================================================================
-# P118. r106 — разрешение «поверх других окон», сгорающие медиа, чистка настроек.
+# P118. r106 — разрешение «поверх других окон», чистка настроек.
 python3 "$KAMIGRAM_SRC/apply_r106_fixes.py" "$TG_DIR" || die "P118: r106 fixes"
 MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
 grep -q 'SYSTEM_ALERT_WINDOW' "$MANIFEST" \
     || die "P118: в манифесте нет разрешения «поверх других окон»"
-grep -q 'KAMIGRAM_KEEP_TTL_MEDIA_R106' "$JAVA_ROOT/org/telegram/messenger/MessagesController.java" \
-    || die "P118: локальный таймер сгорающих медиа не отключён"
 for banned in "Запретить скриншоты" "Темы оформления" "Открыть список прокси" \
               "Показать скрытую рекламу" "Рекламные посты" "Реклама и рекомендации" \
               "Кэш сейчас" "Показать архив" "Видео поверх приложений" "Sakura канал"; do
@@ -2878,7 +2865,7 @@ grep -q 'сборка k1' "$KAMIGRAM_SRC/KamiGramBuild.java" \
     || die "P118: подпись сборки не k1"
 grep -q 'openChannelInApp' "$KAMIGRAM_SRC/KamiGramBranding.java" \
     || die "P118: канал не открывается внутри приложения"
-ok "P118 r106: overlay-разрешение, сгорающие медиа, чистка центра"
+ok "P118 r106: overlay-разрешение, чистка центра"
 
 # P119. r107 — жёсткая защита APK (R8, obfuscation-словари) и фикс массового выбора.
 python3 "$KAMIGRAM_SRC/apply_r107_hardening.py" "$TG_DIR" || die "P119: защита APK не применилась"
@@ -2890,29 +2877,21 @@ has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_BULK_SELECTION_SHOW
 has "$KAMI_PKG/KamiGramBulkSelector.java" "matchesFilter" || die "P119: в массовом выборе нет фильтров по типам"
 ok "P119 r107: R8/обфускация подключены, массовый выбор показывает тулбар выделения"
 
-# P120. r109 — сгорающие медиа можно пересылать/сохранять + «Поиск Sakura» в чате.
-python3 "$KAMIGRAM_SRC/apply_r109_fixes.py" "$TG_DIR" || die "P120: блокировки сгорающих медиа не сняты"
+# P120. r109 — «Поиск Sakura» в чате (r115: разблокировка сгорающих медиа убрана —
+#       сгорающие/одноразовые снова как в оригинальном Telegram).
 python3 "$KAMIGRAM_SRC/apply_chat_search.py" "$TG_DIR" || die "P120: «Поиск Sakura» не добавился"
-has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_TTL_MEDIA_R109" || die "P120: меню сгорающих медиа не разблокировано"
-has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_TTL_GALLERY_R109" || die "P120: галерея сгорающих медиа не разблокирована"
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CHAT_SEARCH_ACTION" || die "P120: пункт «Поиск Sakura» не встал"
 has "$KAMI_PKG/KamiGramChatSearch.java" "FilteredSearchView" || die "P120: фрагмент поиска не скопирован"
-ok "P120 r109: сгорающие медиа пересылаются/сохраняются, серверный «Поиск Sakura» в чате с фильтрами"
+ok "P120 r109: серверный «Поиск Sakura» в чате с фильтрами"
 
-# P121. r111 — аудио/музыка кэш больше не очищается автоматически.
-#       Закрыты ВСЕ пути создания локальных TTL-задач (createTaskForMid,
-#       createTaskForSecretMedia, createTaskForSecretChat, toTask-ветка
-#       markMessagesContentAsRead), выключен их исполнитель (getNewTask),
-#       а старые задачи из enc_tasks_v4 одноразово удаляются при открытии БД.
-#       Очистка кэша — только штатными настройками Telegram (CacheControlActivity).
-python3 "$KAMIGRAM_SRC/apply_r111_fixes.py" "$TG_DIR" || die "P121: автоудаление медиа-кэша не выключено"
-has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_ENC_TASKS_PURGE_R111" || die "P121: чистка старых enc_tasks не встала"
-N111=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R111" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
-[ "$N111" -ge 4 ] || die "P121: закрыты не все пути TTL-задач (найдено $N111 маркеров)"
+# P121. r111 — «Поиск Sakura» открывает фрагмент, +4 скрытых прокси, компактный
+#       диалог массового выбора (r115: отключение локальных TTL-задач перенесено
+#       в P124 — сгорающие медиа снова удаляются как в оригинале, а задачи
+#       автоудаления каналов по-прежнему не создаются).
 grep -q "kamigramSearchOpened" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P121: «Поиск Sakura» — фрагмент с фильтрами и страховкой не встал"
 grep -q "KAMIGRAM_PROXY_CATALOG_R111" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P121: новые встроенные прокси не добавлены"
 grep -q "cardBackground()" "$KAMI_PKG/KamiGramBulkSelector.java" || die "P121: компактный диалог массового выбора не встал"
-ok "P121 r111: медиа-кэш не удаляется сам, «Поиск Sakura» открывает штатный серверный поиск, +4 скрытых прокси, компактный диалог массового выбора"
+ok "P121 r111: «Поиск Sakura» открывает штатный серверный поиск, +4 скрытых прокси, компактный диалог массового выбора"
 
 # P122. r112 — три критических исправления:
 #       1) иконка загрузки открывала вкладку «Фото» вместо «Загрузки»: P114
@@ -2932,25 +2911,63 @@ has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_DEFAULT_MEDIA_POLICY_R101" || die 
 has "$KAMI_PKG/KamiGramCenter.java" "Не грузить стикеры" || die "P122: тумблер стикеров не стал явным"
 ok "P122 r112: «Загрузки» открывают загрузки, «Удалить мои сообщения» убраны полностью, стикеры/премиум-эмодзи = 0 трафика"
 
-# P123. r114 — полная глубокая проверка трафика и кэша:
-#       1) аудио/музыка кэш: серверные удаления (автоудаление каналов, чистка
-#          истории, удаления с других устройств) стирали файлы в обход защиты —
-#          теперь ВСЕ точки FileLoader.deleteFiles в MessagesStorage выполняются
-#          только при выключенном «Удалённые сообщения остаются»; создание
-#          ttl-задач в putMessages/putMessagesInternal/putDialogsInternal выключено;
-#       2) стикеры: миниатюры панелей/подсказок качались через loadFile(ImageLocation)
-#          с document=null в обход фильтра — добавлен blockThumb по родителю;
-#       3) настройки: чтение с запасным хранилищем — значения не теряются при
-#          переключении «ко всем аккаунтам» и смене аккаунта.
-python3 "$KAMIGRAM_SRC/apply_r114_fixes.py" "$TG_DIR" || die "P123: защита медиафайлов при удалениях не встала"
-N114=$(grep -c "KAMIGRAM_FILES_SURVIVE_R114" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
-[ "$N114" -ge 6 ] || die "P123: защищены не все точки deleteFiles (найдено $N114)"
-N114T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R114" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
-[ "$N114T" -ge 3 ] || die "P123: ttl-задачи в putMessages/putDialogsInternal не выключены"
+# P123. r114 — стикеры: миниатюры панелей/подсказок качались через
+#       loadFile(ImageLocation) с document=null в обход фильтра — добавлен
+#       blockThumb по родителю; настройки: чтение с запасным хранилищем —
+#       значения не теряются при переключении «ко всем аккаунтам» и смене аккаунта.
+#       (r115: защита файлов при удалениях перенесена в P124.)
 has "$KAMI_PKG/KamiGramNetFilter.java" "blockThumb" || die "P123: фильтр миниатюр стикеров не добавлен"
 has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_THUMB_FILTER_R114" || die "P123: фильтр миниатюр не встал в FileLoader"
 has "$KAMI_PKG/KamiGramConfig.java" "alternateStore" || die "P123: запасное хранилище настроек не встало"
-ok "P123 r114: медиафайлы не стираются серверными удалениями, миниатюры стикеров = 0 трафика, настройки не теряются"
+ok "P123 r114: миниатюры стикеров = 0 трафика, настройки не теряются"
+
+# P124. r115 — три решения пользователя:
+#       1) кэш видео/фото/файлов/музыки НЕ очищается сам: полная проверка дерева
+#          12.10.3 показала единственную автоматическую воронку удаления файлов —
+#          шесть точек FileLoader.deleteFiles в MessagesStorage. При удалении
+#          сообщений (сервер, автоудаление каналов, другое устройство) файлы
+#          обычных сообщений остаются в кэше; задачи локального автоудаления
+#          (ttl_period) не создаются. Ручная очистка штатными настройками
+#          Telegram (CacheControlActivity) работает как в оригинале.
+#          Авто-архив больше НЕ удаляет диалоги/не блокирует ботов/не покидает
+#          каналы (это и стирало кэш «само») — только переносит в архив.
+#       2) сгорающие/одноразовые медиа — как в оригинальном Telegram: не
+#          сохраняются, не пересылаются, FLAG_SECURE (скриншоты запрещены)
+#          восстановлен; удалённые сообщения не сохраняются (ещё с r80).
+#          Призрак (не в сети / нечиталка / скрытие «печатает») не тронут.
+#       3) звонки и видеозвонки всегда через прокси (SOCKS5), тумблер «Звонки
+#          через прокси» в «Связь», по умолчанию включено.
+python3 "$KAMIGRAM_SRC/apply_r115_fixes.py" "$TG_DIR" || die "P124: защита кэша/звонки через прокси не встали"
+N115=$(grep -c "KAMIGRAM_FILES_SURVIVE_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
+[ "$N115" -ge 5 ] || die "P124: защита медиафайлов встала не полностью (найдено $N115 маркеров)"
+N115T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
+[ "$N115T" -eq 3 ] || die "P124: закрыты не все 3 пути ttl-задач (найдено $N115T)"
+has "$JAVA_ROOT/org/telegram/messenger/voip/VoIPService.java" "KAMIGRAM_CALLS_VIA_PROXY_R115" || die "P124: звонки через прокси не встали"
+has "$KAMI_PKG/KamiGramCallProxy.java" "callProxy" || die "P124: подбор SOCKS5-прокси для звонков не скопирован"
+has "$KAMI_PKG/KamiGramConfig.java" "callsViaProxy" || die "P124: настройка «Звонки через прокси» не добавлена"
+has "$KAMI_PKG/KamiGramCenter.java" "Звонки через прокси" || die "P124: тумблер «Звонки через прокси» не в центре"
+has "$KAMI_PKG/KamiGramAutoArchive.java" "addDialogToFolder" || die "P124: авто-архив не переведён в режим «только архивация»"
+if grep -q "deleteDialog\|blockPeer\|deleteParticipantFromChat" "$KAMI_PKG/KamiGramAutoArchive.java"; then
+    die "P124: авто-архив всё ещё умеет удалять диалоги"
+fi
+# следы отменённых функций должны полностью исчезнуть из дерева
+for banned_mark in KAMIGRAM_TTL_MEDIA_R109 KAMIGRAM_TTL_GALLERY_R109 KAMIGRAM_KEEP_VIEWONCE \
+                   KAMIGRAM_CASE_BURN KAMIGRAM_FORWARD_EPHEMERAL KAMIGRAM_EPHEMERAL_ACTIONS_R77 \
+                   KAMIGRAM_EPHEMERAL_FORWARD_UPLOAD_R77 KAMIGRAM_PLAIN_EPHEMERAL_MEDIA_R77 \
+                   KAMIGRAM_READ_EYE_R77 KAMIGRAM_EPHEMERAL_SCREENSHOT_R77 \
+                   KAMIGRAM_PHOTO_VIEWER_EPHEMERAL_SCREENSHOT_R77 KAMIGRAM_SECRET_VIEWER_SECURE_R77 \
+                   KAMIGRAM_SECRET_VOICE_SCREENSHOT_R77 KAMIGRAM_EPHEMERAL_CELL_SCREENSHOT_R77 \
+                   KAMIGRAM_KEEP_TTL_MEDIA_R106 KAMIGRAM_TTL_NO_LOCAL_TASKS_R111 \
+                   KAMIGRAM_ENC_TASKS_PURGE_R111 KAMIGRAM_FILES_SURVIVE_R114 \
+                   KAMIGRAM_TTL_NO_LOCAL_TASKS_R114; do
+    if grep -rq "$banned_mark" "$JAVA_ROOT/org/telegram"; then
+        die "P124: след отменённой функции остался: $banned_mark"
+    fi
+done
+# FLAG_SECURE для сгорающих/одноразовых снова оригинальный
+has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "FLAG_SECURE" || die "P124: SecretMediaViewer потерял FLAG_SECURE"
+has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "FLAG_SECURE" || die "P124: PhotoViewer потерял FLAG_SECURE"
+ok "P124 r115: кэш видео/фото/файлов/музыки не очищается сам, сгорающие/одноразовые как в оригинале (без скриншотов), звонки всегда через прокси"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

@@ -28,10 +28,8 @@ public final class KamiGramConfig {
     public static final String KEY_NO_RESTRICTIONS = "kamigram_no_restrictions";
     /** Показывать ID чатов и пользователей. */
     public static final String KEY_SHOW_IDS = "kamigram_show_ids";
-    /** Удалённые сообщения остаются в чате (как в AyuGram). */
-    public static final String KEY_KEEP_DELETED = "kamigram_keep_deleted";
-    /** Смотреть одноразовые и ограниченные по времени сообщения без пометки «просмотрено». */
-    public static final String KEY_VIEW_ONCE = "kamigram_view_once";
+    /** r115: звонки и видеозвонки всегда через прокси (SOCKS5). */
+    public static final String KEY_CALLS_VIA_PROXY = "kamigram_calls_via_proxy";
     /** Не спрашивать разрешения (контакты, телефон, уведомления). */
     public static final String KEY_NO_PERMISSION_NAGS = "kamigram_no_permission_nags";
     /** Запрет скриншотов во всём приложении (FLAG_SECURE). */
@@ -122,8 +120,6 @@ public final class KamiGramConfig {
     public static final String KEY_SEND_HD = "kamigram_send_hd";
     /** При пересылке всегда без имени отправителя. */
     public static final String KEY_FORWARD_NO_NAME = "kamigram_forward_no_name";
-    /** Сгорающие и по таймеру можно пересылать. */
-    public static final String KEY_FORWARD_EPHEMERAL = "kamigram_forward_ephemeral";
     /** Точечный буст: нажатое фото/файл качает первым, со всеми потоками. */
     public static final String KEY_NET_FOCUS = "kamigram_net_focus";
 
@@ -274,7 +270,6 @@ public final class KamiGramConfig {
             || KEY_TEXT_ONLY.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
             || KEY_NO_PREMIUM_UI.equals(key)
-            || KEY_FORWARD_EPHEMERAL.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
             return false;
         }
@@ -361,17 +356,9 @@ public final class KamiGramConfig {
         return value(KEY_SHOW_IDS);
     }
 
-    /**
-     * r80: retained key for settings/database compatibility, but native Telegram
-     * deletion is always authoritative and the old keep-deleted behaviour is off.
-     */
-    public static boolean keepDeleted() {
-        return false; /* KAMIGRAM_NATIVE_DELETE_R80 */
-    }
-
-    /** Одноразовые сообщения смотрим без пометки «просмотрено» (сервер не удаляет). */
-    public static boolean viewOnce() {
-        return value(KEY_VIEW_ONCE);
+    /** r115: звонки и видеозвонки всегда через прокси (по умолчанию включено). */
+    public static boolean callsViaProxy() {
+        return value(KEY_CALLS_VIA_PROXY);
     }
 
     public static boolean noPermissionNags() {
@@ -431,17 +418,6 @@ public final class KamiGramConfig {
         return value(KEY_AUTO_ARCHIVE);
     }
 
-    /**
-     * r68: не вычищать медиа «истёкших» (одноразовых и самоуничтожающихся) сообщений.
-     *
-     * Именно этот шаг Telegram превращал фото в пустышку — в чате появлялась
-     * «истёкшая фотография», а само сообщение исчезало. Пользователь просил: фото
-     * не должны исчезать, поэтому здесь всегда true (вернуть можно одной строкой).
-     */
-    public static boolean keepExpiredMedia() {
-        return true;
-    }
-
     public static boolean noStickers() {
         return value(KEY_NO_STICKERS);
     }
@@ -472,11 +448,6 @@ public final class KamiGramConfig {
 
     public static boolean noAds() {
         /* r106: реклама выключена навсегда, включить обратно невозможно. */
-        return true;
-    }
-
-    /** r106: сгорающие и одноразовые медиа не уничтожаются после просмотра. */
-    public static boolean keepTtlMedia() {
         return true;
     }
 
@@ -643,11 +614,6 @@ public final class KamiGramConfig {
     /** «Пересылать без имени»: пересылки всегда без имени отправителя. */
     public static boolean forwardWithoutName() {
         return value(KEY_FORWARD_NO_NAME);
-    }
-
-    /** «Пересылать сгорающие»: одноразовые и по таймеру можно переслать. */
-    public static boolean forwardEphemeral() {
-        return value(KEY_FORWARD_EPHEMERAL);
     }
 
     /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
