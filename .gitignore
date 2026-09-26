@@ -20,3 +20,7 @@ build/
 # байт-код python — не хранится в репозитории
 __pycache__/
 *.pyc
+
+# мёртвые остатки «Удалить мои сообщения» (r112) — сбросы платформы возвращают их как untracked
+mod/kamigram/KamiGramDeleteMyMessages.java
+mod/kamigram/apply_delete_my_messages.py
