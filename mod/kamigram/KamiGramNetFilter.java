@@ -296,6 +296,38 @@ public final class KamiGramNetFilter {
         return true;
     }
 
+    /**
+     * r114: миниатюры стикеров и премиум-эмодзи, которые качаются через
+     * loadFile(ImageLocation, parentObject, ...) БЕЗ передачи документа —
+     * панель стикеров, «недавние», подсказки при вводе, подарочные стикеры.
+     * Документ в этом пути равен null, поэтому определяется по родителю:
+     * набор стикеров, сообщение-стикер или сам документ-стикер.
+     */
+    public static boolean blockThumb(Object parentObject) {
+        try {
+            if (!KamiGramConfig.noStickers()) {
+                return false;
+            }
+            if (parentObject instanceof TLRPC.Document) {
+                return isStickerDocument((TLRPC.Document) parentObject);
+            }
+            if (parentObject instanceof MessageObject) {
+                final MessageObject messageObject = (MessageObject) parentObject;
+                if (messageObject.isSticker()) {
+                    return true;
+                }
+                final TLRPC.Document document = messageObject.getDocument();
+                return document != null && isStickerDocument(document);
+            }
+            return parentObject instanceof TLRPC.TL_stickerSet
+                || parentObject instanceof TLRPC.TL_messages_stickerSet
+                || parentObject instanceof TLRPC.StickerSetCovered;
+        } catch (Throwable e) {
+            KamiGramLog.e(e);
+        }
+        return false;
+    }
+
     /** [простое имя, имя с пространством: TL_messages_getWebPage]. */
     private static String[] requestNames(TLObject object) {
         final Class<?> cls = object.getClass();

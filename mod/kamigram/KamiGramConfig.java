@@ -145,9 +145,31 @@ public final class KamiGramConfig {
                 return applyToAllGlobal();
             }
             final SharedPreferences preferences = store();
+            /* r114: настройка не должна «теряться»: если в выбранном хранилище
+               ключа нет (флаг «ко всем аккаунтам» переключали, аккаунт меняли),
+               проверяем запасное хранилище — сохранённое значение важнее дефолта. */
+            if (preferences == null || !preferences.contains(key)) {
+                final SharedPreferences alternate = alternateStore();
+                if (alternate != null && alternate.contains(key)) {
+                    return alternate.getBoolean(key, fallback);
+                }
+            }
             return preferences == null || preferences.getBoolean(key, fallback);
         } catch (Throwable ignore) {
             return fallback;
+        }
+    }
+
+    /** r114: хранилище, противоположное выбранному store() (для поиска «потерянных» настроек). */
+    private static SharedPreferences alternateStore() {
+        try {
+            if (applyToAllGlobal()) {
+                return MessagesController.getMainSettings(
+                    org.telegram.messenger.UserConfig.selectedAccount);
+            }
+            return MessagesController.getGlobalMainSettings();
+        } catch (Throwable ignore) {
+            return null;
         }
     }
 

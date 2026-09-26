@@ -1511,7 +1511,8 @@ if mark not in src:
         sys.exit(1)
     guard = (anchor +
         '        /* ' + mark + ': только stickers, premium-emoji and GIF files are denied */\n'
-        '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)) {\n'
+        '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)\n'
+        '            || (document == null && org.telegram.messenger.kamigram.KamiGramNetFilter.blockThumb(parentObject))) { /* KAMIGRAM_THUMB_FILTER_R114 */\n'
         '            if (BuildVars.LOGS_ENABLED) {\n'
         '                FileLog.d("Sakura: файл не скачивается (экономия трафика) " + document);\n'
         '            }\n'
@@ -2930,6 +2931,26 @@ has "$KAMI_PKG/KamiGramFirstRun.java" "KAMIGRAM_STICKERS_ZERO_R112" || die "P122
 has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_DEFAULT_MEDIA_POLICY_R101" || die "P122: дефолты нулевого трафика стикеров повреждены"
 has "$KAMI_PKG/KamiGramCenter.java" "Не грузить стикеры" || die "P122: тумблер стикеров не стал явным"
 ok "P122 r112: «Загрузки» открывают загрузки, «Удалить мои сообщения» убраны полностью, стикеры/премиум-эмодзи = 0 трафика"
+
+# P123. r114 — полная глубокая проверка трафика и кэша:
+#       1) аудио/музыка кэш: серверные удаления (автоудаление каналов, чистка
+#          истории, удаления с других устройств) стирали файлы в обход защиты —
+#          теперь ВСЕ точки FileLoader.deleteFiles в MessagesStorage выполняются
+#          только при выключенном «Удалённые сообщения остаются»; создание
+#          ttl-задач в putMessages/putMessagesInternal/putDialogsInternal выключено;
+#       2) стикеры: миниатюры панелей/подсказок качались через loadFile(ImageLocation)
+#          с document=null в обход фильтра — добавлен blockThumb по родителю;
+#       3) настройки: чтение с запасным хранилищем — значения не теряются при
+#          переключении «ко всем аккаунтам» и смене аккаунта.
+python3 "$KAMIGRAM_SRC/apply_r114_fixes.py" "$TG_DIR" || die "P123: защита медиафайлов при удалениях не встала"
+N114=$(grep -c "KAMIGRAM_FILES_SURVIVE_R114" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
+[ "$N114" -ge 6 ] || die "P123: защищены не все точки deleteFiles (найдено $N114)"
+N114T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R114" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
+[ "$N114T" -ge 3 ] || die "P123: ttl-задачи в putMessages/putDialogsInternal не выключены"
+has "$KAMI_PKG/KamiGramNetFilter.java" "blockThumb" || die "P123: фильтр миниатюр стикеров не добавлен"
+has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_THUMB_FILTER_R114" || die "P123: фильтр миниатюр не встал в FileLoader"
+has "$KAMI_PKG/KamiGramConfig.java" "alternateStore" || die "P123: запасное хранилище настроек не встало"
+ok "P123 r114: медиафайлы не стираются серверными удалениями, миниатюры стикеров = 0 трафика, настройки не теряются"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
