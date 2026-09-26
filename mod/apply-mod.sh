@@ -2898,6 +2898,21 @@ has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CHAT_SEARCH_ACTION"
 has "$KAMI_PKG/KamiGramChatSearch.java" "FilteredSearchView" || die "P120: фрагмент поиска не скопирован"
 ok "P120 r109: сгорающие медиа пересылаются/сохраняются, серверный «Поиск Sakura» в чате с фильтрами"
 
+# P121. r111 — аудио/музыка кэш больше не очищается автоматически.
+#       Закрыты ВСЕ пути создания локальных TTL-задач (createTaskForMid,
+#       createTaskForSecretMedia, createTaskForSecretChat, toTask-ветка
+#       markMessagesContentAsRead), выключен их исполнитель (getNewTask),
+#       а старые задачи из enc_tasks_v4 одноразово удаляются при открытии БД.
+#       Очистка кэша — только штатными настройками Telegram (CacheControlActivity).
+python3 "$KAMIGRAM_SRC/apply_r111_fixes.py" "$TG_DIR" || die "P121: автоудаление медиа-кэша не выключено"
+has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_ENC_TASKS_PURGE_R111" || die "P121: чистка старых enc_tasks не встала"
+N111=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R111" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
+[ "$N111" -ge 4 ] || die "P121: закрыты не все пути TTL-задач (найдено $N111 маркеров)"
+grep -q "openSearchWithText.*KAMIGRAM_CHAT_SEARCH_ACTION" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P121: «Поиск Sakura» не переведён на штатный поиск"
+grep -q "KAMIGRAM_PROXY_CATALOG_R111" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P121: новые встроенные прокси не добавлены"
+grep -q "cardBackground()" "$KAMI_PKG/KamiGramBulkSelector.java" || die "P121: компактный диалог массового выбора не встал"
+ok "P121 r111: медиа-кэш не удаляется сам, «Поиск Sakura» открывает штатный серверный поиск, +4 скрытых прокси, компактный диалог массового выбора"
+
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
 #      P100-патчи вставляли вызовы классов Sakura, а сами классы в дерево не

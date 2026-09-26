@@ -5,9 +5,11 @@
 
 Точка входа — пункт меню «⋮» рядом с «Массовым выбором» (якоря ставит
 apply_bulk_selection.py, поэтому этот патчер запускается ПОСЛЕ него).
-Сам поиск — фрагмент KamiGramChatSearch на родном FilteredSearchView:
-messages.search с peer чата находит все сообщения на сервере, а не только
-локально загруженные.
+r111: пункт открывает ШТАТНЫЙ поиск внутри чата (openSearchWithText) —
+это родной серверный messages.search с peer чата (находит все сообщения
+на сервере, а не только локально загруженные) с родными фильтрами типов.
+Собственный фрагмент на FilteredSearchView у части пользователей не
+открывался, поэтому заменён на гарантированно работающий штатный путь.
 
 Запуск: python3 apply_chat_search.py <TG_DIR>
 """
@@ -55,10 +57,11 @@ def main():
         print("chat search: нет якоря действия массового выбора", file=sys.stderr)
         return 1
     action = """                } else if (id == kamigram_chat_search) {
-                    Bundle kamigramSearchArgs = new Bundle();
-                    kamigramSearchArgs.putLong("dialog_id", getDialogId());
-                    kamigramSearchArgs.putLong("topic_id", getTopicId());
-                    presentFragment(new org.telegram.messenger.kamigram.KamiGramChatSearch(kamigramSearchArgs)); /* KAMIGRAM_CHAT_SEARCH_ACTION */
+                    /* r111: штатный поиск внутри чата — серверный messages.search
+                       по всем сообщениям канала/чата с родными фильтрами типов.
+                       Открывается мгновенно и гарантированно: собственный фрагмент
+                       на FilteredSearchView у части пользователей не открывался. */
+                    openSearchWithText(isSupportedTags() ? "" : null); /* KAMIGRAM_CHAT_SEARCH_ACTION */
 """
     source = source.replace(click_anchor, action + click_anchor, 1)
 

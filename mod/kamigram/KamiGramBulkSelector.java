@@ -3,12 +3,15 @@ package org.telegram.messenger.kamigram;
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -192,16 +195,47 @@ public final class KamiGramBulkSelector {
 
             final LinearLayout root = new LinearLayout(context);
             root.setOrientation(LinearLayout.VERTICAL);
+            /* r111: компактная карточка — маленькое аккуратное окно вместо огромного диалога. */
+            root.setBackground(cardBackground());
+            root.setPadding(dp(14), dp(12), dp(14), dp(12));
+
+            // --- шапка: заголовок слева, «Отмена» справа ---
+            final LinearLayout header = new LinearLayout(context);
+            header.setOrientation(LinearLayout.HORIZONTAL);
+            header.setGravity(Gravity.CENTER_VERTICAL);
+
+            final TextView heading = new TextView(context);
+            heading.setText("Массовый выбор");
+            heading.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+            heading.setTypeface(Typeface.DEFAULT_BOLD);
+            heading.setTextColor(KamiGramUi.primaryText());
+            heading.setSingleLine(true);
+            header.addView(heading, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            final TextView cancel = new TextView(context);
+            cancel.setText("Отмена");
+            cancel.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+            cancel.setTextColor(KamiGramUi.accent());
+            cancel.setSingleLine(true);
+            cancel.setPadding(dp(10), dp(4), dp(2), dp(4));
+            cancel.setClickable(true);
+            cancel.setFocusable(true);
+            cancel.setOnClickListener(v -> dismiss(shown[0]));
+            header.addView(cancel, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            root.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
             // --- ввод расширения (показывается с чипсом «Расширение») ---
             final EditText extInput = new EditText(context);
             extInput.setSingleLine(true);
-            extInput.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            extInput.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             extInput.setHint("например, .apk");
             extInput.setHintTextColor(KamiGramUi.secondaryText());
             extInput.setTextColor(KamiGramUi.primaryText());
             extInput.setBackground(pill(dp(10), true));
-            extInput.setPadding(dp(12), dp(9), dp(12), dp(9));
+            extInput.setPadding(dp(12), dp(7), dp(12), dp(7));
             extInput.setVisibility(View.GONE);
 
             // --- чипсы фильтров (горизонтальная прокрутка) ---
@@ -230,12 +264,14 @@ public final class KamiGramBulkSelector {
                 chips.addView(chip, chipParams);
             }
             scroll.addView(chips);
-            root.addView(scroll, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            final LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            scrollParams.topMargin = dp(8);
+            root.addView(scroll, scrollParams);
 
             final LinearLayout.LayoutParams extParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            extParams.topMargin = dp(10);
+            extParams.topMargin = dp(8);
             root.addView(extInput, extParams);
 
             // --- своё количество (показывается кнопкой «Своё») ---
@@ -247,14 +283,13 @@ public final class KamiGramBulkSelector {
             final EditText countInput = new EditText(context);
             countInput.setSingleLine(true);
             countInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-            countInput.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            countInput.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             countInput.setHint("Количество");
             countInput.setHintTextColor(KamiGramUi.secondaryText());
             countInput.setTextColor(KamiGramUi.primaryText());
             countInput.setBackground(pill(dp(10), true));
-            countInput.setPadding(dp(12), dp(9), dp(12), dp(9));
-            customRow.addView(countInput, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            countInput.setPadding(dp(10), 0, dp(10), 0);
+            customRow.addView(countInput, new LinearLayout.LayoutParams(0, dp(36), 1f));
 
             final TextView okButton = smallButton(context, "OK");
             okButton.setOnClickListener(v -> {
@@ -266,13 +301,13 @@ public final class KamiGramBulkSelector {
                     selectedType[0], extInput.getText().toString());
             });
             final LinearLayout.LayoutParams okParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
             okParams.leftMargin = dp(8);
             customRow.addView(okButton, okParams);
 
             final LinearLayout.LayoutParams customParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            customParams.topMargin = dp(10);
+            customParams.topMargin = dp(8);
             root.addView(customRow, customParams);
 
             // --- кнопки количества ---
@@ -295,8 +330,7 @@ public final class KamiGramBulkSelector {
                 }
             });
             for (TextView button : new TextView[]{ten, fifty, custom}) {
-                final LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                final LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(36), 1f);
                 if (button != ten) {
                     params.leftMargin = dp(8);
                 }
@@ -304,14 +338,23 @@ public final class KamiGramBulkSelector {
             }
             final LinearLayout.LayoutParams countsParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            countsParams.topMargin = dp(12);
+            countsParams.topMargin = dp(10);
             root.addView(counts, countsParams);
 
-            shown[0] = KamiGramDialog.create(context)
-                .title("Массовый выбор")
-                .content(root)
-                .negative("Отмена", null)
-                .show();
+            final Dialog dialog = new Dialog(context);
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            dialog.setContentView(root);
+            final Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawable(new ColorDrawable(0x00000000));
+                window.setLayout(Math.min((int) (AndroidUtilities.displaySize.x * 0.86f), dp(300)),
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                window.setDimAmount(0.55f);
+                window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            }
+            dialog.setCanceledOnTouchOutside(true);
+            dialog.show();
+            shown[0] = dialog;
         } catch (Throwable ignore) {
         }
     }
@@ -342,8 +385,8 @@ public final class KamiGramBulkSelector {
     private static TextView chip(Context context, String text, boolean selected) {
         final TextView chip = new TextView(context);
         chip.setText(text);
-        chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
-        chip.setPadding(dp(12), dp(6), dp(12), dp(6));
+        chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        chip.setPadding(dp(10), dp(5), dp(10), dp(5));
         chip.setSingleLine(true);
         chip.setClickable(true);
         chip.setFocusable(true);
@@ -355,11 +398,11 @@ public final class KamiGramBulkSelector {
         if (selected) {
             chip.setTextColor(KamiGramUi.accent());
             chip.setTypeface(Typeface.DEFAULT_BOLD);
-            chip.setBackground(tintedPill(dp(14), (KamiGramUi.accent() & 0x00FFFFFF) | 0x1F000000));
+            chip.setBackground(tintedPill(dp(13), (KamiGramUi.accent() & 0x00FFFFFF) | 0x1F000000));
         } else {
             chip.setTextColor(KamiGramUi.secondaryText());
             chip.setTypeface(Typeface.DEFAULT);
-            chip.setBackground(pill(dp(14), false));
+            chip.setBackground(pill(dp(13), false));
         }
     }
 
@@ -367,17 +410,27 @@ public final class KamiGramBulkSelector {
         final TextView button = new TextView(context);
         button.setText(text);
         button.setGravity(Gravity.CENTER);
-        button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         button.setTextColor(KamiGramUi.accent());
         button.setTypeface(Typeface.DEFAULT_BOLD);
-        button.setPadding(dp(10), dp(9), dp(10), dp(9));
-        button.setBackground(pill(dp(10), true));
+        button.setSingleLine(true);
+        button.setPadding(dp(8), 0, dp(8), 0);
+        button.setBackground(pill(dp(18), true));
         button.setClickable(true);
         button.setFocusable(true);
         return button;
     }
 
     /** Контурная пилюля: тонкая обводка, без тяжёлой заливки. */
+    /** Компактная карточка диалога «Массовый выбор» (r111). */
+    private static GradientDrawable cardBackground() {
+        final GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(KamiGramUi.surface());
+        drawable.setCornerRadius(dp(18));
+        drawable.setStroke(Math.max(1, dp(1)), KamiGramUi.separator());
+        return drawable;
+    }
+
     private static GradientDrawable pill(int radius, boolean stroke) {
         final GradientDrawable drawable = new GradientDrawable();
         drawable.setCornerRadius(radius);
