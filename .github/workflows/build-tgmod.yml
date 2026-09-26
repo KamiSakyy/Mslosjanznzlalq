@@ -255,7 +255,21 @@ jobs:
           git config user.email "arena-ai-coding-agent[bot]@users.noreply.github.com"
           git add -f mod/keys/sakura-line.jks mod/keys/sakura-line.jks.b64
           git commit -m "chore(keys): кастомный ключ подписи Sakura Line (alias=$KS_ALIAS) [skip ci]"
-          git push origin HEAD:${{ github.ref_name }}
+          # За время сборки ветка могла уйти вперёд (например, [skip ci]-коммит
+          # из песочницы) — синхронизируемся и проталкиваем ключ с ретраями.
+          # Ключ ОБЯЗАН закрепиться в ветке, иначе каждая сборка подписывала
+          # бы APK 2 другим одноразовым ключом.
+          pushed=0
+          for attempt in 1 2 3; do
+            if git push origin HEAD:"${GITHUB_REF_NAME}"; then pushed=1; break; fi
+            echo "push отвергнут (ветка ушла вперёд), попытка $attempt — синхронизация"
+            git fetch origin "${GITHUB_REF_NAME}" || true
+            git rebase --strategy-option=theirs "origin/${GITHUB_REF_NAME}" || { git rebase --abort || true; sleep 5; }
+          done
+          if [ "$pushed" != "1" ]; then
+            echo "::error title=Ключ Sakura Line не закреплён::push не удался после 3 попыток — сборка остановлена, чтобы APK 2 не подписывался одноразовым ключом"
+            exit 1
+          fi
 
       - name: Применить мод (брендинг, package id, свой ключ подписи)
         env:
