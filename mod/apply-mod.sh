@@ -2167,15 +2167,16 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages KamiGramChatSearch; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
-    # 1b) эти три класса вызываются из ChatActivity/PhotoViewer/PipVideoOverlay,
-    #     которые патчат apply_video_gestures/apply_bulk_selection/
-    #     apply_delete_my_messages. Без копирования javac падает с
-    #     «cannot find symbol» ещё до Gradle-сборки APK.
-    for f in KamiGramVideoGestures KamiGramBulkSelector KamiGramDeleteMyMessages; do
+    # 1b) эти классы вызываются из ChatActivity/PhotoViewer/PipVideoOverlay,
+    #     которые патчат apply_video_gestures/apply_bulk_selection. Без
+    #     копирования javac падает с «cannot find symbol» ещё до Gradle-сборки APK.
+    #     (r112: «Удалить мои сообщения» полностью убраны — KamiGramDeleteMyMessages
+    #     больше не копируется и не вызывается.)
+    for f in KamiGramVideoGestures KamiGramBulkSelector; do
         has "$KAMI_PKG/$f.java" "class $f" || die "P100: $f не скопирован в дерево Telegram"
     done
     # 2) иконки: минималистичный призрак (контур/заполненный), «сгореть»
@@ -2186,7 +2187,6 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     python3 "$KAMIGRAM_SRC/apply_r70_patches.py" "$TG_DIR" "$APP_NAME" || die "P100: патчи r70 не применились"
     python3 "$KAMIGRAM_SRC/apply_video_gestures.py" "$TG_DIR" || die "P100: жесты видеоплеера не применились"
     python3 "$KAMIGRAM_SRC/apply_bulk_selection.py" "$TG_DIR" || die "P100: массовый выбор сообщений не применился"
-    python3 "$KAMIGRAM_SRC/apply_delete_my_messages.py" "$TG_DIR" || die "P100: удаление моих сообщений не применилось"
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_CONNECTING_SUBTITLE" || die "P100: «Подключение…» как в оригинале не встало"
     (has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK_R70" \
         || has "$JAVA_ROOT/org/telegram/ui/ActionBar/ActionBar.java" "KAMIGRAM_TITLE_LOCK") \
@@ -2912,6 +2912,24 @@ grep -q "openSearchWithText.*KAMIGRAM_CHAT_SEARCH_ACTION" "$JAVA_ROOT/org/telegr
 grep -q "KAMIGRAM_PROXY_CATALOG_R111" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P121: новые встроенные прокси не добавлены"
 grep -q "cardBackground()" "$KAMI_PKG/KamiGramBulkSelector.java" || die "P121: компактный диалог массового выбора не встал"
 ok "P121 r111: медиа-кэш не удаляется сам, «Поиск Sakura» открывает штатный серверный поиск, +4 скрытых прокси, компактный диалог массового выбора"
+
+# P122. r112 — три критических исправления:
+#       1) иконка загрузки открывала вкладку «Фото» вместо «Загрузки»: P114
+#          вставил вкладки Фото/Видео/GIF перед «Загрузками», а штатный
+#          showDownloads() выбирает вкладку по жёсткому индексу — теперь
+#          вкладка ищется по типу (KAMIGRAM_DOWNLOADS_TAB_R112);
+#       2) «Удалить мои сообщения» полностью убраны: пункт делил id 76 с
+#          «Поиск Sakura» — нажатие поиска выполняло удаление сообщений;
+#       3) стикеры и премиум-эмодзи снова НЕ грузятся по умолчанию
+#          (0 трафик), тумблеры переименованы в «Не грузить …».
+python3 "$KAMIGRAM_SRC/apply_r112_fixes.py" "$TG_DIR" || die "P122: вкладка «Загрузки» не исправлена"
+has "$JAVA_ROOT/org/telegram/ui/Components/SearchViewPager.java" "KAMIGRAM_DOWNLOADS_TAB_R112" || die "P122: маркер исправления загрузок не найден"
+if grep -q "kamigram_delete_my_messages\|KAMIGRAM_DELETE_MY_MESSAGES" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java"; then die "P122: кнопка «Удалить мои сообщения» не убрана из ChatActivity"; fi
+[ -f "$KAMI_PKG/KamiGramDeleteMyMessages.java" ] && die "P122: класс удаления сообщений всё ещё копируется в дерево"
+has "$KAMI_PKG/KamiGramFirstRun.java" "KAMIGRAM_STICKERS_ZERO_R112" || die "P122: разовый сброс стикеров не встал"
+has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_DEFAULT_MEDIA_POLICY_R101" || die "P122: дефолты нулевого трафика стикеров повреждены"
+has "$KAMI_PKG/KamiGramCenter.java" "Не грузить стикеры" || die "P122: тумблер стикеров не стал явным"
+ok "P122 r112: «Загрузки» открывают загрузки, «Удалить мои сообщения» убраны полностью, стикеры/премиум-эмодзи = 0 трафика"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

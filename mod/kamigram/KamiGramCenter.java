@@ -200,11 +200,15 @@ public final class KamiGramCenter {
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Истории", KamiGramConfig.KEY_NO_STORIES, onChanged)
+            Row.toggle("Не грузить истории", KamiGramConfig.KEY_NO_STORIES, onChanged)
         });
         card(root, context, new Row[]{
-            Row.toggle("Стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
-            Row.toggle("Премиум-эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
+            /* KAMIGRAM_STICKERS_ZERO_R112: явные формулировки — переключатель
+               ВКЛЮЧЕН = НЕ загружается (0 трафика). Раньше строки назывались
+               «Стикеры»/«Премиум-эмодзи» с обратным смыслом, и включенный
+               переключатель означал «загружать» — отсюда лишний трафик. */
+            Row.toggle("Не грузить стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
+            Row.toggle("Не грузить премиум-эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
             Row.toggle("Витрина Premium и подарки", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
             Row.toggle("GIF и анимации", KamiGramConfig.KEY_NO_GIFS, onChanged),
             Row.toggle("Превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged),
@@ -690,14 +694,13 @@ public final class KamiGramCenter {
         }
 
         private static boolean invertible(String key) {
-            return KamiGramConfig.KEY_NO_STICKERS.equals(key)
-                || KamiGramConfig.KEY_NO_ANIMATED_EMOJI.equals(key)
-                || KamiGramConfig.KEY_NO_PREMIUM_UI.equals(key)
+            /* r112: стикеры, премиум-эмодзи и истории больше НЕ инвертируются —
+               строки называются «Не грузить …», и ВКЛ = запрет загрузки. */
+            return KamiGramConfig.KEY_NO_PREMIUM_UI.equals(key)
                 || KamiGramConfig.KEY_NO_GIFS.equals(key)
                 || KamiGramConfig.KEY_NO_LINK_PREVIEW.equals(key)
                 || KamiGramConfig.KEY_NO_GIF_SEARCH.equals(key)
                 || KamiGramConfig.KEY_NO_TOP_PEERS.equals(key)
-                || KamiGramConfig.KEY_NO_STORIES.equals(key)
                 || KamiGramConfig.KEY_NO_ADS.equals(key)
                 || KamiGramConfig.KEY_ADS_FILTER.equals(key);
         }

@@ -39,6 +39,17 @@ public final class KamiGramFirstRun {
                 if (first) {
                     preferences.edit().putInt(KEY_INSTALLED, Math.max(1, current)).apply();
                 }
+                /* KAMIGRAM_STICKERS_ZERO_R112: разовый сброс — в прежних сборках
+                   тумблер «Стикеры» имел обратный смысл, и случайно включенный
+                   переключатель РАЗРЕШАЛ загрузку стикеров и премиум-эмодзи.
+                   Возвращаем нулевой трафик: стикеры и премиум-эмодзи снова
+                   не загружаются. Тумблеры теперь называются «Не грузить …»,
+                   и пользователь может осознанно включить загрузку обратно. */
+                if (preferences.getInt("stickers_redefaulted_r112", 0) == 0) {
+                    KamiGramConfig.set(KamiGramConfig.KEY_NO_STICKERS, true);
+                    KamiGramConfig.set(KamiGramConfig.KEY_NO_ANIMATED_EMOJI, true);
+                    preferences.edit().putInt("stickers_redefaulted_r112", 1).apply();
+                }
             }
             keepActiveAccount();
         } catch (Throwable throwable) {
