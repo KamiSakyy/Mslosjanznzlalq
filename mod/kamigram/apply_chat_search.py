@@ -5,11 +5,13 @@
 
 Точка входа — пункт меню «⋮» рядом с «Массовым выбором» (якоря ставит
 apply_bulk_selection.py, поэтому этот патчер запускается ПОСЛЕ него).
-r111: пункт открывает ШТАТНЫЙ поиск внутри чата (openSearchWithText) —
-это родной серверный messages.search с peer чата (находит все сообщения
-на сервере, а не только локально загруженные) с родными фильтрами типов.
-Собственный фрагмент на FilteredSearchView у части пользователей не
-открывался, поэтому заменён на гарантированно работающий штатный путь.
+r113: пункт снова открывает фрагмент KamiGramChatSearch — расширенный
+поиск с фильтрами по типам (все/фото/видео/GIF/медиа/ссылки/файлы/музыка/
+голосовые) на родном FilteredSearchView: messages.search с peer чата
+находит все сообщения на сервере. В r110/r111 фрагмент не открывался
+не из-за своей ошибки, а из-за коллизии id 76 с пунктом «Удалить мои
+сообщения» (пункт полностью убран в r112). Добавлена страховка: если
+фрагмент по любой причине не открылся — вызывается штатный поиск в чате.
 
 Запуск: python3 apply_chat_search.py <TG_DIR>
 """
@@ -57,11 +59,26 @@ def main():
         print("chat search: нет якоря действия массового выбора", file=sys.stderr)
         return 1
     action = """                } else if (id == kamigram_chat_search) {
-                    /* r111: штатный поиск внутри чата — серверный messages.search
-                       по всем сообщениям канала/чата с родными фильтрами типов.
-                       Открывается мгновенно и гарантированно: собственный фрагмент
-                       на FilteredSearchView у части пользователей не открывался. */
-                    openSearchWithText(isSupportedTags() ? "" : null); /* KAMIGRAM_CHAT_SEARCH_ACTION */
+                    /* r113: настоящий расширенный поиск по чату/каналу — фрагмент
+                       с фильтрами по типам (все/фото/видео/GIF/медиа/ссылки/файлы/
+                       музыка/голосовые) поверх штатного серверного messages.search:
+                       находятся абсолютно все сообщения на сервере, а не только
+                       локально загруженные. В r110/r111 фрагмент не открывался из-за
+                       коллизии id 76 с «Удалить мои сообщения» (убраны в r112).
+                       Страховка: если фрагмент не открылся — штатный поиск в чате. */
+                    boolean kamigramSearchOpened = false;
+                    try {
+                        Bundle kamigramSearchArgs = new Bundle();
+                        kamigramSearchArgs.putLong("dialog_id", getDialogId());
+                        kamigramSearchArgs.putLong("topic_id", getTopicId());
+                        kamigramSearchOpened = presentFragment(
+                            new org.telegram.messenger.kamigram.KamiGramChatSearch(kamigramSearchArgs));
+                    } catch (Throwable kamigramSearchError) {
+                        kamigramSearchOpened = false;
+                    }
+                    if (!kamigramSearchOpened) {
+                        openSearchWithText(isSupportedTags() ? "" : null);
+                    } /* KAMIGRAM_CHAT_SEARCH_ACTION */
 """
     source = source.replace(click_anchor, action + click_anchor, 1)
 

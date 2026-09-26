@@ -48,7 +48,9 @@ public class KamiGramChatSearch extends BaseFragment {
     private EditText searchField;
     private FilteredSearchView searchView;
     private final TextView[] chipViews = new TextView[CHIP_TITLES.length];
-    private int selectedChip = 0;
+    /* «Медиа» (индекс 4) — сразу после открытия видна бесконечная сетка медиа
+       чата/канала; остальные фильтры переключаются чипсами. */
+    private int selectedChip = 4;
     private Runnable searchRunnable;
 
     public KamiGramChatSearch(Bundle args) {
@@ -71,7 +73,7 @@ public class KamiGramChatSearch extends BaseFragment {
 
         actionBar = new ActionBar(context);
         actionBar.setBackButtonImage(R.drawable.msg_arrow_back);
-        actionBar.setTitle("Поиск в чате");
+        actionBar.setTitle("Поиск Sakura");
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -125,7 +127,7 @@ public class KamiGramChatSearch extends BaseFragment {
         chips.setOrientation(LinearLayout.HORIZONTAL);
         for (int i = 0; i < CHIP_TITLES.length; i++) {
             final int index = i;
-            chipViews[i] = chip(context, CHIP_TITLES[i], i == 0);
+            chipViews[i] = chip(context, CHIP_TITLES[i], i == selectedChip);
             chipViews[i].setOnClickListener(v -> {
                 selectedChip = index;
                 for (int j = 0; j < chipViews.length; j++) {

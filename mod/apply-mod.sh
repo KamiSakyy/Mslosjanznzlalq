@@ -2908,7 +2908,7 @@ python3 "$KAMIGRAM_SRC/apply_r111_fixes.py" "$TG_DIR" || die "P121: автоуд
 has "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" "KAMIGRAM_ENC_TASKS_PURGE_R111" || die "P121: чистка старых enc_tasks не встала"
 N111=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R111" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
 [ "$N111" -ge 4 ] || die "P121: закрыты не все пути TTL-задач (найдено $N111 маркеров)"
-grep -q "openSearchWithText.*KAMIGRAM_CHAT_SEARCH_ACTION" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P121: «Поиск Sakura» не переведён на штатный поиск"
+grep -q "kamigramSearchOpened" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P121: «Поиск Sakura» — фрагмент с фильтрами и страховкой не встал"
 grep -q "KAMIGRAM_PROXY_CATALOG_R111" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P121: новые встроенные прокси не добавлены"
 grep -q "cardBackground()" "$KAMI_PKG/KamiGramBulkSelector.java" || die "P121: компактный диалог массового выбора не встал"
 ok "P121 r111: медиа-кэш не удаляется сам, «Поиск Sakura» открывает штатный серверный поиск, +4 скрытых прокси, компактный диалог массового выбора"
