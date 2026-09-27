@@ -1157,6 +1157,7 @@ def insert_after(path, anchor, block, marker, context_expr):
 resume_block = (
     '        /* ' + 'KAMIGRAM_SMART_PROXY' + ' */\n'
     '        try {\n'
+    '            org.telegram.messenger.kamigram.KamiGramBuiltinProxy.init(__CTX__); /* KAMIGRAM_BUILTIN_EARLY_R120 */\n'
     '            org.telegram.messenger.kamigram.KamiGramProxyHelper.activateFromClipboard(__CTX__);\n'
     '            org.telegram.messenger.kamigram.KamiGramProxyHelper.watchProxy(__CTX__);\n'
     '        } catch (Throwable ignore) {\n'
@@ -1196,23 +1197,20 @@ if marker not in src and anchor in src:
              '                    } catch (Throwable ignore) {\n'
              '                    }\n'
              '                }, 12000);\n'
-             '                AndroidUtilities.runOnUIThread(() -> {\n'
-             '                    try {\n'
-             '                        if (org.telegram.messenger.kamigram.KamiGramProxyHelper.loginStage() == 6) {\n'
-             '                            return;\n'
-             '                        }\n'
-             '                        // за 20 секунд ответа нет: возвращаем кнопку в рабочее состояние\n'
-             '                        // и объясняем причину. Прокси сами НЕ выключаем: вход не должен\n'
-             '                        // ломаться из-за сторожа, выключить его можно кнопкой в диалоге.\n'
-             '                        nextPressed = false;\n'
-             '                        needHideProgress(true);\n'
-             '                        showDoneButton(true, true);\n'
-             '                        org.telegram.messenger.kamigram.KamiGramProxyHelper.showLoginProblem(getParentActivity(), kamigramLastError,\n'
-             '                            "Nothing happened for 20 seconds. Below: the exact step, the server answer and the connection state. Tap Retry, or open the Telegram app (chat 777000) - the code is often delivered there.",\n'
-             '                            () -> onNextPressed(null));\n'
-             '                    } catch (Throwable ignore) {\n'
-             '                    }\n'
-             '                }, 20000);\n'
+    '                AndroidUtilities.runOnUIThread(() -> {\n'
+    '                    try {\n'
+    '                        if (org.telegram.messenger.kamigram.KamiGramProxyHelper.loginStage() == 6) {\n'
+    '                            return;\n'
+    '                        }\n'
+    '                        /* KAMIGRAM_LOGIN_QUIET_R120: за 20 секунд ответа нет —\n'
+    '                           молча возвращаем кнопку в рабочее состояние.\n'
+    '                           Никаких диалогов и логов (просьба пользователя). */\n'
+    '                        nextPressed = false;\n'
+    '                        needHideProgress(true);\n'
+    '                        showDoneButton(true, true);\n'
+    '                    } catch (Throwable ignore) {\n'
+    '                    }\n'
+    '                }, 20000);\n'
              '            } catch (Throwable ignore) {\n'
              '            }\n')
     src = src.replace(anchor, block + anchor, 1)
@@ -2017,7 +2015,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
     ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
 
-    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild; do
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild KamiGramIntroText; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -3013,6 +3011,109 @@ fi
 [ ! -f "$KAMI_PKG/KamiGramCallProxy.java" ] || die "P126: KamiGramCallProxy не должен копироваться в дерево"
 has "$KAMI_PKG/KamiGramCenter.java" "rounded(ThemeHook.accent(), 16)" || die "P126: диалог фильтра слов не в стиле Sakura"
 ok "P126 r119: стикеры/эмодзи блокируются до сети без всякой самоочистки кэша, политика нулевого трафика возвращается разовым сидом, «Звонки через прокси» и «Снять запреты» убраны, диалог слов в стиле Sakura"
+
+# =============================================================================
+# P127. r120 — стартовый экран полностью наш: иконка занимает ВЕСЬ круг
+#      (синего кольца Telegram нет), заголовок/страницы/кнопка — в стиле
+#      Sakura, wordmark Telegram убран; встроенные прокси поднимаются уже
+#      на экране входа (до аккаунта); диалог «ошибка входа» с логами убран.
+# =============================================================================
+python3 - "$JAVA_ROOT/org/telegram/ui/IntroActivity.java" <<'PY' || die "P127: не удалось оформить интро в стиле Sakura"
+import io, sys
+
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+
+circle_old = (
+    "            loadTexture(v -> {\n"
+    "                Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);\n"
+    "                paint.setColor(ThemeColors.TELEGRAM_COLOR); // It's logo color, it should not be colored by the theme\n"
+    "                int size = dp(ICON_HEIGHT_DP);\n"
+    "                Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);\n"
+    "                Canvas c = new Canvas(bm);\n"
+    "                c.drawCircle(size / 2f, size / 2f, size / 2f, paint);\n"
+    "                return bm;\n"
+    "            }, 22);\n"
+)
+circle_new = (
+    "            loadTexture(v -> {\n"
+    "                /* KAMIGRAM_INTRO_ICON_FULL_R120: first page shows OUR icon\n"
+    "                   across the whole circle - no blue Telegram ring. */\n"
+    "                int size = dp(ICON_HEIGHT_DP);\n"
+    "                Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);\n"
+    "                Canvas c = new Canvas(bm);\n"
+    "                try {\n"
+    "                    android.content.Context ctx = org.telegram.messenger.ApplicationLoader.applicationContext;\n"
+    "                    android.graphics.drawable.Drawable icon = ctx.getPackageManager()\n"
+    "                        .getApplicationIcon(ctx.getPackageName());\n"
+    "                    if (icon != null) {\n"
+    "                        android.graphics.Path clip = new android.graphics.Path();\n"
+    "                        clip.addCircle(size / 2f, size / 2f, size / 2f, android.graphics.Path.Direction.CCW);\n"
+    "                        c.save();\n"
+    "                        c.clipPath(clip);\n"
+    "                        icon.setBounds(0, 0, size, size);\n"
+    "                        icon.draw(c);\n"
+    "                        c.restore();\n"
+    "                    }\n"
+    "                } catch (Throwable ignore) {\n"
+    "                }\n"
+    "                return bm;\n"
+    "            }, 22);\n"
+)
+plane_old = "            loadTexture(R.drawable.intro_tg_plane, 21);\n"
+plane_new = (
+    "            loadTexture(v -> {\n"
+    "                /* KAMIGRAM_INTRO_ICON_FULL_R120: nothing is drawn on top of\n"
+    "                   our full circle (no plane, no small duplicate icon). */\n"
+    "                return Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);\n"
+    "            }, 21);\n"
+)
+title_old = (
+    "        SpannableStringBuilder ssb = new SpannableStringBuilder(LocaleController.getString(R.string.Page1Title));\n"
+    "        ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);\n"
+    "        titles[0] = ssb;\n"
+)
+title_new = (
+    "        /* KAMIGRAM_INTRO_SAKURA_R120: no Telegram wordmark - the heading and\n"
+    "           every page speak Sakura. */\n"
+    "        titles[0] = \"Sakura\";\n"
+    "        messages[0] = org.telegram.messenger.kamigram.KamiGramIntroText.tagline();\n"
+    "        for (int a = 1; a < titles.length; a++) {\n"
+    "            titles[a] = org.telegram.messenger.kamigram.KamiGramIntroText.title(a);\n"
+    "        }\n"
+    "        for (int a = 1; a < messages.length; a++) {\n"
+    "            messages[a] = org.telegram.messenger.kamigram.KamiGramIntroText.message(a);\n"
+    "        }\n"
+)
+colors_old = "        startMessagingButtonBackground.setColors(new int[]{getThemedColor(Theme.key_featuredStickers_addButton), getThemedColor(Theme.key_featuredStickers_addButton2)});\n"
+colors_new = (
+    colors_old +
+    "        /* KAMIGRAM_INTRO_SAKURA_R120: the start button wears our gradient. */\n"
+    "        startMessagingButtonBackground.setColors(new int[]{org.telegram.messenger.kamigram.ThemeHook.accent(), org.telegram.messenger.kamigram.KamiGramIntroText.gradientEnd()});\n"
+)
+
+for old, new, name in ((circle_old, circle_new, 'круг'), (plane_old, plane_new, 'самолётик'),
+                       (title_old, title_new, 'заголовок'), (colors_old, colors_new, 'кнопка')):
+    if old not in src:
+        sys.stderr.write('P127: не найден фрагмент интро: %s\n' % name)
+        sys.exit(1)
+    src = src.replace(old, new, 1)
+
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
+has "$JAVA_ROOT/org/telegram/ui/IntroActivity.java" "KAMIGRAM_INTRO_ICON_FULL_R120" || die "P127: иконка не заняла весь круг интро"
+has "$JAVA_ROOT/org/telegram/ui/IntroActivity.java" "KAMIGRAM_INTRO_SAKURA_R120" || die "P127: сакура-тексты и градиент интро не встали"
+if grep -q "ImageSpan(logoDrawable)" "$JAVA_ROOT/org/telegram/ui/IntroActivity.java"; then
+    die "P127: wordmark Telegram остался в заголовке интро"
+fi
+has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_BUILTIN_EARLY_R120" || die "P127: встроенные прокси не поднимаются в LaunchActivity"
+has "$JAVA_ROOT/org/telegram/ui/LoginActivity.java" "KAMIGRAM_BUILTIN_EARLY_R120" || die "P127: встроенные прокси не поднимаются на экране входа"
+if grep -q "showLoginProblem" "$JAVA_ROOT/org/telegram/ui/LoginActivity.java"; then
+    die "P127: диалог ошибки входа остался в LoginActivity"
+fi
+has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_BUILTIN_ALWAYS_ON_R120" || die "P127: встроенные прокси не включаются до входа"
+has "$KAMI_PKG/KamiGramIntroText.java" "KAMIGRAM_INTRO_TEXT_R120" || die "P127: класс текстов интро не скопирован"
+ok "P127 r120: интро — наша иконка на весь круг без синего кольца, заголовки и кнопка в стиле Sakura; встроенные прокси включены до входа; диалог ошибки входа убран"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

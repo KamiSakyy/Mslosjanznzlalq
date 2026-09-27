@@ -1,6 +1,5 @@
 package org.telegram.messenger.kamigram;
 
-import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -255,30 +254,6 @@ public final class KamiGramProxyHelper {
     }
 
     /** Show a short actionable login message without exposing technical diagnostics. */
-    public static void showLoginProblem(Context context, String serverAnswer, String details) {
-        showLoginProblem(context, serverAnswer, details, null);
-    }
-
-    public static void showLoginProblem(Context context, String serverAnswer, String details,
-                                        final Runnable onRetry) {
-        if (context == null) {
-            return;
-        }
-        try {
-            final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle("Не удалось войти")
-                .setMessage("Проверьте соединение и повторите попытку.")
-                .setPositiveButton("Повторить", (dialog, which) -> {
-                    if (onRetry != null) {
-                        AndroidUtilities.runOnUIThread(onRetry, 300);
-                    }
-                })
-                .setNegativeButton("Закрыть", null)
-                .show();
-        } catch (Throwable ignored) {
-        }
-    }
-
     /**
      * Emergency proxy drop, kept for the case when the app is fully idle and the proxy
      * is clearly dead. Never touches a proxy that is still connecting.

@@ -103,14 +103,24 @@ public final class KamiGramBuiltinProxy {
     /** Запускается из LaunchActivity и безопасен до входа в аккаунт. */
     public static void init(final Context context) {
         ensureBuiltinsLoaded();
-        if (inited) {
-            return;
-        }
-        inited = true;
         if (!enabled()) {
             disableOurProxy();
             return;
         }
+        /* KAMIGRAM_BUILTIN_ALWAYS_ON_R120: встроенные прокси обязаны быть
+           включены ВСЕГДА, в том числе до входа в аккаунт (первый запуск,
+           экран входа): маршрут поднимается здесь безусловно, иначе без
+           сети вход падает с ошибкой соединения. Живой пользовательский
+           прокси route() не перехватывает. */
+        try {
+            route(context, true);
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+        if (inited) {
+            return;
+        }
+        inited = true;
         try {
             if (KamiGramDownloadRecovery.hasActiveDownloads()) {
                 AndroidUtilities.runOnUIThread(() -> route(context, true), 600L);
