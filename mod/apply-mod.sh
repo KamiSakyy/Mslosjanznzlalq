@@ -1513,7 +1513,6 @@ if mark not in src:
         '        /* ' + mark + ': только stickers, premium-emoji and GIF files are denied */\n'
         '        if (org.telegram.messenger.kamigram.KamiGramNetFilter.blockDownload(document, parentObject)\n'
         '            || (document == null && org.telegram.messenger.kamigram.KamiGramNetFilter.blockThumb(parentObject))) { /* KAMIGRAM_THUMB_FILTER_R114 */\n'
-        '            org.telegram.messenger.kamigram.KamiGramNetFilter.purgeCached(document, location, locationExt); /* KAMIGRAM_STICKER_PURGE_R117 */\n'
         '            if (BuildVars.LOGS_ENABLED) {\n'
         '                FileLog.d("Sakura: файл не скачивается (экономия трафика) " + document);\n'
         '            }\n'
@@ -2956,7 +2955,8 @@ for banned_mark in KAMIGRAM_TTL_MEDIA_R109 KAMIGRAM_TTL_GALLERY_R109 KAMIGRAM_KE
                    KAMIGRAM_SECRET_VOICE_SCREENSHOT_R77 KAMIGRAM_EPHEMERAL_CELL_SCREENSHOT_R77 \
                    KAMIGRAM_KEEP_TTL_MEDIA_R106 KAMIGRAM_TTL_NO_LOCAL_TASKS_R111 \
                    KAMIGRAM_ENC_TASKS_PURGE_R111 KAMIGRAM_FILES_SURVIVE_R114 \
-                   KAMIGRAM_TTL_NO_LOCAL_TASKS_R114 KAMIGRAM_CALLS_VIA_PROXY_R115; do
+                   KAMIGRAM_TTL_NO_LOCAL_TASKS_R114 KAMIGRAM_CALLS_VIA_PROXY_R115 \
+                   KAMIGRAM_STICKER_PURGE_R117; do
     if grep -rq "$banned_mark" "$JAVA_ROOT/org/telegram"; then
         die "P124: след отменённой функции остался: $banned_mark"
     fi
@@ -2993,14 +2993,16 @@ has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SE
 ok "P125 r116: поиск «только глобальный» и «чистый» по типам, фильтр по словам в ленте и поиске, перемотка аудио не вылетает, стикеры/премиум-эмодзи не грузятся ниоткуда"
 
 # =============================================================================
-# P126. r117 — стикеры исчезают даже если были скачаны раньше (кэш стикерных
-#      файлов удаляется в момент срабатывания гейта), политика нулевого
-#      трафика принудительно возвращается разовым сидом; «Звонки через прокси»
-#      и «Снять запреты защищённого контента» убраны из настроек; диалог
-#      фильтра слов — в стиле Sakura (без белых системных окон).
+# P126. r117/r119 — стикеры/премиум-эмодзи не скачиваются (гейт до сети, ноль
+#      трафика), политика нулевого трафика принудительно возвращается разовым
+#      сидом; кэш НЕ чистится сам никогда (самоочистка стикеров убрана по
+#      просьбе пользователя — r119); «Звонки через прокси» и «Снять запреты
+#      защищённого контента» убраны из настроек; диалог фильтра слов — в
+#      стиле Sakura (без белых системных окон).
 # =============================================================================
-has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_STICKER_PURGE_R117" || die "P126: самоочистка кэша стикеров не встала в FileLoader"
-has "$KAMI_PKG/KamiGramNetFilter.java" "purgeCached" || die "P126: purgeCached не добавлен в фильтр"
+if grep -q "KAMIGRAM_STICKER_PURGE_R117\|purgeCached" "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "$KAMI_PKG/KamiGramNetFilter.java"; then
+    die "P126: самоочистка кэша стикеров должна быть убрана (кэш не чистится сам никогда)"
+fi
 has "$KAMI_PKG/KamiGramFirstRun.java" "stickers_redefaulted_r117" || die "P126: разовый возврат нулевой политики стикеров не добавлен"
 if grep -q "Звонки через прокси\|KEY_CALLS_VIA_PROXY" "$KAMI_PKG/KamiGramCenter.java" "$KAMI_PKG/KamiGramConfig.java"; then
     die "P126: «Звонки через прокси» должны быть полностью убраны"
@@ -3010,7 +3012,7 @@ if grep -q "Снять запреты защищённого контента" "
 fi
 [ ! -f "$KAMI_PKG/KamiGramCallProxy.java" ] || die "P126: KamiGramCallProxy не должен копироваться в дерево"
 has "$KAMI_PKG/KamiGramCenter.java" "rounded(ThemeHook.accent(), 16)" || die "P126: диалог фильтра слов не в стиле Sakura"
-ok "P126 r117: кэш стикеров самоочищается, политика нулевого трафика возвращается, «Звонки через прокси» и «Снять запреты» убраны, диалог слов в стиле Sakura"
+ok "P126 r119: стикеры/эмодзи блокируются до сети без всякой самоочистки кэша, политика нулевого трафика возвращается разовым сидом, «Звонки через прокси» и «Снять запреты» убраны, диалог слов в стиле Sakura"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
