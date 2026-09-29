@@ -3230,3 +3230,5 @@ PYSYM
 else
     skip "P110 r95 отключено (ZERO_TRAFFIC=0)"
 fi
+
+# r121-rebuild: повторная сборка после сетевого сбоя раннера (Connection reset в Gradle).
