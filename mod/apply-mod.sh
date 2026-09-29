@@ -3115,6 +3115,45 @@ has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_BUILTIN_ALWAYS_ON_R120" || d
 has "$KAMI_PKG/KamiGramIntroText.java" "KAMIGRAM_INTRO_TEXT_R120" || die "P127: класс текстов интро не скопирован"
 ok "P127 r120: интро — наша иконка на весь круг без синего кольца, заголовки и кнопка в стиле Sakura; встроенные прокси включены до входа; диалог ошибки входа убран"
 
+# =============================================================================
+# P128. r121 — глобальный поиск БЕЗ ограничений: родной Telegram показывает
+#      в глобальной секции только 3 результата и кнопку «Показать ещё»
+#      (globalSearchCollapsed), а между ними вставляет sponsored-рекомендации.
+#      Убираем сворачивание полностью (все найденные глобально видны сразу)
+#      и выключаем sponsored-запрос в поиске. Лимиты запросов уже подняты
+#      (KAMIGRAM_SEARCH_NO_LIMITS_R101), поиск стартует с 1 символа.
+# =============================================================================
+python3 - "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" <<'PY' || die "P128: не удалось снять ограничения глобального поиска"
+import io, sys
+
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+
+# 1) никакого сворачивания глобальной секции до 3 результатов
+old_assign = "globalSearchCollapsed = true;"
+count = src.count(old_assign)
+if count < 5:
+    sys.stderr.write('P128: ожидалось минимум 5 присваиваний globalSearchCollapsed, найдено %d\n' % count)
+    sys.exit(1)
+src = src.replace(old_assign, "globalSearchCollapsed = false; /* KAMIGRAM_GLOBAL_NO_COLLAPSE_R121 */")
+
+# 2) sponsored-рекомендации в поиске не запрашиваются никогда
+old_sponsored = "            if (query == null || query.length() < 4 || UserConfig.getInstance(currentAccount).isPremium() && MessagesController.getInstance(currentAccount).isSponsoredDisabled()) {\n"
+new_sponsored = "            if (true) { /* KAMIGRAM_NO_SPONSORED_SEARCH_R121: sponsored peers never requested in search */\n"
+if old_sponsored not in src:
+    sys.stderr.write('P128: не найден гейт sponsored-запроса\n')
+    sys.exit(1)
+src = src.replace(old_sponsored, new_sponsored, 1)
+
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
+if grep -q "globalSearchCollapsed = true" "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java"; then
+    die "P128: глобальный поиск всё ещё сворачивается до 3 результатов"
+fi
+has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_GLOBAL_NO_COLLAPSE_R121" || die "P128: маркер раскрытия глобалки не встал"
+has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_NO_SPONSORED_SEARCH_R121" || die "P128: sponsored-запрос в поиске не выключен"
+ok "P128 r121: глобальный поиск без ограничений — все глобальные результаты видны сразу (без сворачивания до 3 и «Показать ещё»), sponsored в поиске выключен"
+
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
 #      P100-патчи вставляли вызовы классов Sakura, а сами классы в дерево не
