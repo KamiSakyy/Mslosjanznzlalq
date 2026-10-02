@@ -1515,6 +1515,9 @@ if mark not in src:
         '                FileLog.d("Sakura: файл не скачивается (экономия трафика) " + document);\n'
         '            }\n'
         '            return;\n'
+        '        }\n'
+        '        if (org.telegram.messenger.kamigram.KamiGramTextOnly.blocks(document, secureDocument, webDocument, location, imageLocation)) { /* KAMIGRAM_TEXT_ONLY_GATE_R123 */\n'
+        '            return;\n'
         '        }\n')
     src = src.replace(anchor, guard, 1)
     io.open(path, 'w', encoding='utf-8').write(src)
@@ -3153,6 +3156,66 @@ fi
 has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_GLOBAL_NO_COLLAPSE_R121" || die "P128: маркер раскрытия глобалки не встал"
 has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_NO_SPONSORED_SEARCH_R121" || die "P128: sponsored-запрос в поиске не выключен"
 ok "P128 r121: глобальный поиск без ограничений — все глобальные результаты видны сразу (без сворачивания до 3 и «Показать ещё»), sponsored в поиске выключен"
+
+# =============================================================================
+# P129. r123 — режим «ТОЛЬКО ТЕКСТ» в настройках Sakura: пока включён, ни
+#      одно медиа не грузится (ноль трафика, только текст); нажатие на
+#      фото/видео разрешает именно этот файл (отметки ставятся на входах
+#      PhotoViewer). Гейт — в общей воронке FileLoader (P27). Плюс новые
+#      встроенные прокси из списка пользователя (KAMIGRAM_PROXY_CATALOG_R123).
+# =============================================================================
+python3 - "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" <<'PY' || die "P129: не удалось поставить отметки нажатий в PhotoViewer"
+import io, sys
+
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+MARK = 'KAMIGRAM_TEXT_ONLY_TAP_R123'
+T = 'org.telegram.messenger.kamigram.KamiGramTextOnly.'
+
+hooks = [
+    ("    public boolean openPhoto(final MessageObject messageObject, ChatActivity chatActivity, long dialogId, long mergeDialogId, long topicId, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowMessage(messageObject); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhoto(final MessageObject messageObject, int embedSeekTime, ChatActivity chatActivity, long dialogId, long mergeDialogId, long topicId, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowMessage(messageObject); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhoto(final MessageObject messageObject, long dialogId, long mergeDialogId, long topicId, final PhotoViewerProvider provider, boolean fullScreenVideo) {\n",
+     '        ' + T + 'allowMessage(messageObject); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhoto(final TLRPC.FileLocation fileLocation, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowLocation(fileLocation); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhotoWithVideo(final TLRPC.FileLocation fileLocation, ImageLocation videoLocation, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowLocation(fileLocation); /* ' + MARK + ' */\n'
+     + '        ' + T + 'allowImageLocation(videoLocation); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhotoWithVideo(final TLRPC.FileLocation fileLocation, ImageLocation imageLocation, ImageLocation videoLocation, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowLocation(fileLocation); /* ' + MARK + ' */\n'
+     + '        ' + T + 'allowImageLocation(imageLocation); /* ' + MARK + ' */\n'
+     + '        ' + T + 'allowImageLocation(videoLocation); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhoto(final TLRPC.FileLocation fileLocation, final ImageLocation imageLocation, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowLocation(fileLocation); /* ' + MARK + ' */\n'
+     + '        ' + T + 'allowImageLocation(imageLocation); /* ' + MARK + ' */\n'),
+    ("    public boolean openPhoto(final ArrayList<MessageObject> messages, final int index, long dialogId, long mergeDialogId, long topicId, final PhotoViewerProvider provider) {\n",
+     '        ' + T + 'allowMessages(messages); /* ' + MARK + ' */\n'),
+]
+
+missing = []
+for anchor, insert in hooks:
+    if anchor not in src:
+        missing.append(anchor.strip()[:60])
+        continue
+    src = src.replace(anchor, anchor + insert, 1)
+
+if missing:
+    sys.stderr.write('P129: не найдены входы PhotoViewer: %s\n' % '; '.join(missing))
+    sys.exit(1)
+
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
+has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_TEXT_ONLY_GATE_R123" || die "P129: гейт «только текст» не встал в воронку FileLoader"
+has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_TEXT_ONLY_TAP_R123" || die "P129: отметки нажатий не встали в PhotoViewer"
+has "$KAMI_PKG/KamiGramTextOnly.java" "KAMIGRAM_TEXT_ONLY_GATE_R123" || die "P129: класс режима «только текст» не скопирован"
+grep -q "KEY_TEXT_ONLY" "$KAMI_PKG/KamiGramCenter.java" || die "P129: тумблер «только текст» отсутствует в Центре"
+for srv in matrixxx.top p.lite64.top p.lite64.click p.lite64.xyz; do
+    grep -q "server=$srv&" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P129: новый прокси $srv не добавлен в каталог"
+done
+ok "P129 r123: режим «только текст» (ноль трафика, медиа только по нажатию) в Центре и в воронке загрузки; новые прокси matrixxx/lite64×3 в каталоге SakuProxy"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

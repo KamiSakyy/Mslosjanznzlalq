@@ -209,6 +209,7 @@ public final class KamiGramCenter {
                переключатель означал «загружать» — отсюда лишний трафик. */
             Row.toggle("Не грузить стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
             Row.toggle("Не грузить премиум-эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
+            Row.toggle("Режим «только текст»", KamiGramConfig.KEY_TEXT_ONLY, onChanged),
             Row.toggle("Витрина Premium и подарки", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
             Row.toggle("GIF и анимации", KamiGramConfig.KEY_NO_GIFS, onChanged),
             Row.toggle("Превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged),
