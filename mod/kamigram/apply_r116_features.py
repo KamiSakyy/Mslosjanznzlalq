@@ -226,8 +226,10 @@ def main():
     patch_once(MUSIC, MUSIC_ANCHOR, MUSIC_REPLACE, MUSIC_MARK, "MusicPlayerService.onSeekTo")
     patch_once(CHAT, LOADED_ANCHOR, LOADED_REPLACE, "KAMIGRAM_WORD_FILTER_LOADED_R116", "messagesDidLoad: фильтр слов")
     patch_once(CHAT, NEWMSG_ANCHOR, NEWMSG_REPLACE, "KAMIGRAM_WORD_FILTER_NEW_R116", "processNewMessages: фильтр слов")
-    patch_once(DSA, LOCAL_ANCHOR, LOCAL_REPLACE, "KAMIGRAM_SEARCH_FILTER_LOCAL_R116", "updateSearchResults: фильтры поиска")
-    patch_once(DSA, GLOBAL_ANCHOR, GLOBAL_REPLACE, "KAMIGRAM_SEARCH_FILTER_GLOBAL_R116", "onDataSetChanged: фильтры поиска")
+    # r125: поиск возвращён к оригинальному Telegram — хуки фильтров выдачи
+    # (KAMIGRAM_SEARCH_FILTER_LOCAL_R116 / KAMIGRAM_SEARCH_FILTER_GLOBAL_R116)
+    # больше не применяются: глобальный поиск показывает всё, как в оригинале,
+    # включая ботов; категории и «только глобальный» убраны по просьбе пользователя.
 
     # ---- итоговые проверки
     src = read(MEDIAC)
@@ -238,10 +240,6 @@ def main():
     if src.count("KAMIGRAM_WORD_FILTER_LOADED_R116") != 1 \
         or src.count("KAMIGRAM_WORD_FILTER_NEW_R116") != 1:
         die("ChatActivity: метки фильтра слов не на месте")
-    src = read(DSA)
-    if src.count("KAMIGRAM_SEARCH_FILTER_LOCAL_R116") != 1 \
-        or src.count("KAMIGRAM_SEARCH_FILTER_GLOBAL_R116") != 1:
-        die("DialogsSearchAdapter: метки фильтров поиска не на месте")
     print("r116: все патчи применены")
 
 

@@ -272,17 +272,9 @@ public final class KamiGramCenter {
             Row.action("Разработчик Sakura", () -> KamiGramBranding.openChannelInApp(context)),
             Row.action("Загрузки", () -> openDownloads(context))
         });
-        /* r116: глобальный поиск — «только глобальный» и «чистый поиск»
-           по категориям (люди / группы / боты / каналы). */
-        card(root, context, new Row[]{
-            Row.toggle("Поиск: только глобальный", KamiGramConfig.KEY_SEARCH_GLOBAL_ONLY, onChanged),
-            Row.toggle("Искать людей", KamiGramConfig.KEY_SEARCH_PEOPLE, onChanged),
-            Row.toggle("Искать группы", KamiGramConfig.KEY_SEARCH_GROUPS, onChanged),
-            Row.toggle("Искать ботов", KamiGramConfig.KEY_SEARCH_BOTS, onChanged),
-            Row.toggle("Искать каналы", KamiGramConfig.KEY_SEARCH_CHANNELS, onChanged)
-        });
-        /* r116: фильтр по словам — посты/чаты/боты/каналы со словом-
-           исключением исчезают из ленты и поиска. */
+        /* r125: карточка тумблеров поиска убрана — поиск работает ровно как
+           в оригинальном Telegram (глобальный со всеми категориями, включая
+           ботов), без наших фильтров выдачи. */
         card(root, context, new Row[]{
             Row.action("Фильтр по словам" + wordsSuffix(), () -> editWords(context))
         });

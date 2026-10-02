@@ -2983,14 +2983,19 @@ has "$KAMI_PKG/KamiGramSearchFilter.java" "KAMIGRAM_SEARCH_FILTER_R116" || die "
 has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_STICKER_DOC_DENY_R116" || die "P125: стикеры/премиум-эмодзи обходят фильтр загрузки"
 has "$KAMI_PKG/KamiGramConfig.java" "KEY_SEARCH_GLOBAL_ONLY" || die "P125: настройка «только глобальный поиск» не добавлена"
 has "$KAMI_PKG/KamiGramConfig.java" "getStringValue" || die "P125: строковые настройки фильтра слов не добавлены"
-has "$KAMI_PKG/KamiGramCenter.java" "Поиск: только глобальный" || die "P125: тумблеры поиска не в центре"
+if grep -q "Поиск: только глобальный\|Искать ботов\|Искать каналы\|Искать группы\|Искать людей" "$KAMI_PKG/KamiGramCenter.java"; then
+    die "P125: r125 — тумблеры поиска должны быть убраны из центра (поиск как в оригинальном Telegram)"
+fi
 has "$KAMI_PKG/KamiGramCenter.java" "Фильтр по словам" || die "P125: фильтр по словам не в центре"
 has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KAMIGRAM_AUDIO_SEEK_SAFE_R116" || die "P125: защита перемотки не встала"
 has "$JAVA_ROOT/org/telegram/messenger/MusicPlayerService.java" "KAMIGRAM_MUSIC_SEEK_SAFE_R116" || die "P125: защита системной перемотки не встала"
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_LOADED_R116" || die "P125: фильтр слов не встал на загрузку истории"
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_NEW_R116" || die "P125: фильтр слов не встал на новые сообщения"
-has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_LOCAL_R116" || die "P125: фильтр поиска не встал на локальную выдачу"
-has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_GLOBAL_R116" || die "P125: фильтр поиска не встал на серверную выдачу"
+# r125: поиск возвращён к оригинальному Telegram — хуков фильтров выдачи
+# в DialogsSearchAdapter быть не должно (боты и все категории видны).
+if grep -q "KAMIGRAM_SEARCH_FILTER_LOCAL_R116\|KAMIGRAM_SEARCH_FILTER_GLOBAL_R116" "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java"; then
+    die "P125: r125 — фильтры выдачи не должны стоять в DialogsSearchAdapter (поиск как в оригинале)"
+fi
 ok "P125 r116: поиск «только глобальный» и «чистый» по типам, фильтр по словам в ленте и поиске, перемотка аудио не вылетает, стикеры/премиум-эмодзи не грузятся ниоткуда"
 
 # =============================================================================

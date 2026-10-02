@@ -31,24 +31,14 @@ public final class KamiGramSearchFilter {
     }
 
     public static boolean globalOnly() {
-        try {
-            return KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_GLOBAL_ONLY);
-        } catch (Throwable ignore) {
-            return false;
-        }
+        /* r125: поиск возвращён к оригинальному Telegram — режим «только
+           глобальный» больше не существует. */
+        return false;
     }
 
     /** Фильтрует глобальный и «свой серверный» списки помощника на месте. */
     public static void applyTo(SearchAdapterHelper helper) {
-        try {
-            if (helper == null) {
-                return;
-            }
-            filterList(helper.getGlobalSearch(), false);
-            filterList(helper.getLocalServerSearch(), true);
-        } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
-        }
+        /* r125: no-op — серверная выдача не фильтруется (оригинальное поведение). */
     }
 
     private static void filterList(ArrayList<TLObject> list, boolean ownResults) {
@@ -69,6 +59,10 @@ public final class KamiGramSearchFilter {
 
     /** Проходит ли элемент поиска через категории и фильтр слов. */
     public static boolean allow(Object item, CharSequence name) {
+        /* r125: поиск как в оригинале — ничего не отбрасываем (боты, люди,
+           группы и каналы видимы все). */
+        return true;
+    }
         try {
             if (item == null) {
                 return false;
