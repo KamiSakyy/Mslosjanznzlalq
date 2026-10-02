@@ -2,6 +2,8 @@ package org.telegram.messenger.kamigram;
 
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.SecureDocument;
+import org.telegram.messenger.WebFile;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.Collections;
@@ -44,8 +46,8 @@ public final class KamiGramTextOnly {
 
     /**True — загрузку этого медиа-запроса нужно отменить до выхода в сеть.*/
     public static boolean blocks(TLRPC.Document document,
-                                 TLRPC.SecureDocument secureDocument,
-                                 TLRPC.WebFile webDocument,
+                                 SecureDocument secureDocument,
+                                 WebFile webDocument,
                                  TLRPC.TL_fileLocationToBeDeprecated location,
                                  ImageLocation imageLocation) {
         if (!enabled()) {
@@ -199,7 +201,7 @@ public final class KamiGramTextOnly {
         return "l" + location.volume_id + "_" + location.local_id;
     }
 
-    private static String webKey(TLRPC.WebFile webFile) {
+    private static String webKey(WebFile webFile) {
         return "w" + webFile.url + "_" + webFile.size;
     }
 
