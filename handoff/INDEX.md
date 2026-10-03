@@ -70,6 +70,7 @@
 | `apk/Sakura-12.10.3-r122.apk` | 36M | `7042de6e2074dd87...` |
 | `apk/Sakura-12.10.3-r124.apk` | 36M | `fcf2d4d5a297f5a7...` |
 | `apk/Sakura-12.10.3-r126.apk` | 36M | `b4187668b138bca6...` |
+| `apk/Sakura-12.10.3-r129.apk` | 36M | `31e9c9db25f8a522...` |
 | `apk/Sakura-KamiGram-12.10.3-mod-r94.apk` | 35M | `b69e72d124d5fa9f...` |
 | `apk/SakuraLine-12.10.3-r118.apk` | 36M | `3d68569e3a564e40...` |
 | `apk/SakuraLine-12.10.3-r119.apk` | 36M | `b035bf6f0d4175d8...` |
@@ -148,6 +149,7 @@
 | `sources/MOD_INFO-12.10.3-r122.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-r124.txt` | 12K |
 | `sources/MOD_INFO-12.10.3-r126.txt` | 12K |
+| `sources/MOD_INFO-12.10.3-r129.txt` | 12K |
 | `sources/MOD_INFO-KamiGram-12.10.3-mod-r94.txt` | 12K |
 | `sources/changes-12.10.3-mod-r100.patch.gz` | 3.7M |
 | `sources/changes-12.10.3-mod-r100.stat.txt` | 0 |
@@ -273,6 +275,8 @@
 | `sources/changes-12.10.3-r124.stat.txt` | 0 |
 | `sources/changes-12.10.3-r126.patch.gz` | 3.8M |
 | `sources/changes-12.10.3-r126.stat.txt` | 0 |
+| `sources/changes-12.10.3-r129.patch.gz` | 3.8M |
+| `sources/changes-12.10.3-r129.stat.txt` | 0 |
 | `sources/changes-KamiGram-12.10.3-mod-r94.patch.gz` | 1.4M |
 | `sources/changes-KamiGram-12.10.3-mod-r94.stat.txt` | 0 |
 | `sources/kamigram-mod-src-12.10.3-mod-r100.zip` | 3.8M |
@@ -321,5 +325,6 @@
 | `sources/kamigram-mod-src-12.10.3-r122.zip` | 3.9M |
 | `sources/kamigram-mod-src-12.10.3-r124.zip` | 3.9M |
 | `sources/kamigram-mod-src-12.10.3-r126.zip` | 3.9M |
+| `sources/kamigram-mod-src-12.10.3-r129.zip` | 3.9M |
 
-Обновлено: 2026-10-02 22:18 UTC
+Обновлено: 2026-10-03 07:43 UTC
