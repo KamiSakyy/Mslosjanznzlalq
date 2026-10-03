@@ -114,6 +114,10 @@ public final class KamiGramConfig {
     public static final String KEY_ALLOW_BLUR = "kamigram_allow_blur";
     /** Отправка сообщения по Enter. */
     public static final String KEY_ENTER_TO_SEND = "kamigram_enter_to_send";
+    /* r128: автоплей медиа — тумблеры Sakura пишут в родные настройки
+       Telegram (autoplay_video / autoplay_gif), эффект штатный. */
+    public static final String KEY_AUTOPLAY_VIDEO = "kamigram_autoplay_video";
+    public static final String KEY_AUTOPLAY_GIFS = "kamigram_autoplay_gifs";
     /** Тихая отправка (без звука). */
     public static final String KEY_SILENT_SEND = "kamigram_silent_send";
 
@@ -307,6 +311,7 @@ public final class KamiGramConfig {
             || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
             || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
             || KEY_TEXT_ONLY.equals(key) || KEY_SEARCH_GLOBAL_ONLY.equals(key)
+            || KEY_AUTOPLAY_VIDEO.equals(key) || KEY_AUTOPLAY_GIFS.equals(key)
             || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
             || KEY_NO_PREMIUM_UI.equals(key)
             || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
@@ -340,6 +345,10 @@ public final class KamiGramConfig {
         try {
             if (KEY_BUILTIN_PROXY.equals(key)) {
                 KamiGramBuiltinProxy.onEnabledChanged(value);
+            } else if (KEY_AUTOPLAY_VIDEO.equals(key)) {
+                MessagesController.getGlobalMainSettings().edit().putBoolean("autoplay_video", value).apply();
+            } else if (KEY_AUTOPLAY_GIFS.equals(key)) {
+                MessagesController.getGlobalMainSettings().edit().putBoolean("autoplay_gif", value).apply();
             }
         } catch (Throwable ignore) {
         }

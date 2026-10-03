@@ -31,14 +31,26 @@ public final class KamiGramSearchFilter {
     }
 
     public static boolean globalOnly() {
-        /* r125: поиск возвращён к оригинальному Telegram — режим «только
-           глобальный» больше не существует. */
-        return false;
+        /* r128: опция восстановлена по просьбе пользователя; по умолчанию
+           выключена — выдача как в оригинальном Telegram. */
+        try {
+            return KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_GLOBAL_ONLY);
+        } catch (Throwable ignore) {
+            return false;
+        }
     }
 
     /** Фильтрует глобальный и «свой серверный» списки помощника на месте. */
     public static void applyTo(SearchAdapterHelper helper) {
-        /* r125: no-op — серверная выдача не фильтруется (оригинальное поведение). */
+        try {
+            if (helper == null) {
+                return;
+            }
+            filterList(helper.getGlobalSearch(), false);
+            filterList(helper.getLocalServerSearch(), true);
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
     }
 
     private static void filterList(ArrayList<TLObject> list, boolean ownResults) {
@@ -59,8 +71,58 @@ public final class KamiGramSearchFilter {
 
     /** Проходит ли элемент поиска через категории и фильтр слов. */
     public static boolean allow(Object item, CharSequence name) {
-        /* r125: поиск как в оригинале — ничего не отбрасываем (боты, люди,
-           группы и каналы видимы все). */
+        try {
+            if (item == null) {
+                return false;
+            }
+            if (item instanceof TLRPC.User) {
+                final TLRPC.User user = (TLRPC.User) item;
+                if (user.bot) {
+                    if (!KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_BOTS)) {
+                        return false;
+                    }
+                } else if (!KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_PEOPLE)) {
+                    return false;
+                }
+                return !KamiGramWordFilter.matches(user.first_name, user.last_name,
+                    user.username, name);
+            }
+            if (item instanceof TLRPC.Chat) {
+                final TLRPC.Chat chat = (TLRPC.Chat) item;
+                final boolean channel = ChatObject.isChannel(chat) && !chat.megagroup;
+                if (channel) {
+                    if (!KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_CHANNELS)) {
+                        return false;
+                    }
+                } else if (!KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_GROUPS)) {
+                    return false;
+                }
+                return !KamiGramWordFilter.matches(chat.title, name);
+            }
+            if (item instanceof TLRPC.EncryptedChat) {
+                return KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_PEOPLE);
+            }
+            if (item instanceof TLRPC.Dialog) {
+                final long dialogId = ((TLRPC.Dialog) item).id;
+                final MessagesController controller =
+                    MessagesController.getInstance(UserConfig.selectedAccount);
+                if (DialogObject.isEncryptedDialog(dialogId)) {
+                    return KamiGramConfig.value(KamiGramConfig.KEY_SEARCH_PEOPLE);
+                }
+                if (dialogId > 0) {
+                    final TLRPC.User user = controller.getUser(dialogId);
+                    return user == null || allow(user, name);
+                }
+                final TLRPC.Chat chat = controller.getChat(-dialogId);
+                return chat == null || allow(chat, name);
+            }
+            if (name != null) {
+                return !KamiGramWordFilter.matches(name);
+            }
+            return true;
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
         return true;
     }
 }

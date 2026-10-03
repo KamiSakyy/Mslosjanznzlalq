@@ -2983,19 +2983,14 @@ has "$KAMI_PKG/KamiGramSearchFilter.java" "KAMIGRAM_SEARCH_FILTER_R116" || die "
 has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_STICKER_DOC_DENY_R116" || die "P125: стикеры/премиум-эмодзи обходят фильтр загрузки"
 has "$KAMI_PKG/KamiGramConfig.java" "KEY_SEARCH_GLOBAL_ONLY" || die "P125: настройка «только глобальный поиск» не добавлена"
 has "$KAMI_PKG/KamiGramConfig.java" "getStringValue" || die "P125: строковые настройки фильтра слов не добавлены"
-if grep -q "Поиск: только глобальный\|Искать ботов\|Искать каналы\|Искать группы\|Искать людей" "$KAMI_PKG/KamiGramCenter.java"; then
-    die "P125: r125 — тумблеры поиска должны быть убраны из центра (поиск как в оригинальном Telegram)"
-fi
+has "$KAMI_PKG/KamiGramCenter.java" "Поиск: только глобальный" || die "P125: тумблеры поиска не в центре"
 has "$KAMI_PKG/KamiGramCenter.java" "Фильтр по словам" || die "P125: фильтр по словам не в центре"
 has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KAMIGRAM_AUDIO_SEEK_SAFE_R116" || die "P125: защита перемотки не встала"
 has "$JAVA_ROOT/org/telegram/messenger/MusicPlayerService.java" "KAMIGRAM_MUSIC_SEEK_SAFE_R116" || die "P125: защита системной перемотки не встала"
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_LOADED_R116" || die "P125: фильтр слов не встал на загрузку истории"
 has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_WORD_FILTER_NEW_R116" || die "P125: фильтр слов не встал на новые сообщения"
-# r125: поиск возвращён к оригинальному Telegram — хуков фильтров выдачи
-# в DialogsSearchAdapter быть не должно (боты и все категории видны).
-if grep -q "KAMIGRAM_SEARCH_FILTER_LOCAL_R116\|KAMIGRAM_SEARCH_FILTER_GLOBAL_R116" "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java"; then
-    die "P125: r125 — фильтры выдачи не должны стоять в DialogsSearchAdapter (поиск как в оригинале)"
-fi
+has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_LOCAL_R116" || die "P125: фильтр поиска не встал на локальную выдачу"
+has "$JAVA_ROOT/org/telegram/ui/Adapters/DialogsSearchAdapter.java" "KAMIGRAM_SEARCH_FILTER_GLOBAL_R116" || die "P125: фильтр поиска не встал на серверную выдачу"
 ok "P125 r116: поиск «только глобальный» и «чистый» по типам, фильтр по словам в ленте и поиске, перемотка аудио не вылетает, стикеры/премиум-эмодзи не грузятся ниоткуда"
 
 # =============================================================================
@@ -3221,6 +3216,22 @@ for srv in matrixxx.top p.lite64.top p.lite64.click p.lite64.xyz; do
     grep -q "server=$srv&" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P129: новый прокси $srv не добавлен в каталог"
 done
 ok "P129 r123: режим «только текст» (ноль трафика, медиа только по нажатию) в Центре и в воронке загрузки; новые прокси matrixxx/lite64×3 в каталоге SakuProxy"
+
+# =============================================================================
+# P130. r128 — большой пакет: тумблеры поиска снова в Центре (опции, по
+#       умолчанию всё включено = выдача как в оригинале с ботами); новые
+#       секции Центра (день/ночь, приватность, уведомления, язык — навигация
+#       в родные экраны Telegram); тумблеры автоплея видео/GIF пишут в родные
+#       настройки Telegram и по умолчанию выключены (разовый сид r128).
+# =============================================================================
+has "$KAMI_PKG/KamiGramCenter.java" "Искать ботов" || die "P130: тумблеры категорий поиска не восстановлены"
+has "$KAMI_PKG/KamiGramCenter.java" "Автоплей видео" || die "P130: секция автоплея не добавлена"
+has "$KAMI_PKG/KamiGramCenter.java" "Приватность и безопасность" || die "P130: навигация в родные настройки не добавлена"
+has "$KAMI_PKG/KamiGramCenter.java" "openNative" || die "P130: помощник навигации openNative отсутствует"
+has "$KAMI_PKG/KamiGramConfig.java" "KEY_AUTOPLAY_VIDEO" || die "P130: ключи автоплея не добавлены"
+has "$KAMI_PKG/KamiGramFirstRun.java" "KAMIGRAM_AUTOPLAY_OFF_R128" || die "P130: разовый сид автоплея не добавлен"
+has "$KAMI_PKG/KamiGramSearchFilter.java" "KEY_SEARCH_BOTS" || die "P130: фильтр поиска не восстановлен"
+ok "P130 r128: тумблеры поиска снова в Центре (опции, дефолт = оригинал с ботами); новые секции Центра и автоплей по умолчанию выключен"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

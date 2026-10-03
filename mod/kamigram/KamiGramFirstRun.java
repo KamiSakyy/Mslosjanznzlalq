@@ -69,6 +69,14 @@ public final class KamiGramFirstRun {
                     KamiGramConfig.set(KamiGramConfig.KEY_NO_ANIMATED_EMOJI, true);
                     preferences.edit().putInt("stickers_redefaulted_r117", 1).apply();
                 }
+                /* KAMIGRAM_AUTOPLAY_OFF_R128: разово выключаем автоплей видео
+                   и GIF (экономия трафика); пользователь может включить
+                   тумблерами в Центре в любой момент. */
+                if (preferences.getInt("autoplay_seeded_r128", 0) == 0) {
+                    KamiGramConfig.set(KamiGramConfig.KEY_AUTOPLAY_VIDEO, false);
+                    KamiGramConfig.set(KamiGramConfig.KEY_AUTOPLAY_GIFS, false);
+                    preferences.edit().putInt("autoplay_seeded_r128", 1).apply();
+                }
             }
             keepActiveAccount();
         } catch (Throwable throwable) {
