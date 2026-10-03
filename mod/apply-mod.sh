@@ -2018,7 +2018,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
     ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
 
-    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild KamiGramIntroText; do
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild KamiGramIntroText KamiGramWsProxy; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -3231,6 +3231,42 @@ if grep -q "KEY_AUTOPLAY_VIDEO\|KEY_AUTOPLAY_GIFS" "$KAMI_PKG/KamiGramConfig.jav
 fi
 has "$KAMI_PKG/KamiGramCenter.java" "Искать ботов" || die "P130: тумблеры глобального поиска должны остаться в Центре"
 ok "P130 r129: в Центре только возвращённые тумблеры глобального поиска (дефолт = оригинал с ботами), лишнее из r128 убрано"
+
+# =============================================================================
+# P131. r130 — локальный WS-прокси: фоновый сервис с уведомлением, локальный
+#       SOCKS5 на 127.0.0.1, WS-мост к штатным WS-точкам DC Telegram
+#       (aps{dc}.telegram.org/ws), при сбое моста — прозрачный прямой TCP.
+#       Тумблер «Локальный WS-прокси» в Центре = включение в один клик.
+#       Плюс r130: окно 90 с после тапа в режиме «только текст» — медиа по
+#       нажатию грузится на всех путях просмотрщика.
+# =============================================================================
+MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
+if ! grep -q "kamigram.KamiGramWsProxy" "$MANIFEST"; then
+    python3 - "$MANIFEST" <<'PY' || die "P131: не удалось вписать сервис локального прокси в манифест"
+import io, sys
+path = sys.argv[1]
+src = io.open(path, encoding='utf-8').read()
+service = ('        <service android:name="org.telegram.messenger.kamigram.KamiGramWsProxy"\n'
+           '            android:exported="false"\n'
+           '            android:foregroundServiceType="dataSync"/>\n')
+anchor = "    </application>\n"
+if anchor not in src:
+    sys.stderr.write('P131: не найден конец application в манифесте\n')
+    sys.exit(1)
+src = src.replace(anchor, service + anchor, 1)
+if 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' not in src:
+    perm = '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>\n'
+    app = src.index('<application')
+    src = src[:app] + perm + src[app:]
+io.open(path, 'w', encoding='utf-8').write(src)
+PY
+fi
+grep -q "kamigram.KamiGramWsProxy" "$MANIFEST" || die "P131: сервис локального прокси не в манифесте"
+has "$KAMI_PKG/KamiGramWsProxy.java" "KAMIGRAM_WS_PROXY_R130" || die "P131: класс локального прокси не скопирован"
+has "$KAMI_PKG/KamiGramCenter.java" "Локальный WS-прокси" || die "P131: тумблер локального прокси не в Центре"
+has "$KAMI_PKG/KamiGramConfig.java" "KEY_WS_PROXY" || die "P131: ключ локального прокси не добавлен"
+has "$KAMI_PKG/KamiGramTextOnly.java" "TAP_WINDOW_MS" || die "P131: окно загрузки по нажатию не добавлено"
+ok "P131 r130: локальный WS-прокси (сервис+SOCKS5+WS-мост к DC, фолбэк прямой TCP) с тумблером в один клик; медиа по тапу в «только текст» грузится"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

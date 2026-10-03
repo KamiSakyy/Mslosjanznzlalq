@@ -1,8 +1,11 @@
 package org.telegram.messenger.kamigram;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.SharedConfig;
 
 /**
  * Sakura: переключатели и настройки мода.
@@ -114,6 +117,8 @@ public final class KamiGramConfig {
     public static final String KEY_ALLOW_BLUR = "kamigram_allow_blur";
     /** Отправка сообщения по Enter. */
     public static final String KEY_ENTER_TO_SEND = "kamigram_enter_to_send";
+    /* r130: локальный WS-прокси (фоновый сервис + SOCKS5 + WS-мост к DC). */
+    public static final String KEY_WS_PROXY = "kamigram_ws_proxy";
     /** Тихая отправка (без звука). */
     public static final String KEY_SILENT_SEND = "kamigram_silent_send";
 
@@ -340,6 +345,22 @@ public final class KamiGramConfig {
         try {
             if (KEY_BUILTIN_PROXY.equals(key)) {
                 KamiGramBuiltinProxy.onEnabledChanged(value);
+            } else if (KEY_WS_PROXY.equals(key)) {
+                final Context context = ApplicationLoader.applicationContext;
+                if (value) {
+                    KamiGramWsProxy.ensureStarted(context);
+                    KamiGramProxyPower.addAndActivate(
+                        "https://t.me/socks?server=127.0.0.1&port=" + KamiGramWsProxy.BASE_PORT, context);
+                } else {
+                    KamiGramWsProxy.stop(context);
+                    try {
+                        final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
+                        if (current != null && "127.0.0.1".equals(current.host)) {
+                            onEnabledChanged(builtinProxy());
+                        }
+                    } catch (Throwable ignore2) {
+                    }
+                }
             }
         } catch (Throwable ignore) {
         }

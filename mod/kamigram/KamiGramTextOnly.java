@@ -28,6 +28,13 @@ public final class KamiGramTextOnly {
 
     private static final int MAX_ALLOWED = 4000;
 
+    /* r130: окно после нажатия. Любой медиа-запрос, стартовавший в течение
+       90 секунд после тапа по фото/видео, разрешён безусловно — так загрузка
+       по нажатию работает на всех путях просмотрщика, независимо от того,
+       какими объектами он запрашивает файлы. Между нажатиями трафик нулевой. */
+    private static final long TAP_WINDOW_MS = 90_000L;
+    private static volatile long lastTapTime;
+
     private static final Set<String> ALLOWED =
         Collections.synchronizedSet(new HashSet<String>());
 
@@ -42,6 +49,15 @@ public final class KamiGramTextOnly {
         }
     }
 
+    /** Отметка нажатия: открывает окно загрузки медиа по тапу. */
+    public static void noteTap() {
+        lastTapTime = android.os.SystemClock.elapsedRealtime();
+    }
+
+    private static boolean inTapWindow() {
+        return android.os.SystemClock.elapsedRealtime() - lastTapTime < TAP_WINDOW_MS;
+    }
+
     // ------------------------------------------------------------------ гейт
 
     /**True — загрузку этого медиа-запроса нужно отменить до выхода в сеть.*/
@@ -51,6 +67,9 @@ public final class KamiGramTextOnly {
                                  TLRPC.TL_fileLocationToBeDeprecated location,
                                  ImageLocation imageLocation) {
         if (!enabled()) {
+            return false;
+        }
+        if (inTapWindow()) {
             return false;
         }
         try {
@@ -90,6 +109,7 @@ public final class KamiGramTextOnly {
 
     /** Нажатие на сообщение с медиа: разрешаем всё медиа этого сообщения. */
     public static void allowMessage(MessageObject messageObject) {
+        noteTap();
         if (messageObject == null || messageObject.messageOwner == null) {
             return;
         }
@@ -133,12 +153,14 @@ public final class KamiGramTextOnly {
 
     /** Нажатие на отдельную точку изображения (аватар, обои, превью). */
     public static void allowLocation(TLRPC.FileLocation fileLocation) {
+        noteTap();
         if (fileLocation instanceof TLRPC.TL_fileLocationToBeDeprecated) {
             add(locKey((TLRPC.TL_fileLocationToBeDeprecated) fileLocation));
         }
     }
 
     public static void allowImageLocation(ImageLocation imageLocation) {
+        noteTap();
         if (imageLocation == null) {
             return;
         }
@@ -215,6 +237,9 @@ public final class KamiGramTextOnly {
     public static boolean blockImage(Object imageLocation) {
         if (!enabled() || !(imageLocation instanceof ImageLocation)) {
             return false; /* KAMIGRAM_MEDIA_POLICY_R78 */
+        }
+        if (inTapWindow()) {
+            return false;
         }
         final ImageLocation location = (ImageLocation) imageLocation;
         try {
