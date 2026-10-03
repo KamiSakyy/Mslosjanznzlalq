@@ -2940,7 +2940,7 @@ ok "P123 r114: миниатюры стикеров = 0 трафика, наст�
 #          (тумблер «Звонки через прокси» удалён, VoIPService девственный).
 python3 "$KAMIGRAM_SRC/apply_r115_fixes.py" "$TG_DIR" || die "P124: защита кэша не встала"
 N115=$(grep -c "KAMIGRAM_FILES_SURVIVE_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
-[ "$N115" -ge 5 ] || die "P124: защита медиафайлов встала не полностью (найдено $N115 маркеров)"
+[ "$N115" -ge 7 ] || die "P124: защита медиафайлов встала не полностью (найдено $N115 маркеров, r127 требует putMessages в survive-режиме)"
 N115T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
 [ "$N115T" -eq 3 ] || die "P124: закрыты не все 3 пути ttl-задач (найдено $N115T)"
 has "$KAMI_PKG/KamiGramAutoArchive.java" "addDialogToFolder" || die "P124: авто-архив не переведён в режим «только архивация»"
@@ -2965,7 +2965,7 @@ done
 # FLAG_SECURE для сгорающих/одноразовых снова оригинальный
 has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "FLAG_SECURE" || die "P124: SecretMediaViewer потерял FLAG_SECURE"
 has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "FLAG_SECURE" || die "P124: PhotoViewer потерял FLAG_SECURE"
-ok "P124 r115: кэш видео/фото/файлов/музыки не очищается сам, сгорающие/одноразовые как в оригинале (без скриншотов); r117: принудительный прокси звонков убран"
+ok "P124 r115+r127: кэш видео/фото/файлов/музыки не очищается сам (включая замену сообщений в putMessages при синхронизации), сгорающие/одноразовые как в оригинале (без скриншотов); r117: принудительный прокси звонков убран"
 
 # =============================================================================
 # P125. r116 — «ТОЛЬКО ГЛОБАЛЬНЫЙ ПОИСК» + «ЧИСТЫЙ ПОИСК» (люди/группы/боты/

@@ -161,6 +161,15 @@ def patch_storage():
         source,
         "    private ArrayList<Long> markMessagesAsDeletedInternal(long dialogId, ArrayList<Integer> messages, boolean deleteFiles, int mode, int threadMessageId) {\n",
     )
+    # r127: putMessages вызывается при каждом приходе сообщений с сервера и
+    # заменяет старые версии сообщений (addFilesToDelete(oldMessage, ...)) —
+    # без survive-режима кэш аудио/музыки/видео стирался «сам» при любой
+    # синхронизации/редактировании. Явные действия пользователя (deleteDialog,
+    # deleteUserChatHistory, emptyMessagesMedia) остаются оригинальными.
+    source = wrap_survive(
+        source,
+        "    public void putMessages(TLRPC.messages_Messages messages, long dialogId, int load_type, int max_id, boolean createDialog, int mode, long threadMessageId) {\n",
+    )
 
     # 4) задачи локального автоудаления (ttl_period) не создаются: именно они
     #    стирали музыку/видео/фото «сами» по таймеру каналов
