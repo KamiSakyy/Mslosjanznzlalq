@@ -68,6 +68,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
     public static void init() {
         INSTANCE.initInternal();
         KamiGramBuiltinProxy.ensureBuiltinsLoaded();
+        /* KAMIGRAM_WS_PROXY_RESTORE_R131: локальный прокси поднимается заново
+           при старте процесса, если тумблер включён. */
+        KamiGramWsProxy.restoreIfEnabled();
     }
 
     private void initInternal() {

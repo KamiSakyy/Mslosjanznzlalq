@@ -348,15 +348,17 @@ public final class KamiGramConfig {
             } else if (KEY_WS_PROXY.equals(key)) {
                 final Context context = ApplicationLoader.applicationContext;
                 if (value) {
+                    /* r131: маршрут активирует сам сервис — строго после
+                       успешного подъёма локального приёмника, чтобы включение
+                       тумблера не рвало текущую связь. */
                     KamiGramWsProxy.ensureStarted(context);
-                    KamiGramProxyPower.addAndActivate(
-                        "https://t.me/socks?server=127.0.0.1&port=" + KamiGramWsProxy.BASE_PORT, context);
                 } else {
                     KamiGramWsProxy.stop(context);
                     try {
                         final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
-                        if (current != null && "127.0.0.1".equals(current.host)) {
-                            onEnabledChanged(builtinProxy());
+                        if (current != null && current.settings != null
+                            && KamiGramWsProxy.BIND_IP.equals(current.settings.getAddress())) {
+                            KamiGramBuiltinProxy.onEnabledChanged(builtinProxy());
                         }
                     } catch (Throwable ignore2) {
                     }
