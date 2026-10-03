@@ -282,18 +282,6 @@ public final class KamiGramCenter {
             Row.toggle("Искать ботов", KamiGramConfig.KEY_SEARCH_BOTS, onChanged),
             Row.toggle("Искать каналы", KamiGramConfig.KEY_SEARCH_CHANNELS, onChanged)
         });
-        /* r128: быстрый вход в родные экраны Telegram и тема оформления. */
-        card(root, context, new Row[]{
-            Row.action("Тема: переключить день/ночь", () -> ThemeHook.toggleTelegramTheme(context)),
-            Row.action("Приватность и безопасность", () -> openNative(context, 1)),
-            Row.action("Уведомления и звуки", () -> openNative(context, 2)),
-            Row.action("Язык приложения", () -> openNative(context, 3))
-        });
-        /* r128: автоплей медиа — по умолчанию выключен (экономия трафика). */
-        card(root, context, new Row[]{
-            Row.toggle("Автоплей видео", KamiGramConfig.KEY_AUTOPLAY_VIDEO, onChanged),
-            Row.toggle("Автоплей GIF", KamiGramConfig.KEY_AUTOPLAY_GIFS, onChanged)
-        });
         /* r116: фильтр по словам — посты/чаты/боты/каналы со словом-
            исключением исчезают из ленты и поиска. */
         card(root, context, new Row[]{
@@ -521,29 +509,6 @@ public final class KamiGramCenter {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             }
             context.startActivity(intent);
-        } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
-        }
-    }
-
-    /**
-     * Родные экраны Telegram: 1 — приватность, 2 — уведомления, 3 — язык.
-     * Только навигация, никаких изменений поведения этих экранов.
-     */
-    public static void openNative(Context context, int screen) {
-        try {
-            final Activity activity = AndroidUtilities.findActivity(context);
-            if (!(activity instanceof LaunchActivity)) {
-                return;
-            }
-            final LaunchActivity launch = (LaunchActivity) activity;
-            if (screen == 1) {
-                launch.presentFragment(new org.telegram.ui.PrivacySettingsActivity());
-            } else if (screen == 2) {
-                launch.presentFragment(new org.telegram.ui.NotificationsSettingsActivity());
-            } else if (screen == 3) {
-                launch.presentFragment(new org.telegram.ui.LanguageSelectActivity());
-            }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
