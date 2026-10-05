@@ -112,11 +112,15 @@ public final class KamiGramBuiltinProxy {
             disableOurProxy();
             return;
         }
-        /* KAMIGRAM_BUILTIN_ALWAYS_ON_R120: встроенные прокси обязаны быть
-           включены ВСЕГДА, в том числе до входа в аккаунт (первый запуск,
-           экран входа): маршрут поднимается здесь безусловно, иначе без
-           сети вход падает с ошибкой соединения. Живой пользовательский
-           прокси route() не перехватывает. */
+        /* KAMIGRAM_BUILTIN_ALWAYS_ON_R120: каталог встроенных прокси
+           загружается до входа. r132: маршрутом по умолчанию является
+           локальный прокси; встроенные включаются, только если он не жив. */
+        if (KamiGramWsProxy.holdsPriority()) {
+            return;
+        }
+        if (!enabled()) {
+            return;
+        }
         try {
             route(context, true);
         } catch (Throwable throwable) {
@@ -323,8 +327,32 @@ public final class KamiGramBuiltinProxy {
      * жив. Резерв включается только при подтверждённом сбое или отсутствии
      * текущего прокси.
      */
+    /**
+     * Локальный прокси умер или выключен: встроенные становятся маршрутом.
+     * Тумблер SakuProxy включается, чтобы подпись совпадала с фактом.
+     */
+    public static void engageFallback(Context context) {
+        /* KAMIGRAM_LOCAL_PROXY_FALLBACK_R132 */
+        try {
+            if (KamiGramWsProxy.holdsPriority()) {
+                return;
+            }
+            if (!enabled()) {
+                setEnabled(true);
+                return;
+            }
+            ensureBuiltinsLoaded();
+            route(context, true);
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+    }
+
     public static void route(final Context context, final boolean first) {
         try {
+            if (KamiGramWsProxy.holdsPriority()) {
+                return;
+            }
             if (!enabled()) {
                 return;
             }

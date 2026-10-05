@@ -226,7 +226,10 @@ public final class KamiGramConfig {
     private static boolean applyToAllGlobal() {
         try {
             final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
-            return preferences == null || preferences.getBoolean(KEY_APPLY_ALL, true);
+            if (preferences == null) {
+                return false;
+            }
+            return preferences.getBoolean(KEY_APPLY_ALL, false);
         } catch (Throwable ignore) {
             return true;
         }
@@ -291,33 +294,24 @@ public final class KamiGramConfig {
     /** Значение по умолчанию для каждого ключа. */
     public static boolean defaultValue(String key) {
         /* KAMIGRAM_DEFAULT_MEDIA_POLICY_R101.
-           По умолчанию НЕ загружаются ровно три категории, названные
-           пользователем: стикеры, премиум-эмодзи и истории. Истории — свой
-           отдельный тумблер (KEY_NO_STORIES), он не связан со стикерами и
-           премиум-эмодзи.
-
-           Всё остальное грузится штатно, как в оригинале: фото, видео, кружочки,
-           голосовые, документы, аудио, аватары (включая видео- и
-           эмодзи-аватары), фотообои, GIF, поиск GIF, превью ссылок и
-           «часто используемые». */
+           По умолчанию НЕ загружаются стикеры, премиум-эмодзи и истории.
+           r132: из тумблеров по умолчанию включён только локальный прокси.
+           Категории поиска остаются включёнными — выдача как в оригинале. */
+        if (KEY_WS_PROXY.equals(key)) {
+            return true;
+        }
         if (KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
             || KEY_NO_STORIES.equals(key)) {
             return true;
         }
-        if (KEY_NO_GIFS.equals(key) || KEY_NO_GIF_SEARCH.equals(key)
-            || KEY_NO_LINK_PREVIEW.equals(key) || KEY_NO_TOP_PEERS.equals(key)) {
-            return false;
+        if (KEY_SEARCH_PEOPLE.equals(key) || KEY_SEARCH_GROUPS.equals(key)
+            || KEY_SEARCH_BOTS.equals(key) || KEY_SEARCH_CHANNELS.equals(key)) {
+            return true;
         }
-        if (KEY_KEEP_DOWNLOADS.equals(key) || KEY_NO_SCREENSHOTS.equals(key)
-            || KEY_HIDE_NOTIFICATION_TEXT.equals(key) || KEY_SILENT_SEND.equals(key)
-            || KEY_ENTER_TO_SEND.equals(key) || KEY_COMPACT_CHATS.equals(key)
-            || KEY_TEXT_ONLY.equals(key) || KEY_SEARCH_GLOBAL_ONLY.equals(key)
-            || KEY_GHOST.equals(key) || KEY_GHOST_SEND.equals(key)
-            || KEY_NO_PREMIUM_UI.equals(key)
-            || KEY_FORWARD_NO_NAME.equals(key)) { // пересылка без имени — по желанию
-            return false;
+        if (KEY_NO_RESTRICTIONS.equals(key) || KEY_NO_ADS.equals(key) || KEY_ADS_FILTER.equals(key)) {
+            return true;
         }
-        return true;
+        return false;
     }
 
     public static void set(String key, boolean value) {
@@ -348,21 +342,14 @@ public final class KamiGramConfig {
             } else if (KEY_WS_PROXY.equals(key)) {
                 final Context context = ApplicationLoader.applicationContext;
                 if (value) {
-                    /* r131: маршрут активирует сам сервис — строго после
-                       успешного подъёма локального приёмника, чтобы включение
-                       тумблера не рвало текущую связь. */
                     KamiGramWsProxy.ensureStarted(context);
                 } else {
                     KamiGramWsProxy.stop(context);
-                    try {
-                        final SharedConfig.ProxyInfo current = SharedConfig.currentProxy;
-                        if (current != null && current.settings != null
-                            && KamiGramWsProxy.BIND_IP.equals(current.settings.getAddress())) {
-                            KamiGramBuiltinProxy.onEnabledChanged(builtinProxy());
-                        }
-                    } catch (Throwable ignore2) {
-                    }
+                    KamiGramBuiltinProxy.engageFallback(context);
                 }
+            } else if (KEY_SMOOTH_ANIMATIONS.equals(key) || KEY_ALLOW_BLUR.equals(key)
+                || KEY_NO_GIFS.equals(key)) {
+                KamiGramOptimize.apply();
             }
         } catch (Throwable ignore) {
         }

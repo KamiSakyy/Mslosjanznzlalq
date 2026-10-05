@@ -1157,6 +1157,7 @@ def insert_after(path, anchor, block, marker, context_expr):
 resume_block = (
     '        /* ' + 'KAMIGRAM_SMART_PROXY' + ' */\n'
     '        try {\n'
+    '            org.telegram.messenger.kamigram.KamiGramWsProxy.restoreIfEnabled(); /* KAMIGRAM_LOCAL_PROXY_EARLY_R132 */\n'
     '            org.telegram.messenger.kamigram.KamiGramBuiltinProxy.init(__CTX__); /* KAMIGRAM_BUILTIN_EARLY_R120 */\n'
     '            org.telegram.messenger.kamigram.KamiGramProxyHelper.activateFromClipboard(__CTX__);\n'
     '            org.telegram.messenger.kamigram.KamiGramProxyHelper.watchProxy(__CTX__);\n'
@@ -2018,7 +2019,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     grep -q 'MAX_ACCOUNT_COUNT = 10;' "$UC" || die "P96: не удалось расширить лимит аккаунтов"
     ok "P96 АККАУНТЫ: лимит расширен с 4 до 10 (можно держать 10 аккаунтов)"
 
-    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild KamiGramIntroText KamiGramWsProxy; do
+    for f in KamiGramAds KamiGramVerified KamiGramTextOnly KamiGramUi KamiGramBuiltinProxy KamiGramDialog KamiGramFirstRun KamiGramSelfCheck KamiGramFont KamiGramOptimize KamiGramProxyStatus KamiGramBuild KamiGramIntroText KamiGramWsProxy KamiGramProxyCore KamiGramAudioGuard; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P96: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2166,7 +2167,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
     mkdir -p "$KAMI_PKG" "$RES_ROOT/drawable"
     # 1) весь актуальный код мода (r70: ChannelGuard / NetBoost; overlay удалён)
-    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramChatSearch KamiGramWordFilter KamiGramSearchFilter; do
+    for f in ThemeHook KamiGramCenter KamiGramCache KamiGramConfig KamiGramSettings KamiGramTweaks KamiGramTraffic KamiGramDeleted KamiGramNetFilter KamiGramGhost KamiGramSpeed KamiGramNetBoost KamiGramChannelGuard KamiGramAutoArchive KamiGramLog KamiGramVideoGestures KamiGramBulkSelector KamiGramWordFilter KamiGramSearchFilter; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P100: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -2635,13 +2636,9 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     FILE_LOADER="$JAVA_ROOT/org/telegram/messenger/FileLoader.java"
     CACHE_CENTER="$JAVA_ROOT/org/telegram/messenger/kamigram/KamiGramCenter.java"
     MESSAGES_STORAGE="$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java"
-    has "$AUTO_DELETE" "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" || die "P109: AutoDeleteMediaTask no-op marker отсутствует"
-    if grep -q 'KamiGramCache.keep' "$AUTO_DELETE"; then
-        die "P109: AutoDeleteMediaTask всё ещё зависит от галочки Sakura"
-    fi
-    if grep -q -E 'lastKeepMediaCheckTime|SharedPreferences.*cache_limit|Utilities\.clearDir' "$AUTO_DELETE"; then
-        die "P109: автоматическая очистка по сроку/лимиту/sticker cache осталась"
-    fi
+    ! grep -q "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" "$AUTO_DELETE" || die "P109: автоочистка кэша перехвачена"
+    ! grep -q "KAMIGRAM_KEEP_FOREVER" "$JAVA_ROOT/org/telegram/messenger/CacheByChatsController.java" || die "P109: срок хранения кэша подменён"
+    grep -q "lastKeepMediaCheckTime" "$AUTO_DELETE" || die "P109: штатная автоочистка Telegram отсутствует"
     if grep -q -E 'KAMIGRAM_PROTECT_DOWNLOAD|KAMIGRAM_PROTECT_TAG|KamiGramCache\.isProtected|KamiGramCache\.protectByName' "$FILE_LOADER"; then
         die "P109: protected-file filter блокирует штатную очистку FileLoader"
     fi
@@ -2652,7 +2649,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     if grep -q 'KAMIGRAM_CLEANUP_SAFE' "$MESSAGES_STORAGE"; then
         die "P109: custom MessagesStorage cleanup guard вмешивается в native lifecycle"
     fi
-    ok "P109 r94: media auto-cleanup полностью отключён независимо от настройки, temp/parts/resume не трогаются на startup, очистка оставлена штатному Telegram CacheControlActivity"
+    ok "P109 r132: кэш чистится только штатным Telegram, без no-op и без вечного хранения"
 else
     skip "P109 r94 отключено (ZERO_TRAFFIC=0)"
 fi
@@ -2732,7 +2729,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$SC" 'saveStreamMedia", true' || die "P113: стриминговое медиа не сохраняется"
     has "$SC" 'direct_share", true' || die "P113: шеринг снова без аватарок и превью"
     has "$SC" 'inappCamera", true' || die "P113: встроенная камера снова выключена"
-    has "$SC" 'keep_media", CacheByChatsController.KEEP_MEDIA_FOREVER' || die "P113: скачанное снова удаляется по сроку"
+    has "$SC" 'keep_media", CacheByChatsController.KEEP_MEDIA_ONE_MONTH' || die "P113: срок кэша отличается от оригинального Telegram"
     has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_STORIES_TOGGLE_R101" || die "P113: истории не отключаются отдельным тумблером"
     has "$KAMI_PKG/KamiGramNetFilter.java" "KAMIGRAM_AVATAR_SAFE_R101" || die "P113: фильтр может блокировать аватары и фотообои"
     has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_DEFAULT_MEDIA_POLICY_R101" || die "P113: дефолты медиа-политики не на месте"
@@ -2822,7 +2819,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_OVERLAY_POWER_R104" || die "P116: нет overlay-приоритета в PhotoViewer"
     has "$KAMI_PKG/KamiGramCenter.java" "overlayPromptShown" || die "P116: нет флага запроса overlay"
     has "$KAMI_PKG/KamiGramCenter.java" "openOverlaySettings" || die "P116: в центре нет пункта «Видео поверх приложений»"
-    has "$JAVA_ROOT/org/telegram/messenger/AutoDeleteMediaTask.java" "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" || die "P116: автоочистка кэша не отключена"
+    ! grep -q "KAMIGRAM_CACHE_NO_AUTO_CLEANUP_R94" "$JAVA_ROOT/org/telegram/messenger/AutoDeleteMediaTask.java" || die "P116: автоочистка кэша всё ещё перехвачена"
     ! grep -q "KAMIGRAM_CLEANUP_SAFE: чистка базы" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || die "P116: фейковый cleanup guard жив"
     ok "P116 r104: видео поверх приложений работает (overlay-приоритет + запрос разрешения + пункт в центре), кэш не сбрасывается сам и чистится только как в оригинальном TG"
 else
@@ -2880,19 +2877,18 @@ ok "P119 r107: R8/обфускация подключены, массовый в
 
 # P120. r109 — «Поиск Sakura» в чате (r115: разблокировка сгорающих медиа убрана —
 #       сгорающие/одноразовые снова как в оригинальном Telegram).
-python3 "$KAMIGRAM_SRC/apply_chat_search.py" "$TG_DIR" || die "P120: «Поиск Sakura» не добавился"
-has "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" "KAMIGRAM_CHAT_SEARCH_ACTION" || die "P120: пункт «Поиск Sakura» не встал"
-has "$KAMI_PKG/KamiGramChatSearch.java" "FilteredSearchView" || die "P120: фрагмент поиска не скопирован"
-ok "P120 r109: серверный «Поиск Sakura» в чате с фильтрами"
+python3 "$KAMIGRAM_SRC/apply_chat_search.py" "$TG_DIR" || die "P120: не удалось отключить «Поиск Sakura»"
+! grep -q "Поиск Sakura" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P120: пункт «Поиск Sakura» всё ещё в чате"
+ok "P120 r132: «Поиск Sakura» убран, поиск в чате штатный"
 
 # P121. r111 — «Поиск Sakura» открывает фрагмент, +4 скрытых прокси, компактный
 #       диалог массового выбора (r115: отключение локальных TTL-задач перенесено
 #       в P124 — сгорающие медиа снова удаляются как в оригинале, а задачи
 #       автоудаления каналов по-прежнему не создаются).
-grep -q "kamigramSearchOpened" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P121: «Поиск Sakura» — фрагмент с фильтрами и страховкой не встал"
+! grep -q "kamigramSearchOpened" "$JAVA_ROOT/org/telegram/ui/ChatActivity.java" || die "P121: «Поиск Sakura» всё ещё открывается из меню"
 grep -q "KAMIGRAM_PROXY_CATALOG_R111" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P121: новые встроенные прокси не добавлены"
 grep -q "cardBackground()" "$KAMI_PKG/KamiGramBulkSelector.java" || die "P121: компактный диалог массового выбора не встал"
-ok "P121 r111: «Поиск Sakura» открывает штатный серверный поиск, +4 скрытых прокси, компактный диалог массового выбора"
+ok "P121 r132: меню чата без «Поиск Sakura», каталог прокси и компактный выбор на месте"
 
 # P122. r112 — три критических исправления:
 #       1) иконка загрузки открывала вкладку «Фото» вместо «Загрузки»: P114
@@ -2939,10 +2935,10 @@ ok "P123 r114: миниатюры стикеров = 0 трафика, наст�
 #       3) r117: принудительный прокси для звонков УБРАН по просьбе пользователя
 #          (тумблер «Звонки через прокси» удалён, VoIPService девственный).
 python3 "$KAMIGRAM_SRC/apply_r115_fixes.py" "$TG_DIR" || die "P124: защита кэша не встала"
-N115=$(grep -c "KAMIGRAM_FILES_SURVIVE_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
-[ "$N115" -ge 7 ] || die "P124: защита медиафайлов встала не полностью (найдено $N115 маркеров, r127 требует putMessages в survive-режиме)"
-N115T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java")
-[ "$N115T" -eq 3 ] || die "P124: закрыты не все 3 пути ttl-задач (найдено $N115T)"
+N115=$(grep -c "KAMIGRAM_FILES_SURVIVE_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || true)
+[ "$N115" -eq 0 ] || die "P124: кэш всё ещё перехватывается при синхронизации"
+N115T=$(grep -c "KAMIGRAM_TTL_NO_LOCAL_TASKS_R115" "$JAVA_ROOT/org/telegram/messenger/MessagesStorage.java" || true)
+[ "$N115T" -eq 0 ] || die "P124: автоудаление по ttl всё ещё отключено"
 has "$KAMI_PKG/KamiGramAutoArchive.java" "addDialogToFolder" || die "P124: авто-архив не переведён в режим «только архивация»"
 if grep -q "deleteDialog\|blockPeer\|deleteParticipantFromChat" "$KAMI_PKG/KamiGramAutoArchive.java"; then
     die "P124: авто-архив всё ещё умеет удалять диалоги"
@@ -2965,7 +2961,7 @@ done
 # FLAG_SECURE для сгорающих/одноразовых снова оригинальный
 has "$JAVA_ROOT/org/telegram/ui/SecretMediaViewer.java" "FLAG_SECURE" || die "P124: SecretMediaViewer потерял FLAG_SECURE"
 has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "FLAG_SECURE" || die "P124: PhotoViewer потерял FLAG_SECURE"
-ok "P124 r115+r127: кэш видео/фото/файлов/музыки не очищается сам (включая замену сообщений в putMessages при синхронизации), сгорающие/одноразовые как в оригинале (без скриншотов); r117: принудительный прокси звонков убран"
+ok "P124 r132: кэш и автоудаление как в оригинальном Telegram; сгорающие медиа со штатным FLAG_SECURE; авто-архив только архивирует"
 
 # =============================================================================
 # P125. r116 — «ТОЛЬКО ГЛОБАЛЬНЫЙ ПОИСК» + «ЧИСТЫЙ ПОИСК» (люди/группы/боты/
@@ -3233,102 +3229,102 @@ has "$KAMI_PKG/KamiGramCenter.java" "Искать ботов" || die "P130: ту
 ok "P130 r129: в Центре только возвращённые тумблеры глобального поиска (дефолт = оригинал с ботами), лишнее из r128 убрано"
 
 # =============================================================================
-# P131. r131 — локальный прокси: нативный MTProto-прокси с WebSocket-транспортом
-#       (открытая реализация libtgwsproxy, вызов через JNA), foreground-сервис
-#       specialUse с постоянным уведомлением, partial wakelock с обновлением и
-#       повторным подъёмом после убийства процесса. Тумблер «Локальный WS-прокси»
-#       в Центре = включение в один клик; маршрут активируется сам, когда
-#       локальный приёмник поднялся.
-#       Плюс r130: окно 90с после тапа в режиме «только текст» — медиа по
-#       нажатию грузится на всех путях просмотрщика.
+# P131. r132 — локальный прокси из собственного исходника: MTProto через
+#       Cloudflare, список фронтов из этого исходника. Чужой WS-транспорт и
+#       его библиотека не используются. Сервис specialUse, один тумблер,
+#       старт до входа в аккаунт, при сбое — резерв SakuProxy.
 # =============================================================================
-MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
-WS_PROXY_SO="$SCRIPT_DIR/jniLibs/arm64-v8a/libtgwsproxy.so"
-[ -f "$WS_PROXY_SO" ] || die "P131: нет нативной библиотеки $WS_PROXY_SO"
+PROXY_SRC="$SCRIPT_DIR/proxy-native"
+[ -f "$PROXY_SRC/tsproxy.cpp" ] || die "P131: нет ядра локального прокси"
+[ -f "$PROXY_SRC/crypto.cpp" ] || die "P131: нет криптографии прокси"
+[ -f "$PROXY_SRC/jni_bridge.cpp" ] || die "P131: нет моста прокси"
+[ -f "$PROXY_SRC/CMakeLists.txt" ] || die "P131: нет сборки ядра"
+grep -q "virkgj.com" "$PROXY_SRC/tsproxy.cpp" || die "P131: в ядре нет списка Cloudflare-фронтов"
+! grep -q "flowseal\|amurcanov\|libtgwsproxy" "$PROXY_SRC/tsproxy.cpp" "$PROXY_SRC/jni_bridge.cpp" || die "P131: в ядре чужой транспорт"
 
-# 1. Нативная библиотека прокси. У Telegram jniLibs.srcDirs переопределён на
-#    ./jni/, поэтому обычный src/main/jniLibs не подхватывается — кладём .so в
-#    отдельный каталог и добавляем его вторым srcDir в оба модуля.
+NDK_DIR="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
+if [ -z "$NDK_DIR" ]; then
+    SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+    if [ -n "$SDK_DIR" ] && [ -d "$SDK_DIR/ndk" ]; then
+        NDK_DIR=$(ls -d "$SDK_DIR"/ndk/* 2>/dev/null | sort -V | tail -1)
+    fi
+fi
 PREBUILT_JNI="$TG_DIR/TMessagesProj/prebuilt-jni"
 mkdir -p "$PREBUILT_JNI/arm64-v8a"
-cp -f "$WS_PROXY_SO" "$PREBUILT_JNI/arm64-v8a/libtgwsproxy.so"
-python3 - "$TG_DIR" <<'PY' || die "P131: gradle не подключил jniLibs/JNA локального прокси"
-import io, sys
+PROXY_BUILT=0
+if [ -n "$NDK_DIR" ] && [ -f "$NDK_DIR/build/cmake/android.toolchain.cmake" ]; then
+    PROXY_BUILD="$TG_DIR/sakura-proxy-build"
+    rm -rf "$PROXY_BUILD"
+    cmake -S "$PROXY_SRC" -B "$PROXY_BUILD" \
+        -DCMAKE_TOOLCHAIN_FILE="$NDK_DIR/build/cmake/android.toolchain.cmake" \
+        -DANDROID_ABI=arm64-v8a \
+        -DANDROID_PLATFORM=android-21 \
+        -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        || die "P131: cmake ядра прокси не настроился"
+    cmake --build "$PROXY_BUILD" --target sakura_proxy -j "$(nproc)" \
+        || die "P131: ядро прокси не скомпилировалось"
+    PROXY_SO=$(find "$PROXY_BUILD" -name 'libsakura_proxy.so' | head -1)
+    [ -n "$PROXY_SO" ] || die "P131: libsakura_proxy.so не собран"
+    cp -f "$PROXY_SO" "$PREBUILT_JNI/arm64-v8a/libsakura_proxy.so"
+    PROXY_BUILT=1
+elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+    die "P131: NDK не найден, локальный прокси не собрать"
+else
+    echo "P131: NDK нет — сборка ядра будет на CI, исходники проверены"
+fi
 
+python3 - "$TG_DIR" <<'PY' || die "P131: каталог нативной библиотеки не подключён"
+import io, sys
 tg = sys.argv[1]
 
-
-def patch(path, pairs):
+def patch(path, old, new):
     with io.open(path, encoding='utf-8') as fh:
         text = fh.read()
-    for old, new in pairs:
-        if new in text:
-            continue
-        if old not in text:
-            sys.stderr.write('P131: якорь не найден в %s: %s\n' % (path, old[:70]))
-            sys.exit(1)
-        text = text.replace(old, new, 1)
+    if new in text:
+        return
+    if old not in text:
+        sys.stderr.write('P131: якорь не найден в %s\n' % path)
+        sys.exit(1)
     with io.open(path, 'w', encoding='utf-8') as fh:
-        fh.write(text)
+        fh.write(text.replace(old, new, 1))
 
-
-patch(tg + '/TMessagesProj/build.gradle', [
-    ("sourceSets.main.jniLibs.srcDirs = ['./jni/']",
-     "sourceSets.main.jniLibs.srcDirs = ['./jni/', './prebuilt-jni/']"),
-    ("    implementation 'androidx.core:core:1.16.0'\n",
-     "    implementation 'androidx.core:core:1.16.0'\n"
-     "    implementation 'net.java.dev.jna:jna:5.14.0@aar'\n"),
-])
-patch(tg + '/TMessagesProj_App/build.gradle', [
-    ("sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/']",
-     "sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/', '../TMessagesProj/prebuilt-jni/']"),
-    ("    implementation project(':TMessagesProj')\n",
-     "    implementation project(':TMessagesProj')\n"
-     "    implementation 'net.java.dev.jna:jna:5.14.0@aar'\n"),
-])
+patch(tg + '/TMessagesProj/build.gradle',
+      "sourceSets.main.jniLibs.srcDirs = ['./jni/']",
+      "sourceSets.main.jniLibs.srcDirs = ['./jni/', './prebuilt-jni/']")
+patch(tg + '/TMessagesProj_App/build.gradle',
+      "sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/']",
+      "sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/', '../TMessagesProj/prebuilt-jni/']")
 PY
 
-# 2. Манифест: сервис specialUse (у dataSync на Android 15+ есть лимит времени
-#    работы, у specialUse его нет) + разрешения.
-python3 - "$MANIFEST" <<'PY' || die "P131: не удалось вписать сервис локального прокси в манифест"
+MANIFEST="$TG_DIR/TMessagesProj/src/main/AndroidManifest.xml"
+python3 - "$MANIFEST" <<'PY' || die "P131: сервис локального прокси не вписан в манифест"
 import io, sys
-
 path = sys.argv[1]
 with io.open(path, encoding='utf-8') as fh:
     src = fh.read()
-
-MARKER = 'kamigram.KamiGramWsProxy'
-
-
-def strip_service(text, marker):
-    """Удаляет прежнюю запись сервиса (идемпотентность патчера)."""
-    while True:
-        pos = text.find(marker)
-        if pos == -1:
-            return text
-        start = text.rfind('<service', 0, pos)
-        if start == -1:
-            return text
-        tag_end = text.find('>', pos)
-        if tag_end == -1:
-            return text
-        if text[tag_end - 1] == '/':
-            end = tag_end + 1
-        else:
-            close = text.find('</service>', tag_end)
-            if close == -1:
-                return text
-            end = close + len('</service>')
-        while end < len(text) and text[end] in ' \t':
-            end += 1
-        if end < len(text) and text[end] == '\n':
-            end += 1
-        line_start = text.rfind('\n', 0, start) + 1
-        text = text[:line_start] + text[end:]
-
-
-src = strip_service(src, MARKER)
-
+marker = 'kamigram.KamiGramWsProxy'
+while marker in src:
+    pos = src.find(marker)
+    start = src.rfind('<service', 0, pos)
+    if start == -1:
+        break
+    tag_end = src.find('>', pos)
+    if tag_end == -1:
+        break
+    if src[tag_end - 1] == '/':
+        end = tag_end + 1
+    else:
+        close = src.find('</service>', tag_end)
+        if close == -1:
+            break
+        end = close + len('</service>')
+    while end < len(src) and src[end] in ' \t':
+        end += 1
+    if end < len(src) and src[end] == '\n':
+        end += 1
+    line_start = src.rfind('\n', 0, start) + 1
+    src = src[:line_start] + src[end:]
 service = (
     '        <service android:name="org.telegram.messenger.kamigram.KamiGramWsProxy"\n'
     '            android:exported="false"\n'
@@ -3338,139 +3334,73 @@ service = (
     '                android:value="local-proxy"/>\n'
     '        </service>\n'
 )
-
 anchor = '    </application>\n'
 if anchor not in src:
-    sys.stderr.write('P131: не найден конец application в манифесте\n')
-    sys.exit(1)
+    sys.exit('P131: нет конца application')
 src = src.replace(anchor, service + anchor, 1)
-
 for permission in ('android.permission.FOREGROUND_SERVICE',
                    'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
                    'android.permission.WAKE_LOCK'):
     if permission not in src:
-        entry = '    <uses-permission android:name="%s"/>\n' % permission
         index = src.index('<application')
-        src = src[:index] + entry + src[index:]
-
+        src = src[:index] + '    <uses-permission android:name="%s"/>\n' % permission + src[index:]
 with io.open(path, 'w', encoding='utf-8') as fh:
     fh.write(src)
 PY
 
-# 3. R8 full mode: JNA обращается к нативным символам по имени, поэтому его
-#    классы и наш сервис нельзя переименовывать/вырезать.
 SAKURA_PRO="$TG_DIR/TMessagesProj/proguard-sakura.pro"
-[ -f "$SAKURA_PRO" ] || die "P131: proguard-sakura.pro не создан (P119)"
-if ! grep -q "com.sun.jna" "$SAKURA_PRO"; then
+if [ -f "$SAKURA_PRO" ] && ! grep -q "KamiGramProxyCore" "$SAKURA_PRO"; then
     cat >> "$SAKURA_PRO" <<'PRO'
 
-# Локальный прокси: JNA грузит нативную библиотеку и вызывает символы по имени.
--dontwarn java.awt.**
--dontwarn java.beans.**
--dontwarn javax.swing.**
--dontwarn com.sun.jna.**
--keep class com.sun.jna.** { *; }
--keep interface com.sun.jna.Library { *; }
--keepclassmembers class * implements com.sun.jna.Library {
-    <methods>;
-}
--keep class * implements com.sun.jna.Callback { *; }
--keep class * extends com.sun.jna.Structure { *; }
--keep class org.telegram.messenger.kamigram.KamiGramWsProxy** { *; }
+-keep class org.telegram.messenger.kamigram.KamiGramProxyCore { *; }
+-keep class org.telegram.messenger.kamigram.KamiGramWsProxy { *; }
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 PRO
 fi
 
-# 4. Проверка самой библиотеки: ELF64/aarch64 и все нужные экспорты на месте.
-python3 - "$PREBUILT_JNI/arm64-v8a/libtgwsproxy.so" <<'PY' || die "P131: нативная библиотека прокси не подходит"
-import struct, sys
-
+if [ "$PROXY_BUILT" = 1 ]; then
+    python3 - "$PREBUILT_JNI/arm64-v8a/libsakura_proxy.so" <<'PY' || die "P131: собранная библиотека прокси не подходит"
+import sys
 path = sys.argv[1]
-with open(path, 'rb') as fh:
-    data = fh.read()
-
+data = open(path, 'rb').read()
 if data[:4] != b'\x7fELF' or data[4] != 2:
-    sys.exit('P131: библиотека не ELF64')
-if struct.unpack_from('<H', data, 18)[0] != 0xb7:
-    sys.exit('P131: библиотека не aarch64')
-
-e_shoff = struct.unpack_from('<Q', data, 0x28)[0]
-e_shentsize = struct.unpack_from('<H', data, 0x3a)[0]
-e_shnum = struct.unpack_from('<H', data, 0x3c)[0]
-e_shstrndx = struct.unpack_from('<H', data, 0x3e)[0]
-
-sections = []
-for index in range(e_shnum):
-    off = e_shoff + index * e_shentsize
-    name, stype, flags, addr, offset, size, link, info, align, entsize = \
-        struct.unpack_from('<IIQQQQIIQQ', data, off)
-    sections.append(dict(name=name, type=stype, offset=offset, size=size,
-                         link=link, entsize=entsize))
-
-shstr = sections[e_shstrndx]
-strtab = data[shstr['offset']:shstr['offset'] + shstr['size']]
-
-
-def section_name(entry):
-    end = strtab.index(b'\0', entry['name'])
-    return strtab[entry['name']:end].decode()
-
-
-for entry in sections:
-    entry['sname'] = section_name(entry)
-
-dynstr = [s for s in sections if s['sname'] == '.dynstr'][0]
-dynsym = [s for s in sections if s['sname'] == '.dynsym'][0]
-strings = data[dynstr['offset']:dynstr['offset'] + dynstr['size']]
-
-
-def symbol_name(offset):
-    end = strings.index(b'\0', offset)
-    return strings[offset:end].decode(errors='replace')
-
-
-found = set()
-for index in range(dynsym['size'] // 24):
-    off = dynsym['offset'] + index * 24
-    st_name, st_info, st_other, st_shndx, st_value, st_size = \
-        struct.unpack_from('<IBBHQQ', data, off)
-    if (st_info & 0xf) == 2 and st_shndx != 0 and st_name:
-        found.add(symbol_name(st_name))
-
-required = {'StartProxy', 'StopProxy', 'SetPoolSize', 'SetSecret',
-            'SetCfProxyCacheDir', 'SetCfProxyConfig', 'GetSecretWithPrefix',
-            'GetStats', 'FreeString'}
-missing = required - found
-if missing:
-    sys.exit('P131: в библиотеке нет символов: ' + ', '.join(sorted(missing)))
+    sys.exit('не ELF64')
+need = b'Java_org_telegram_messenger_kamigram_KamiGramProxyCore_nativeStart'
+if need not in data:
+    sys.exit('нет JNI nativeStart')
+for banned in (b'flowseal', b'amurcanov', b'githubusercontent', b'libtgwsproxy'):
+    if banned in data:
+        sys.exit('в библиотеке чужое имя: ' + banned.decode())
 PY
+fi
 
-grep -q "kamigram.KamiGramWsProxy" "$MANIFEST" || die "P131: сервис локального прокси не в манифесте"
-grep -q 'foregroundServiceType="specialUse"' "$MANIFEST" || die "P131: сервис прокси не specialUse"
-grep -q "android.permission.FOREGROUND_SERVICE_SPECIAL_USE" "$MANIFEST" || die "P131: нет разрешения specialUse"
-grep -q "net.java.dev.jna:jna" "$TG_DIR/TMessagesProj/build.gradle" || die "P131: JNA не подключена к TMessagesProj"
-grep -q "net.java.dev.jna:jna" "$TG_DIR/TMessagesProj_App/build.gradle" || die "P131: JNA не подключена к TMessagesProj_App"
-grep -q "prebuilt-jni" "$TG_DIR/TMessagesProj/build.gradle" || die "P131: каталог jniLibs прокси не подключён"
-grep -q "prebuilt-jni" "$TG_DIR/TMessagesProj_App/build.gradle" || die "P131: каталог jniLibs прокси не подключён в App"
-grep -q "com.sun.jna" "$SAKURA_PRO" || die "P131: правила R8 для JNA не добавлены"
+grep -q "kamigram.KamiGramWsProxy" "$MANIFEST" || die "P131: сервис не в манифесте"
+grep -q 'foregroundServiceType="specialUse"' "$MANIFEST" || die "P131: сервис не specialUse"
+grep -q "prebuilt-jni" "$TG_DIR/TMessagesProj/build.gradle" || die "P131: jniLibs не подключён"
+has "$KAMI_PKG/KamiGramProxyCore.java" "KAMIGRAM_LOCAL_PROXY_CORE_R132" || die "P131: мост ядра не скопирован"
+has "$KAMI_PKG/KamiGramWsProxy.java" "KAMIGRAM_LOCAL_PROXY_R132" || die "P131: сервис локального прокси не скопирован"
+has "$KAMI_PKG/KamiGramWsProxy.java" "nativeConfigure" || die "P131: сервис не вызывает ядро"
+has "$KAMI_PKG/KamiGramWsProxy.java" "t.me/proxy?server=" || die "P131: маршрут не MTProto"
+! grep -q "NativeLibrary\|WsBridge\|SOCKS5\|libtgwsproxy" "$KAMI_PKG/KamiGramWsProxy.java" || die "P131: старый WS/SOCKS транспорт не убран"
+has "$KAMI_PKG/KamiGramCenter.java" "Локальный прокси" || die "P131: тумблер локального прокси не в Центре"
+! grep -q "Локальный WS-прокси" "$KAMI_PKG/KamiGramCenter.java" || die "P131: в Центре осталось название WS"
+has "$KAMI_PKG/KamiGramBuiltinProxy.java" "KAMIGRAM_LOCAL_PROXY_FALLBACK_R132" || die "P131: нет резерва SakuProxy"
+has "$KAMI_PKG/KamiGramConfig.java" "KEY_WS_PROXY" || die "P131: нет ключа локального прокси"
+ok "P131 r132: локальный MTProto-прокси через Cloudflare из собственного исходника, приоритет до входа, резерв SakuProxy"
 
-has "$KAMI_PKG/KamiGramWsProxy.java" "KAMIGRAM_WS_PROXY_R131" || die "P131: класс локального прокси не скопирован"
-has "$KAMI_PKG/KamiGramWsProxy.java" "NativeLibrary.getInstance" || die "P131: прокси не вызывает нативную библиотеку"
-has "$KAMI_PKG/KamiGramWsProxy.java" "StartProxy" || die "P131: прокси не поднимает нативный приёмник"
-has "$KAMI_PKG/KamiGramWsProxy.java" "BASE_PORT = 1443" || die "P131: порт локального прокси не 1443"
-has "$KAMI_PKG/KamiGramWsProxy.java" "t.me/proxy?server=" || die "P131: маршрут не MTProto-прокси"
-has "$KAMI_PKG/KamiGramWsProxy.java" "START_REDELIVER_INTENT" || die "P131: сервис не переживает убийство"
-has "$KAMI_PKG/KamiGramWsProxy.java" "PARTIAL_WAKE_LOCK" || die "P131: нет wakelock фонового сервиса"
-has "$KAMI_PKG/KamiGramWsProxy.java" "restoreIfEnabled" || die "P131: прокси не восстанавливается при старте"
-! grep -q "WsBridge" "$KAMI_PKG/KamiGramWsProxy.java" || die "P131: собственная SOCKS/WS-заглушка r130 должна быть убрана"
-! grep -q "SOCKS5" "$KAMI_PKG/KamiGramWsProxy.java" || die "P131: локальный прокси должен быть MTProto, а не SOCKS"
-has "$KAMI_PKG/KamiGramProxyPower.java" "KAMIGRAM_WS_PROXY_RESTORE_R131" || die "P131: старт процесса не поднимает прокси"
-has "$KAMI_PKG/KamiGramCenter.java" "Локальный WS-прокси" || die "P131: тумблер локального прокси не в Центре"
-has "$KAMI_PKG/KamiGramConfig.java" "KEY_WS_PROXY" || die "P131: ключ локального прокси не добавлен"
-has "$KAMI_PKG/KamiGramTextOnly.java" "TAP_WINDOW_MS" || die "P131: окно загрузки по нажатию не добавлено"
-ok "P131 r131: локальный нативный MTProto-прокси с WS-транспортом (libtgwsproxy + JNA) — сервис specialUse, wakelock, уведомление, тумблер в один клик; медиа по тапу в «только текст» грузится"
+# =============================================================================
+# P132. r132 — перемотка аудио/музыки не зависает и не вылетает.
+# =============================================================================
+python3 "$KAMIGRAM_SRC/apply_r132_audio.py" "$TG_DIR" || die "P132: защита перемотки не встала"
+has "$JAVA_ROOT/org/telegram/ui/Components/VideoPlayer.java" "KAMIGRAM_AUDIO_GUARD_R132" || die "P132: плеер всё ещё делает точный seek аудио"
+has "$JAVA_ROOT/org/telegram/messenger/MediaController.java" "KamiGramAudioGuard.seeking" || die "P132: конец трека всё ещё уничтожает плеер при перемотке"
+has "$KAMI_PKG/KamiGramAudioGuard.java" "KAMIGRAM_AUDIO_GUARD_R132" || die "P132: страж перемотки не скопирован"
+has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_LOCAL_PROXY_EARLY_R132" || die "P132: локальный прокси не стартует до входа"
+has "$JAVA_ROOT/org/telegram/ui/LoginActivity.java" "KAMIGRAM_LOCAL_PROXY_EARLY_R132" || die "P132: локальный прокси не стартует на экране входа"
+ok "P132 r132: перемотка аудио безопасна, локальный прокси поднимается до входа"
+
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

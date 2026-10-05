@@ -307,8 +307,8 @@ def main():
     config = os.path.join(java, 'messenger/SharedConfig.java')
     defaults = [
         ('keepMedia = preferences.getInt("keep_media", CacheByChatsController.KEEP_MEDIA_ONE_MONTH);',
-         'keepMedia = preferences.getInt("keep_media", CacheByChatsController.KEEP_MEDIA_FOREVER);',
-         'скачанное не удаляется по сроку: кэш больше не чистится за спиной'),
+         'keepMedia = preferences.getInt("keep_media", CacheByChatsController.KEEP_MEDIA_ONE_MONTH);',
+         'срок хранения кэша как в оригинальном Telegram'),
     ]
     src = io.open(config, encoding='utf-8').read()
     for old, new, desc in defaults:

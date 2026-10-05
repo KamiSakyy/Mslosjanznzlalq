@@ -196,7 +196,7 @@ public final class KamiGramCenter {
     private static void fillConnection(LinearLayout root, Context context, Runnable onChanged) {
         card(root, context, new Row[]{
             Row.toggle("SakuProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
-            Row.toggle("Локальный WS-прокси", KamiGramConfig.KEY_WS_PROXY, onChanged),
+            Row.toggle("Локальный прокси", KamiGramConfig.KEY_WS_PROXY, onChanged),
             Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
         });

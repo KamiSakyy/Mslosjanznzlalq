@@ -298,6 +298,9 @@ public final class KamiGramProxyPower implements NotificationCenter.Notification
 
     /** Activate only a built-in fallback, never an arbitrary custom row. */
     private void switchToBest(Context context) {
+        if (KamiGramWsProxy.holdsPriority()) {
+            return;
+        }
         if (!enabled() || !smartEnabled() || messageSendInFlight()) {
             return; /* KAMIGRAM_PROXY_SEND_GUARD_R78 */
         }

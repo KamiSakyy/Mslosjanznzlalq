@@ -242,13 +242,7 @@ def downloads():
         return
 
     # автоматически выбранная вкладка «Загрузки» и понятные подписи
-    old = '    protected void onFragmentCreate() {\n'
-    if old in src and 'KAMIGRAM_DOWNLOADS' not in src:
-        src = src.replace(old, old +
-                          '        /* KAMIGRAM_DOWNLOADS: менеджер загрузок открывается сразу на списке файлов */\n'
-                          '        selectedType = 0; // KAMIGRAM_DOWNLOADS\n', 1)
-        DONE.append(('Загрузки', 'менеджер загрузок открывается на списке файлов, а не на настройках',
-                     'CacheControlActivity'))
+    # r132: экран кэша открывается как в оригинальном Telegram.
     io.open(p, 'w', encoding='utf-8').write(src)
 
     # Не меняем MessagesStorage.cleanupInternal: это штатная очистка базы,

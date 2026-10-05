@@ -109,6 +109,9 @@ def wrap_survive(source, signature):
 
 
 def patch_storage():
+    # r132: удаление файлов при синхронизации и автоочистка — как в оригинале.
+    print("r115 storage: кэш не перехватывается, остаётся штатный Telegram")
+    return
     source = io.open(MS, encoding="utf-8", errors="replace").read()
     if FILES_MARK in source or TASKS_MARK in source:
         print("r115 storage: уже применено")

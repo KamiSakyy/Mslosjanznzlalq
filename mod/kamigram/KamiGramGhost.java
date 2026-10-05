@@ -68,6 +68,11 @@ public final class KamiGramGhost {
                 return false;
             }
 
+            if ((ghost || KamiGramConfig.storiesStealth()) && isStoryRead(object)) {
+                answerLocally(onComplete);
+                return true;
+            }
+
             if (ghost && isReadHistory(object)) {
                 // r70: «Сгореть»/«Прочитать» из меню — считывание разрешено
                 if (bypassActive()) {
@@ -80,6 +85,16 @@ public final class KamiGramGhost {
             return false;
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
+            return false;
+        }
+    }
+
+    private static boolean isStoryRead(TLObject object) {
+        try {
+            final String name = object.getClass().getSimpleName();
+            return "TL_stories_readStories".equals(name)
+                || "TL_stories_incrementStoryViews".equals(name);
+        } catch (Throwable throwable) {
             return false;
         }
     }

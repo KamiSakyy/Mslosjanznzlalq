@@ -24,6 +24,9 @@ PATH = os.path.join(TG, "TMessagesProj/src/main/java/org/telegram/ui/ChatActivit
 
 
 def main():
+    # r132: пункт «Поиск Sakura» убран полностью. Штатный поиск Telegram не трогаем.
+    print("chat search: пункт «Поиск Sakura» отключён")
+    return 0
     source = io.open(PATH, encoding="utf-8").read()
     if "KAMIGRAM_CHAT_SEARCH" in source:
         print("chat search: уже применено")
