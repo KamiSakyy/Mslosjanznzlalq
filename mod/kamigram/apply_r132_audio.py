@@ -213,8 +213,9 @@ def main():
         "                            int seekTo = (int) (audioPlayer.getDuration() * seekToProgressPending);\n"
         "                            audioPlayer.seekTo(seekTo);\n",
         "                            long kamiDuration = audioPlayer.getDuration();\n"
+        "                            int seekTo = lastProgress;\n"
         "                            if (kamiDuration > 0 && kamiDuration != C.TIME_UNSET) {\n"
-        "                                int seekTo = (int) (kamiDuration * seekToProgressPending);\n"
+        "                                seekTo = (int) (kamiDuration * seekToProgressPending);\n"
         "                                audioPlayer.seekTo(seekTo);\n"
         "                            }\n",
         "отложенный seek без TIME_UNSET",
@@ -222,9 +223,9 @@ def main():
     replace_once(
         MUSIC,
         "MediaController.getInstance().seekToProgress(object, pos / 1000 / (float) object.getDuration());",
-        "int kamiDuration = object.getDuration(); "
+        "double kamiDuration = object.getDuration(); "
         "if (kamiDuration > 0) { "
-        "MediaController.getInstance().seekToProgress(object, pos / 1000f / kamiDuration); "
+        "MediaController.getInstance().seekToProgress(object, (float) (pos / 1000.0 / kamiDuration)); "
         "}",
         "системная перемотка не делит на ноль",
     )
