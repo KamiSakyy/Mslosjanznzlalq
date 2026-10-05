@@ -213,9 +213,9 @@ def main():
         "                            int seekTo = (int) (audioPlayer.getDuration() * seekToProgressPending);\n"
         "                            audioPlayer.seekTo(seekTo);\n",
         "                            long kamiDuration = audioPlayer.getDuration();\n"
-        "                            int seekTo = lastProgress;\n"
+        "                            long seekTo = lastProgress;\n"
         "                            if (kamiDuration > 0 && kamiDuration != C.TIME_UNSET) {\n"
-        "                                seekTo = (int) (kamiDuration * seekToProgressPending);\n"
+        "                                seekTo = (long) (kamiDuration * seekToProgressPending);\n"
         "                                audioPlayer.seekTo(seekTo);\n"
         "                            }\n",
         "отложенный seek без TIME_UNSET",
