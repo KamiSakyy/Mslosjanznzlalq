@@ -36,11 +36,10 @@ public final class KamiGramOptimize {
             LiteMode.toggleFlag(LiteMode.FLAGS_ANIMATED_STICKERS, smooth);
             LiteMode.toggleFlag(LiteMode.FLAG_CALLS_ANIMATIONS, smooth);
             LiteMode.toggleFlag(LiteMode.FLAG_AUTOPLAY_GIFS, smooth);
-            LiteMode.toggleFlag(LiteMode.FLAG_CHAT_BLUR, smooth && KamiGramConfig.value(KamiGramConfig.KEY_ALLOW_BLUR));
-            if (!KamiGramConfig.value(KamiGramConfig.KEY_ALLOW_BLUR)) {
-                SharedConfig.useNewBlur = false;
-                SharedConfig.photoViewerBlur = false;
-            }
+            final boolean blur = KamiGramConfig.value(KamiGramConfig.KEY_ALLOW_BLUR);
+            LiteMode.toggleFlag(LiteMode.FLAG_CHAT_BLUR, blur);
+            SharedConfig.useNewBlur = blur;
+            SharedConfig.photoViewerBlur = blur;
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }

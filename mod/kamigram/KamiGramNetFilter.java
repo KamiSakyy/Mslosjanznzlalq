@@ -189,6 +189,9 @@ public final class KamiGramNetFilter {
             if (isSearchRequest(full, simple)) {
                 return false;
             }
+            if (KamiGramConfig.textOnly() && textOnlyRequest(full, simple)) {
+                return deny();
+            }
             if (KamiGramConfig.noStickers() && isStickerRequest(full, simple)) {
                 return deny();
             }
@@ -383,6 +386,20 @@ public final class KamiGramNetFilter {
      * участникам канала, подбор эмодзи/GIF/стикеров по запросу и резолв
      * @username. Ни один из них не может быть отсеян фильтрами экономии.
      */
+    /** Режим «только текст»: истории, подарки, стикеры, GIF, превью и инлайн. Текст чата не здесь. */
+    private static boolean textOnlyRequest(String full, String simple) {
+        if (hit(STORIES, simple) || hit(STORIES, full)
+            || hit(LINK_PREVIEW, simple) || hit(LINK_PREVIEW, full)
+            || hit(GIF_SEARCH, simple) || hit(GIF_SEARCH, full)) {
+            return true;
+        }
+        final String name = full != null ? full : simple;
+        if (name == null) {
+            return false;
+        }
+        return name.contains("Gift") || name.contains("Sticker") || name.contains("AnimatedEmoji");
+    }
+
     private static boolean isSearchRequest(String full, String simple) {
         if (full != null && (full.contains("search") || full.contains("Search"))) {
             return true;

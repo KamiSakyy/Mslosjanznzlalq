@@ -95,6 +95,7 @@ public final class KamiGramUi {
         private long lastFrame;
         private OnToggle listener;
         private boolean animate = true;
+        private long lastToggleAt;
 
         public Toggle(Context context) {
             super(context);
@@ -127,7 +128,13 @@ public final class KamiGramUi {
             listener = value;
         }
 
-        private void toggle() {
+        /** Один жест — одно переключение. Повтор за 300 мс игнорируется, чтобы строка и ручка не отменяли друг друга. */
+        public void userToggle() {
+            final long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastToggleAt < 300L) {
+                return;
+            }
+            lastToggleAt = now;
             checked = !checked;
             invalidate();
             if (listener != null) {
@@ -150,8 +157,7 @@ public final class KamiGramUi {
                     pressed = false;
                     invalidate();
                     if (isEnabled()) {
-                        toggle();
-                        performClick();
+                        userToggle();
                     }
                     return true;
                 default:

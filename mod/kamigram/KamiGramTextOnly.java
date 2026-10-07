@@ -69,40 +69,8 @@ public final class KamiGramTextOnly {
         if (!enabled()) {
             return false;
         }
-        if (inTapWindow()) {
-            return false;
-        }
-        try {
-            // паспортные документы вне режима: они всегда открываются явно
-            if (secureDocument != null) {
-                return false;
-            }
-            if (document != null) {
-                return !ALLOWED.contains(docKey(document.id));
-            }
-            if (location != null) {
-                return !ALLOWED.contains(locKey(location));
-            }
-            if (imageLocation != null) {
-                if (imageLocation.document != null) {
-                    return !ALLOWED.contains(docKey(imageLocation.document.id));
-                }
-                if (imageLocation.location != null) {
-                    return !ALLOWED.contains(locKey(imageLocation.location));
-                }
-                if (imageLocation.webFile != null) {
-                    return !ALLOWED.contains(webKey(imageLocation.webFile));
-                }
-                return false;
-            }
-            if (webDocument != null) {
-                return !ALLOWED.contains(webKey(webDocument));
-            }
-        } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
-        }
-        // запрос без медиа-части (текст, служебное) режим не трогает
-        return false;
+        return document != null || secureDocument != null || webDocument != null
+            || location != null || imageLocation != null;
     }
 
     // --------------------------------------------------- отметки по нажатию
@@ -235,32 +203,15 @@ public final class KamiGramTextOnly {
      * для сгорающих медиа).
      */
     public static boolean blockImage(Object imageLocation) {
-        if (!enabled() || !(imageLocation instanceof ImageLocation)) {
+        if (!enabled() || imageLocation == null) {
             return false; /* KAMIGRAM_MEDIA_POLICY_R78 */
         }
-        if (inTapWindow()) {
-            return false;
-        }
-        final ImageLocation location = (ImageLocation) imageLocation;
-        try {
-            if (location.document != null) {
-                return !ALLOWED.contains(docKey(location.document.id));
-            }
-            if (location.location != null) {
-                return !ALLOWED.contains(locKey(location.location));
-            }
-            if (location.webFile != null) {
-                return !ALLOWED.contains(webKey(location.webFile));
-            }
-        } catch (Throwable throwable) {
-            KamiGramLog.e(throwable);
-        }
-        return false;
+        return true;
     }
 
-    /** r78: старые широкие предикаты не блокируют документы и запросы. */
+    /** Включённый режим блокирует документ, видео, аудио и любой файл. */
     public static boolean blockDocument(TLRPC.Document document, Object parentObject, long size) {
-        return false; /* KAMIGRAM_MEDIA_POLICY_R78 */
+        return enabled(); /* KAMIGRAM_MEDIA_POLICY_R78 */
     }
 
     /** r78: совместимый предикат загрузки — решение принимает воронка. */
@@ -273,7 +224,6 @@ public final class KamiGramTextOnly {
         if (!enabled()) {
             return "режим «только текст» выключен";
         }
-        return "трафик только на текст · медиа — по нажатию · сэкономлено "
-            + KamiGramCache.human(KamiGramTraffic.saved());
+        return "грузится только текст";
     }
 }

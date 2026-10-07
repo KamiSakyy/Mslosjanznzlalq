@@ -314,19 +314,25 @@ public final class KamiGramConfig {
 
     public static void set(String key, boolean value) {
         try {
-            // r70: «ко всем аккаунтам» пишется только в глобальное хранилище —
-            // это переключатель самого хранилища, а не обычная настройка.
-            final SharedPreferences preferences = KEY_APPLY_ALL.equals(key)
-                ? MessagesController.getGlobalMainSettings()
-                : store();
-            if (preferences != null) {
-                preferences.edit().putBoolean(key, value).apply();
-            }
+            // Пишем сразу в оба хранилища и через commit: иначе тумблер
+            // сохранялся в одно, а чтение брало старое значение из другого
+            // и переключатель «отскакивал» обратно.
             if (KEY_APPLY_ALL.equals(key)) {
-                // при переводе на «все аккаунты» настройки текущего аккаунта
-                // подтягиваются в общее хранилище (не затирая новые значения)
+                final SharedPreferences global = MessagesController.getGlobalMainSettings();
+                if (global != null) {
+                    global.edit().putBoolean(key, value).commit();
+                }
                 if (value) {
                     migrateAccountToGlobal();
+                }
+            } else {
+                final SharedPreferences primary = store();
+                final SharedPreferences backup = alternateStore();
+                if (primary != null) {
+                    primary.edit().putBoolean(key, value).commit();
+                }
+                if (backup != null && backup != primary) {
+                    backup.edit().putBoolean(key, value).commit();
                 }
             }
         } catch (Throwable ignore) {
@@ -337,13 +343,15 @@ public final class KamiGramConfig {
         try {
             if (KEY_BUILTIN_PROXY.equals(key)) {
                 KamiGramBuiltinProxy.onEnabledChanged(value);
-            } else if (KEY_WS_PROXY.equals(key)) {
+            } else if (KEY_WS_PROXY.equals(key) && !KamiGramWsProxy.suppressingConfigSync()) {
                 final Context context = ApplicationLoader.applicationContext;
                 if (value) {
                     KamiGramWsProxy.ensureStarted(context);
                 } else {
                     KamiGramWsProxy.stop(context);
-                    KamiGramBuiltinProxy.engageFallback(context);
+                    if (builtinProxy()) {
+                        KamiGramBuiltinProxy.engageFallback(context);
+                    }
                 }
             } else if (KEY_SMOOTH_ANIMATIONS.equals(key) || KEY_ALLOW_BLUR.equals(key)
                 || KEY_NO_GIFS.equals(key)) {
@@ -432,9 +440,9 @@ public final class KamiGramConfig {
         return false;
     }
 
-    /** Режим «только текст» снят: медиа грузится как в оригинале. */
+    /** Режим «только текст»: включён — не грузится ничего, кроме текста. */
     public static boolean textOnly() {
-        return false;
+        return value(KEY_TEXT_ONLY);
     }
 
     /** Скрывать сообщения с метками рекламы. */
@@ -465,7 +473,7 @@ public final class KamiGramConfig {
     }
 
     public static boolean noStories() {
-        return false;
+        return textOnly();
     }
 
     public static boolean noAnimatedEmoji() {

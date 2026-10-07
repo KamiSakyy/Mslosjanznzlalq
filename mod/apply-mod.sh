@@ -3207,7 +3207,7 @@ PY
 has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_TEXT_ONLY_GATE_R123" || die "P129: гейт «только текст» не встал в воронку FileLoader"
 has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_TEXT_ONLY_TAP_R123" || die "P129: отметки нажатий не встали в PhotoViewer"
 has "$KAMI_PKG/KamiGramTextOnly.java" "KAMIGRAM_TEXT_ONLY_GATE_R123" || die "P129: класс режима «только текст» не скопирован"
-! grep -q "KEY_TEXT_ONLY" "$KAMI_PKG/KamiGramCenter.java" || die "P129: режим «только текст» всё ещё в центре"
+grep -q "KEY_TEXT_ONLY" "$KAMI_PKG/KamiGramCenter.java" || die "P129: тумблер «только текст» отсутствует в Центре"
 for srv in matrixxx.top p.lite64.top p.lite64.click p.lite64.xyz; do
     grep -q "server=$srv&" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P129: новый прокси $srv не добавлен в каталог"
 done

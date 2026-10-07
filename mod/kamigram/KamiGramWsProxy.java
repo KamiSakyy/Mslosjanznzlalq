@@ -15,7 +15,9 @@ import android.os.SystemClock;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.tgnet.ConnectionsManager;
 
 import java.io.File;
 import java.security.SecureRandom;
@@ -53,6 +55,8 @@ public class KamiGramWsProxy extends Service {
     private static volatile boolean running;
     private static volatile boolean verifiedRunning;
     private static volatile boolean suppressConfigSync;
+    private static volatile boolean stopRequested;
+    private static volatile KamiGramWsProxy instance;
     private static volatile long downSince;
 
     private PowerManager.WakeLock wakeLock;
@@ -70,6 +74,10 @@ public class KamiGramWsProxy extends Service {
     }
 
     /** Локальный прокси сейчас живой и должен держать маршрут. */
+    public static boolean suppressingConfigSync() {
+        return suppressConfigSync;
+    }
+
     public static boolean holdsPriority() {
         try {
             return KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY) && isVerifiedRunning();
@@ -144,8 +152,13 @@ public class KamiGramWsProxy extends Service {
     }
 
     public static void ensureStarted(Context context) {
-        if (context == null) {
+        if (context == null || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
             return;
+        }
+        stopRequested = false;
+        final KamiGramWsProxy service = instance;
+        if (service != null) {
+            service.stopInProgress = false;
         }
         try {
             final Intent intent = new Intent(context, KamiGramWsProxy.class);
@@ -157,21 +170,70 @@ public class KamiGramWsProxy extends Service {
             }
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
-            KamiGramBuiltinProxy.engageFallback(context);
+            if (KamiGramConfig.builtinProxy()) {
+                KamiGramBuiltinProxy.engageFallback(context);
+            }
         }
     }
 
+    /** Тумблер выключен: ядро останавливается и локальный маршрут снимается. Сервис сам не поднимается. */
     public static void stop(Context context) {
+        stopRequested = true;
         verifiedRunning = false;
         running = false;
+        final Thread halt = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (KamiGramProxyCore.available()) {
+                        KamiGramProxyCore.nativeStop();
+                    }
+                } catch (Throwable throwable) {
+                    KamiGramLog.e(throwable);
+                }
+            }
+        }, "SakuraProxyStop");
+        halt.setDaemon(true);
+        halt.start();
+        releaseLocalRoute();
         if (context == null) {
             return;
+        }
+        try {
+            final Intent intent = new Intent(context, KamiGramWsProxy.class);
+            intent.setAction(ACTION_STOP);
+            context.startService(intent);
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
         }
         try {
             context.stopService(new Intent(context, KamiGramWsProxy.class));
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
         }
+    }
+
+    /** Снимает 127.0.0.1, если он сейчас выбран. Чужой прокси не трогает. */
+    public static void releaseLocalRoute() {
+        AndroidUtilities.runOnUIThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (!isLocalRoute(SharedConfig.currentProxy)) {
+                        return;
+                    }
+                    SharedConfig.currentProxy = null;
+                    SharedConfig.saveProxyList();
+                    ConnectionsManager.setProxySettings(false, null);
+                    NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
+                    if (KamiGramConfig.builtinProxy() && !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+                        KamiGramBuiltinProxy.engageFallback(ApplicationLoader.applicationContext);
+                    }
+                } catch (Throwable throwable) {
+                    KamiGramLog.e(throwable);
+                }
+            }
+        });
     }
 
     /** До входа в аккаунт: тумблер включён по умолчанию, сервис поднимается сразу. */
@@ -185,7 +247,9 @@ public class KamiGramWsProxy extends Service {
                 return;
             }
             if (!KamiGramProxyCore.available()) {
-                KamiGramBuiltinProxy.engageFallback(context);
+                if (KamiGramConfig.builtinProxy()) {
+                    KamiGramBuiltinProxy.engageFallback(context);
+                }
                 return;
             }
             ensureStarted(context);
@@ -202,6 +266,7 @@ public class KamiGramWsProxy extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         createChannel();
     }
 
@@ -210,24 +275,31 @@ public class KamiGramWsProxy extends Service {
         final String action = intent == null ? null : intent.getAction();
         try {
             if (ACTION_STOP.equals(action)) {
-                stopProxy();
+                stopRequested = true;
                 syncToggleOff();
-                return START_REDELIVER_INTENT;
+                stopProxy();
+                return START_NOT_STICKY;
+            }
+            if (stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+                stopProxy();
+                return START_NOT_STICKY;
             }
             if (ACTION_RESTART.equals(action)) {
+                stopInProgress = false;
                 restartProxy();
-                return START_REDELIVER_INTENT;
+                return START_STICKY;
             }
             if (!KamiGramProxyCore.available()) {
                 failAndFallback("Локальный прокси недоступен");
                 return START_NOT_STICKY;
             }
+            stopInProgress = false;
             startProxy(secret(this));
         } catch (Throwable throwable) {
             KamiGramLog.e(throwable);
             failAndFallback("Ошибка запуска");
         }
-        return START_REDELIVER_INTENT;
+        return START_STICKY;
     }
 
     @Override
@@ -239,8 +311,27 @@ public class KamiGramWsProxy extends Service {
     public void onDestroy() {
         stopMonitor();
         releaseWakeLock();
+        try {
+            if (KamiGramProxyCore.available()) {
+                KamiGramProxyCore.nativeStop();
+            }
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
         running = false;
         verifiedRunning = false;
+        try {
+            if (Build.VERSION.SDK_INT >= 24) {
+                stopForeground(STOP_FOREGROUND_REMOVE);
+            } else {
+                stopForeground(true);
+            }
+        } catch (Throwable throwable) {
+            KamiGramLog.e(throwable);
+        }
+        if (instance == this) {
+            instance = null;
+        }
         super.onDestroy();
     }
 
@@ -272,6 +363,10 @@ public class KamiGramWsProxy extends Service {
     }
 
     private void startProxy(final String secretKey) {
+        if (stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+            stopProxy();
+            return;
+        }
         if (running || stopInProgress) {
             return;
         }
@@ -313,11 +408,21 @@ public class KamiGramWsProxy extends Service {
             @Override
             public void run() {
                 try {
+                    if (stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+                        KamiGramProxyCore.nativeStop();
+                        return;
+                    }
                     if (coreAlive()) {
                         KamiGramProxyCore.nativeStop();
                     }
                     KamiGramProxyCore.nativeConfigure(POOL_SIZE, cachePath, 1, "");
                     final int code = KamiGramProxyCore.nativeStart(BIND_IP, BASE_PORT, secretKey);
+                    if (stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+                        KamiGramProxyCore.nativeStop();
+                        running = false;
+                        verifiedRunning = false;
+                        return;
+                    }
                     if (code == 0 && !stopInProgress) {
                         running = true;
                         verifiedRunning = true;
@@ -410,6 +515,9 @@ public class KamiGramWsProxy extends Service {
             @Override
             public void run() {
                 try {
+                    if (stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+                        return;
+                    }
                     KamiGramProxyPower.addAndActivate(proxyLink(getApplicationContext()), getApplicationContext());
                 } catch (Throwable throwable) {
                     KamiGramLog.e(throwable);
@@ -430,7 +538,7 @@ public class KamiGramWsProxy extends Service {
                     } catch (InterruptedException interrupted) {
                         return;
                     }
-                    if (stopInProgress) {
+                    if (stopInProgress || stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
                         return;
                     }
                     if (SystemClock.elapsedRealtime() - lastRefresh >= WAKELOCK_REFRESH_MS) {
@@ -455,6 +563,9 @@ public class KamiGramWsProxy extends Service {
     }
 
     private void watchHealth() {
+        if (stopRequested || !KamiGramConfig.value(KamiGramConfig.KEY_WS_PROXY)) {
+            return;
+        }
         boolean up = false;
         long upBytes = 0L;
         long downBytes = 0L;

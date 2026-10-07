@@ -338,7 +338,6 @@ public final class KamiGramBuiltinProxy {
                 return;
             }
             if (!enabled()) {
-                setEnabled(true);
                 return;
             }
             ensureBuiltinsLoaded();

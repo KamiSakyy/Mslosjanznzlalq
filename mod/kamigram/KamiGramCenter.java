@@ -199,6 +199,9 @@ public final class KamiGramCenter {
             Row.toggle("Локальный прокси", KamiGramConfig.KEY_WS_PROXY, onChanged),
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
         });
+        card(root, context, new Row[]{
+            Row.toggle("Режим «только текст»", KamiGramConfig.KEY_TEXT_ONLY, onChanged)
+        });
     }
 
     // ------------------------------------------------------------------ ПРИВАТНОСТЬ
@@ -744,13 +747,7 @@ public final class KamiGramCenter {
                 stateParams.rightMargin = dp(10);
 
                 toggle.setOnToggleListener(checked -> {
-                    KamiGramConfig.set(key, invert ? !checked : checked);
-                    if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
-                        ThemeHook.setTelegramTheme(checked);
-                    } else {
-                        KamiGramGhost.refreshAll();
-                    }
-                    styleState(state, checked, blocked, invert);
+                    applyStoredToggle(key, invert, toggle, state);
                     if (onChanged != null) {
                         onChanged.run();
                     }
@@ -762,19 +759,7 @@ public final class KamiGramCenter {
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 switchParams.leftMargin = dp(2);
                 row.addView(toggle, switchParams);
-                row.setOnClickListener(v -> {
-                    toggle.setChecked(!toggle.isChecked());
-                    KamiGramConfig.set(key, invert ? !toggle.isChecked() : toggle.isChecked());
-                    if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
-                        ThemeHook.setTelegramTheme(toggle.isChecked());
-                    } else {
-                        KamiGramGhost.refreshAll();
-                    }
-                    styleState(state, toggle.isChecked(), blocked, invert);
-                    if (onChanged != null) {
-                        onChanged.run();
-                    }
-                });
+                row.setOnClickListener(v -> toggle.userToggle());
             } else {
                 row.setOnClickListener(v -> {
                     try {
@@ -787,6 +772,21 @@ public final class KamiGramCenter {
                 });
             }
             return row;
+        }
+
+        /** Одна запись в настройки. Подпись и ручка берутся из сохранённого значения, не из жеста. */
+        private static void applyStoredToggle(String key, boolean invert, KamiGramUi.Toggle toggle, TextView state) {
+            final boolean want = invert ? !toggle.isChecked() : toggle.isChecked();
+            KamiGramConfig.set(key, want);
+            if (KamiGramConfig.KEY_TELEGRAM_THEME.equals(key)) {
+                ThemeHook.setTelegramTheme(KamiGramConfig.value(key));
+            } else {
+                KamiGramGhost.refreshAll();
+            }
+            final boolean stored = KamiGramConfig.value(key);
+            final boolean shown = invert ? !stored : stored;
+            toggle.setChecked(shown);
+            styleState(state, shown, false, invert);
         }
 
         /** Подпись состояния: что именно сейчас происходит с этой настройкой. */
