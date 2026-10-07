@@ -247,12 +247,14 @@ public final class KamiGramCenter {
             Row.toggle("Применять Sakura ко всем аккаунтам", KamiGramConfig.KEY_APPLY_ALL, onChanged)
         });
         /* r106: разработчик открывается ВНУТРИ приложения; лишние надписи
-           (кэш, архив, видео поверх приложений) убраны по просьбе пользователя.
+           (архив, видео поверх приложений) убраны по просьбе пользователя.
            Загрузки переехали сюда из вкладки «Память». r107: дубль строки
-           канала убран — такая кнопка уже есть в настройках Telegram. */
+           канала убран — такая кнопка уже есть в настройках Telegram.
+           r137: детальная разбивка памяти — отдельный экран, не штатная очистка. */
         card(root, context, new Row[]{
             Row.action("Разработчик Sakura", () -> KamiGramBranding.openChannelInApp(context)),
-            Row.action("Загрузки", () -> openDownloads(context))
+            Row.action("Загрузки", () -> openDownloads(context)),
+            Row.action("Скрытый кэш", () -> KamiGramHiddenCache.show(context))
         });
         /* r116/r128: глобальный поиск — «только глобальный» и «чистый поиск»
            по категориям (люди / группы / боты / каналы). По умолчанию ВСЕ
@@ -508,8 +510,8 @@ public final class KamiGramCenter {
     }
 
     /**
-     * Родной экран Telegram — единственное место, где Sakura разрешает
-     * пользователю очищать кэш и выбранные категории.
+     * Штатный экран Telegram: категории, которые считает сам Telegram.
+     * Скрытый остаток открывается отдельно и не подменяет этот экран.
      */
     public static void openCacheSettings(Context context) {
         try {

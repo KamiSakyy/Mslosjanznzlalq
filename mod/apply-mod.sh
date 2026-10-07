@@ -2435,7 +2435,7 @@ fi
 # =============================================================================
 if [ "$ZERO_TRAFFIC" = "1" ]; then
     KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
-    for f in KamiGramConfig KamiGramCenter ThemeHook KamiGramSpeed KamiGramNetBoost KamiGramNetFilter KamiGramProxyPower KamiGramChannelGuard KamiGramAutoArchive; do
+    for f in KamiGramConfig KamiGramCenter KamiGramHiddenCache ThemeHook KamiGramSpeed KamiGramNetBoost KamiGramNetFilter KamiGramProxyPower KamiGramChannelGuard KamiGramAutoArchive; do
         [ -f "$KAMIGRAM_SRC/$f.java" ] || die "P105: нет $KAMIGRAM_SRC/$f.java"
         cp -f "$KAMIGRAM_SRC/$f.java" "$KAMI_PKG/$f.java"
     done
@@ -3432,7 +3432,34 @@ DCC="$JAVA_ROOT/org/telegram/messenger/DownloadController.java"
 ! grep -q "KAMIGRAM_NO_GIF" "$DCC" || die "P135: автоскачивание GIF всё ещё режется"
 ! grep -q "KAMIGRAM_NO_STORIES_PRELOAD" "$DCC" || die "P135: предзагрузка историй всё ещё режется"
 grep -q "startRewind(videoPlayer" "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" || die "P135: штатная перемотка видео удалена"
-ok "P135 плеер, очередь загрузок и автоскачивание как в оригинальном Telegram"
+ok "P135 плеер, очередь загрудок и автоскачивание как в оригинальном Telegram"
+
+# =============================================================================
+# P137. r137 — детальный скрытый кэш.
+#      Android показывает приложение / данные / кэш раздельно: APK, files+база,
+#      и только папка cache. Экран считает все файлы, а не фильтр Telegram.
+#      Очистка не вызывает выход и не удаляет tgnet.dat.
+# =============================================================================
+if [ "$ZERO_TRAFFIC" = "1" ]; then
+    KAMI_PKG="$JAVA_ROOT/org/telegram/messenger/kamigram"
+    mkdir -p "$KAMI_PKG"
+    [ -f "$KAMIGRAM_SRC/KamiGramHiddenCache.java" ] || die "P137: нет KamiGramHiddenCache.java"
+    cp -f "$KAMIGRAM_SRC/KamiGramHiddenCache.java" "$KAMI_PKG/KamiGramHiddenCache.java"
+    has "$KAMI_PKG/KamiGramCenter.java" "Скрытый кэш" || die "P137: в центре нет пункта скрытого кэша"
+    has "$KAMI_PKG/KamiGramCenter.java" "KamiGramHiddenCache.show" || die "P137: центр не открывает разбивку"
+    has "$KAMI_PKG/KamiGramHiddenCache.java" "KAMIGRAM_HIDDEN_CACHE_R137" || die "P137: нет маркера разбивки"
+    has "$KAMI_PKG/KamiGramHiddenCache.java" "tgnet.dat" || die "P137: сессия не защищена"
+    has "$KAMI_PKG/KamiGramHiddenCache.java" "clearLocalDatabase" || die "P137: база не чистится штатным путём"
+    if grep -q -E 'fullReset|logOut|performLogout' "$KAMI_PKG/KamiGramHiddenCache.java"; then
+        die "P137: очистка не должна выходить из аккаунта"
+    fi
+    if grep -q -E 'KamiGramCache\.(clear|clearAll|freeMemory)' "$KAMI_PKG/KamiGramCenter.java"; then
+        die "P137: центр снова зовёт пустую очистку KamiGramCache"
+    fi
+    ok "P137: скрытый кэш — разбивка приложения, данных и cache, очистка без выхода"
+else
+    skip "P137 отключено (ZERO_TRAFFIC=0)"
+fi
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что
