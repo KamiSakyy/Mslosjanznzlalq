@@ -95,37 +95,7 @@ def main(argv):
         "жесты яркости/громкости убраны из плавающего окна", failed, done,
     )
 
-    # 3) long-press перемотка в плавающем окне — вон (окно можно тащить)
-    replace_once(
-        os.path.join(ui, "Components", "PipVideoOverlay.java"),
-        "                        AndroidUtilities.runOnUIThread(longClickCallback, 500);\n",
-        "                        /* %s: долгим нажатием больше не включается\n"
-        "                           перемотка — плавающее окно перетаскивается любым хватом. */\n" % MARKER,
-        "перемотка долгим нажатием убрана из плавающего окна", failed, done,
-    )
-
-    # 4) long-press перемотка в полноэкранном видео — вон (просьба пользователя)
-    replace_once(
-        os.path.join(ui, "PhotoViewer.java"),
-        "            if (total > 180 * 1000) {\n"
-        "                boolean forward;\n"
-        "                if (x >= width / 3 * 2) {\n"
-        "                    forward = true;\n"
-        "                } else if (x < width / 3) {\n"
-        "                    forward = false;\n"
-        "                } else {\n"
-        "                    return;\n"
-        "                }\n"
-        "                longVideoPlayerRewinder.startRewind(videoPlayer, forward, currentVideoSpeed);\n"
-        "            } else {\n"
-        "                final boolean forward = x > width / 3;\n"
-        "                videoPlayerRewinder.startRewind(videoPlayer, forward, longPressX, currentVideoSpeed, seekSpeedDrawable);\n"
-        "            }\n",
-        "            /* %s: перемотка долгим нажатием удалена полностью —\n"
-        "               жесты больше не мешают ни просмотру, ни плавающему окну. */\n"
-        "            return;\n" % MARKER,
-        "перемотка долгим нажатием убрана из PhotoViewer", failed, done,
-    )
+    # 3–4) штатная перемотка видео не трогается
 
     # 5) при выданном overlay и открытом видео — только плавающее окно, без системного PiP
     replace_once(

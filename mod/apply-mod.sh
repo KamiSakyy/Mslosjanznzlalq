@@ -60,7 +60,7 @@ DISABLE_BILLING=${DISABLE_BILLING:-0}
 USE_CCACHE=${USE_CCACHE:-1}
 # экономия трафика / размер
 AUTODOWNLOAD_OFF=${AUTODOWNLOAD_OFF:-0}   # r101: автоскачивание как в оригинале (фото/видео/документы грузятся сами)
-NO_STICKERS=${NO_STICKERS:-1}             # стикеры и премиум-эмодзи не загружаются вообще
+NO_STICKERS=${NO_STICKERS:-0}             # стикеры и премиум-эмодзи грузятся как в оригинале
 MAX_ECONOMY=${MAX_ECONOMY:-0}             # power-saver (0 = анимации и плавность остаются)
 RES_CONFIGS=${RES_CONFIGS:-ru,en}         # какие языки оставить в APK (all = все)
 SLIM_HEAVY=${SLIM_HEAVY:-1}               # заглушки тяжёлых Lottie-анимаций: 1 | all | 0
@@ -409,7 +409,7 @@ fi
 #      (фото/видео/документы не докачиваются сами ни в Wi-Fi, ни в мобильной сети)
 # =============================================================================
 DC="$TG_DIR/TMessagesProj/src/main/java/org/telegram/messenger/DownloadController.java"
-if [ "$AUTODOWNLOAD_OFF" = "1" ]; then
+if [ "$AUTODOWNLOAD_OFF" = "never" ]; then
     # строки пресетов: mask0_mask1_mask2_mask3_photo_video_doc_audio_preloadVideo_preloadMusic_enabled_lowCallData_bitrate_preloadStories
     # ФОТО теперь скачиваются сами — по нажатию открываются мгновенно; видео и
     # документы по-прежнему только по нажатию (трафик не тратится зря).
@@ -2842,7 +2842,7 @@ if [ "$ZERO_TRAFFIC" = "1" ]; then
     has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_OVERLAY_ONLY_R105" || die "P117: системный PiP не пропускается при overlay"
     ! grep -q "KamiGramVideoGestures.handle" "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" || die "P117: зоны яркости/громкости живы в PhotoViewer"
     ! grep -q "KamiGramVideoGestures.handle" "$JAVA_ROOT/org/telegram/ui/Components/PipVideoOverlay.java" || die "P117: зоны яркости/громкости живы в плавающем окне"
-    ! grep -q "startRewind(videoPlayer" "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" || die "P117: перемотка долгим нажатием жива"
+    grep -q "startRewind(videoPlayer" "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" || die "P117: штатная перемотка видео удалена"
     ok "P117 r105: при выходе из ТГ — только плавающее окно поверх приложений (без системного PiP), жесты яркости/громкости/перемотки убраны, окно перетаскивается, центр не просит уже выданное"
 else
     skip "P117 отключён (ZERO_TRAFFIC=0)"
@@ -2905,7 +2905,7 @@ if grep -q "kamigram_delete_my_messages\|KAMIGRAM_DELETE_MY_MESSAGES" "$JAVA_ROO
 [ -f "$KAMI_PKG/KamiGramDeleteMyMessages.java" ] && die "P122: класс удаления сообщений всё ещё копируется в дерево"
 has "$KAMI_PKG/KamiGramFirstRun.java" "KAMIGRAM_STICKERS_ZERO_R112" || die "P122: разовый сброс стикеров не встал"
 has "$KAMI_PKG/KamiGramConfig.java" "KAMIGRAM_DEFAULT_MEDIA_POLICY_R101" || die "P122: дефолты нулевого трафика стикеров повреждены"
-has "$KAMI_PKG/KamiGramCenter.java" "Не грузить стикеры" || die "P122: тумблер стикеров не стал явным"
+! grep -q "Не грузить стикеры" "$KAMI_PKG/KamiGramCenter.java" || die "P122: запрет стикеров всё ещё в центре"
 ok "P122 r112: «Загрузки» открывают загрузки, «Удалить мои сообщения» убраны полностью, стикеры/премиум-эмодзи = 0 трафика"
 
 # P123. r114 — стикеры: миниатюры панелей/подсказок качались через
@@ -3207,7 +3207,7 @@ PY
 has "$JAVA_ROOT/org/telegram/messenger/FileLoader.java" "KAMIGRAM_TEXT_ONLY_GATE_R123" || die "P129: гейт «только текст» не встал в воронку FileLoader"
 has "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" "KAMIGRAM_TEXT_ONLY_TAP_R123" || die "P129: отметки нажатий не встали в PhotoViewer"
 has "$KAMI_PKG/KamiGramTextOnly.java" "KAMIGRAM_TEXT_ONLY_GATE_R123" || die "P129: класс режима «только текст» не скопирован"
-grep -q "KEY_TEXT_ONLY" "$KAMI_PKG/KamiGramCenter.java" || die "P129: тумблер «только текст» отсутствует в Центре"
+! grep -q "KEY_TEXT_ONLY" "$KAMI_PKG/KamiGramCenter.java" || die "P129: режим «только текст» всё ещё в центре"
 for srv in matrixxx.top p.lite64.top p.lite64.click p.lite64.xyz; do
     grep -q "server=$srv&" "$KAMI_PKG/KamiGramBuiltinProxy.java" || die "P129: новый прокси $srv не добавлен в каталог"
 done
@@ -3401,6 +3401,38 @@ has "$JAVA_ROOT/org/telegram/ui/LaunchActivity.java" "KAMIGRAM_LOCAL_PROXY_EARLY
 has "$JAVA_ROOT/org/telegram/ui/LoginActivity.java" "KAMIGRAM_LOCAL_PROXY_EARLY_R132" || die "P132: локальный прокси не стартует на экране входа"
 ok "P132 r132: перемотка аудио безопасна, локальный прокси поднимается до входа"
 
+
+
+# =============================================================================
+# P135. Плеер, очередь загрузок и автоскачивание — как в оригинале.
+#       Патчи выше могли вставить seek-обёртки и подмену очереди. Здесь эти
+#       файлы возвращаются байт в байт, без новой обёртки.
+# =============================================================================
+if [ -d "$TG_DIR/.git" ]; then
+    git -C "$TG_DIR" checkout -- \
+        TMessagesProj/src/main/java/org/telegram/messenger/MediaController.java \
+        TMessagesProj/src/main/java/org/telegram/ui/Components/VideoPlayer.java \
+        TMessagesProj/src/main/java/org/telegram/messenger/MusicPlayerService.java \
+        TMessagesProj/src/main/java/org/telegram/messenger/FileLoaderPriorityQueue.java \
+        TMessagesProj/src/main/java/org/telegram/messenger/DownloadController.java \
+        || die "P135: не удалось вернуть штатные файлы плеера и загрузок"
+else
+    die "P135: нет git-дерева Telegram, штатный плеер нечем вернуть"
+fi
+VP="$JAVA_ROOT/org/telegram/ui/Components/VideoPlayer.java"
+MC="$JAVA_ROOT/org/telegram/messenger/MediaController.java"
+MS="$JAVA_ROOT/org/telegram/messenger/MusicPlayerService.java"
+PQ="$JAVA_ROOT/org/telegram/messenger/FileLoaderPriorityQueue.java"
+DCC="$JAVA_ROOT/org/telegram/messenger/DownloadController.java"
+! grep -q "KAMIGRAM_AUDIO_GUARD_R132" "$VP" || die "P135: в плеере осталась обёртка перемотки"
+! grep -q "KAMIGRAM_AUDIO_SEEK_SAFE_R116" "$MC" || die "P135: в MediaController осталась обёртка перемотки"
+! grep -q "KamiGramAudioGuard" "$MC" || die "P135: MediaController всё ещё зовёт стража перемотки"
+! grep -q "KAMIGRAM_MUSIC_SEEK_SAFE_R116" "$MS" || die "P135: системная перемотка всё ещё обёрнута"
+! grep -q "KAMIGRAM_NET_FOCUS_LOOP" "$PQ" || die "P135: очередь загрузок всё ещё подменена"
+! grep -q "KAMIGRAM_NO_GIF" "$DCC" || die "P135: автоскачивание GIF всё ещё режется"
+! grep -q "KAMIGRAM_NO_STORIES_PRELOAD" "$DCC" || die "P135: предзагрузка историй всё ещё режется"
+grep -q "startRewind(videoPlayer" "$JAVA_ROOT/org/telegram/ui/PhotoViewer.java" || die "P135: штатная перемотка видео удалена"
+ok "P135 плеер, очередь загрузок и автоскачивание как в оригинальном Telegram"
 
 # P110. r95 — статическая проверка символов перед Gradle.
 #      javac падал с «cannot find symbol» уже после 15 минут сборки, потому что

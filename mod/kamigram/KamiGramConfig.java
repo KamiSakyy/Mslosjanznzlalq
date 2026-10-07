@@ -300,10 +300,8 @@ public final class KamiGramConfig {
         if (KEY_WS_PROXY.equals(key)) {
             return true;
         }
-        if (KEY_NO_STICKERS.equals(key) || KEY_NO_ANIMATED_EMOJI.equals(key)
-            || KEY_NO_STORIES.equals(key)) {
-            return true;
-        }
+        /* r135: стикеры, эмодзи и истории грузятся как в оригинале.
+           Старые ключи в настройках больше не включают запрет. */
         if (KEY_SEARCH_PEOPLE.equals(key) || KEY_SEARCH_GROUPS.equals(key)
             || KEY_SEARCH_BOTS.equals(key) || KEY_SEARCH_CHANNELS.equals(key)) {
             return true;
@@ -431,17 +429,17 @@ public final class KamiGramConfig {
     }
 
     public static boolean fastNet() {
-        return value(KEY_FAST_NET);
+        return false;
     }
 
-    /** Режим «только текст»: максимальная экономия трафика. */
+    /** Режим «только текст» снят: медиа грузится как в оригинале. */
     public static boolean textOnly() {
-        return value(KEY_TEXT_ONLY);
+        return false;
     }
 
     /** Скрывать сообщения с метками рекламы. */
     public static boolean adsFilter() {
-        return value(KEY_ADS_FILTER);
+        return false;
     }
 
     /** Встроенные прокси сборки (SakuProxy) с моментальным авто-роутингом. */
@@ -463,40 +461,39 @@ public final class KamiGramConfig {
     }
 
     public static boolean noStickers() {
-        return value(KEY_NO_STICKERS);
+        return false;
     }
 
     public static boolean noStories() {
-        return value(KEY_NO_STORIES);
+        return false;
     }
 
     public static boolean noAnimatedEmoji() {
-        return value(KEY_NO_ANIMATED_EMOJI);
+        return false;
     }
 
     public static boolean noGifs() {
-        return value(KEY_NO_GIFS);
+        return false;
     }
 
     public static boolean noLinkPreview() {
-        return value(KEY_NO_LINK_PREVIEW);
+        return false;
     }
 
     public static boolean noGifSearch() {
-        return value(KEY_NO_GIF_SEARCH);
+        return false;
     }
 
     public static boolean noTopPeers() {
-        return value(KEY_NO_TOP_PEERS);
+        return false;
     }
 
     public static boolean noAds() {
-        /* r106: реклама выключена навсегда, включить обратно невозможно. */
-        return true;
+        return false;
     }
 
     public static boolean noPremiumUi() {
-        return value(KEY_NO_PREMIUM_UI);
+        return false;
     }
 
     /**
@@ -652,7 +649,7 @@ public final class KamiGramConfig {
 
     /** «Отправлять всегда HD»: фото/видео уходят в максимальном качестве. */
     public static boolean sendHd() {
-        return value(KEY_SEND_HD);
+        return false;
     }
 
     /** «Пересылать без имени»: пересылки всегда без имени отправителя. */
@@ -662,7 +659,7 @@ public final class KamiGramConfig {
 
     /** «Точечный буст»: нажатое медиа качает первым и со всеми потоками. */
     public static boolean netFocus() {
-        return value(KEY_NET_FOCUS);
+        return false;
     }
 
 }

@@ -197,25 +197,7 @@ public final class KamiGramCenter {
         card(root, context, new Row[]{
             Row.toggle("SakuProxy", KamiGramConfig.KEY_BUILTIN_PROXY, onChanged),
             Row.toggle("Локальный прокси", KamiGramConfig.KEY_WS_PROXY, onChanged),
-            Row.toggle("Ускорение загрузок", KamiGramConfig.KEY_FAST_NET, onChanged),
             Row.toggle("Прокси из буфера обмена", KamiGramConfig.KEY_AUTO_PROXY_CLIPBOARD, onChanged)
-        });
-        card(root, context, new Row[]{
-            Row.toggle("Не грузить истории", KamiGramConfig.KEY_NO_STORIES, onChanged)
-        });
-        card(root, context, new Row[]{
-            /* KAMIGRAM_STICKERS_ZERO_R112: явные формулировки — переключатель
-               ВКЛЮЧЕН = НЕ загружается (0 трафика). Раньше строки назывались
-               «Стикеры»/«Премиум-эмодзи» с обратным смыслом, и включенный
-               переключатель означал «загружать» — отсюда лишний трафик. */
-            Row.toggle("Не грузить стикеры", KamiGramConfig.KEY_NO_STICKERS, onChanged),
-            Row.toggle("Не грузить премиум-эмодзи", KamiGramConfig.KEY_NO_ANIMATED_EMOJI, onChanged),
-            Row.toggle("Режим «только текст»", KamiGramConfig.KEY_TEXT_ONLY, onChanged),
-            Row.toggle("Витрина Premium и подарки", KamiGramConfig.KEY_NO_PREMIUM_UI, onChanged),
-            Row.toggle("GIF и анимации", KamiGramConfig.KEY_NO_GIFS, onChanged),
-            Row.toggle("Превью ссылок", KamiGramConfig.KEY_NO_LINK_PREVIEW, onChanged),
-            Row.toggle("Поиск GIF и стикеров", KamiGramConfig.KEY_NO_GIF_SEARCH, onChanged),
-            Row.toggle("Часто используемые контакты", KamiGramConfig.KEY_NO_TOP_PEERS, onChanged)
         });
     }
 
@@ -254,11 +236,7 @@ public final class KamiGramCenter {
 
     private static void fillOther(LinearLayout root, final Context context, final Runnable onChanged) {
         card(root, context, new Row[]{
-            Row.toggle("Отправлять всегда HD", KamiGramConfig.KEY_SEND_HD, onChanged),
             Row.toggle("Пересылать без имени", KamiGramConfig.KEY_FORWARD_NO_NAME, onChanged)
-        });
-        card(root, context, new Row[]{
-            Row.toggle("Фокус скорости на нажатом файле", KamiGramConfig.KEY_NET_FOCUS, onChanged)
         });
         card(root, context, new Row[]{
             // The AsuMeo row is gone: its handler was removed together with the
@@ -824,8 +802,7 @@ public final class KamiGramCenter {
         }
 
         private static boolean invertible(String key) {
-            /* r112: стикеры, премиум-эмодзи и истории больше НЕ инвертируются —
-               строки называются «Не грузить …», и ВКЛ = запрет загрузки. */
+            /* r135: запреты загрузки из центра убраны. */
             return KamiGramConfig.KEY_NO_PREMIUM_UI.equals(key)
                 || KamiGramConfig.KEY_NO_GIFS.equals(key)
                 || KamiGramConfig.KEY_NO_LINK_PREVIEW.equals(key)

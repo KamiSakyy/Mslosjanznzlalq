@@ -51,8 +51,8 @@ on:
         default: "0"
         type: string
       no_stickers:
-        description: "Не загружать стикеры и премиум-эмодзи по умолчанию (1/0, r101: по умолчанию 1 — это единственные заблокированные медиа вместе с историями)"
-        default: "1"
+        description: "Не загружать стикеры и премиум-эмодзи (1/0). По умолчанию 0 — грузятся как в оригинале."
+        default: "0"
         type: string
       autodownload_off:
         description: "Автоскачивание медиа выключено по умолчанию (1/0, r101: по умолчанию 0 — фото/видео/документы грузятся как в оригинале)"
@@ -105,7 +105,7 @@ jobs:
       TG_REF: ${{ inputs.tg_ref || '9552e5541e1274b9557c9832b204dbfcaf44b3dc' }}
       DISABLE_BILLING: ${{ inputs.disable_billing || '0' }}
       MAX_ECONOMY: ${{ inputs.max_economy || '0' }}
-      NO_STICKERS: ${{ inputs.no_stickers || '1' }}
+      NO_STICKERS: ${{ inputs.no_stickers || '0' }}
       AUTODOWNLOAD_OFF: ${{ inputs.autodownload_off || '0' }}
       SLIM_HEAVY: ${{ inputs.slim_heavy || '1' }}
       RES_CONFIGS: ${{ inputs.res_configs || 'ru,en' }}

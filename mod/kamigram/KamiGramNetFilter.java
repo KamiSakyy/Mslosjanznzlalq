@@ -232,11 +232,7 @@ public final class KamiGramNetFilter {
 
     /** Media policy switch: when enabled, sticker sets never enter the network. */
     public static boolean stickersBlocked() {
-        try {
-            return KamiGramConfig.value(KamiGramConfig.KEY_NO_STICKERS);
-        } catch (Throwable ignore) {
-            return false;
-        }
+        return false;
     }
 
     /**

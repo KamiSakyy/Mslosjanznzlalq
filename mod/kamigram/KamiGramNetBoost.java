@@ -118,11 +118,7 @@ public final class KamiGramNetBoost {
 
     /** Есть ли у файла фокус (для усиления потоков именно у него). */
     public static boolean isFocused(int account, String fileName) {
-        try {
-            return fileName != null && fileName.equals(focusFile(account));
-        } catch (Throwable ignore) {
-            return false;
-        }
+        return false;
     }
 
     /** Продлить фокус (вызывается при каждом движении прогресса). */

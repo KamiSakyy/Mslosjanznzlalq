@@ -27,9 +27,9 @@ public final class KamiGramSpeed {
     private KamiGramSpeed() {
     }
 
-    /** Быстрый режим включён (по умолчанию да). */
+    /** Размеры блоков и число потоков — штатные, без подмены. */
     public static boolean enabled() {
-        return KamiGramConfig.fastNet();
+        return false;
     }
 
     private static int networkType() {
